@@ -754,7 +754,26 @@ class AdvancedAkaiController:
 
     def start_shutdown_timer(self):
         if self.shutdown_timer is None:
+            # Silenciar de inmediato las notas extremas C1 y C3 en el piano para evitar el choque sonoro estridente
+            try:
+                active = sorted(list(self.held_keyboard_notes.keys()))
+                if len(active) >= 2:
+                    fluid.send(f"noteoff 0 {active[0]}\nnoteoff 0 {active[-1]}")
+            except Exception:
+                pass
+
             print("\n[AVISO APAGADO] Mantén pulsadas ambas teclas C1 y C3 durante 3 segundos para apagar el sistema...", flush=True)
+
+            # Toque sutil de aviso (Do central apagado en canal 15 Celesta)
+            def _subtle_warning():
+                try:
+                    fluid.send("prog 15 8\ncc 15 91 80\nnoteon 15 67 60")
+                    time.sleep(0.08)
+                    fluid.send("noteoff 15 67")
+                except Exception:
+                    pass
+            threading.Thread(target=_subtle_warning, daemon=True).start()
+
             self.shutdown_timer = threading.Timer(3.0, self.execute_safe_shutdown)
             self.shutdown_timer.daemon = True
             self.shutdown_timer.start()
@@ -770,13 +789,17 @@ class AdvancedAkaiController:
         print(" Guardando datos y cerrando sistema operativo...", flush=True)
         print("="*65, flush=True)
 
-        # Chime musical descendente de despedida a través de la Roland S-1
+        # Chime sutil descendente de despedida (lo opuesto exacto a la música de inicio)
+        # La música de inicio es: [60, 64, 67, 72, 76, 84] (C4 ascendente)
+        # La música de apagado es: [84, 76, 72, 67, 64, 60] suave y gradual en celesta
         try:
-            for n in [84, 79, 76, 72, 60]:
-                fluid.send(f"noteon 0 {n} 100")
+            fluid.send("prog 15 8\ncc 15 91 85")
+            shutdown_notes = [84, 76, 72, 67, 64, 60]
+            for n in shutdown_notes:
+                fluid.send(f"noteon 15 {n} 80")
                 time.sleep(0.12)
-                fluid.send(f"noteoff 0 {n}")
-            time.sleep(0.4)
+                fluid.send(f"noteoff 15 {n}")
+            time.sleep(0.3)
         except Exception:
             pass
 
