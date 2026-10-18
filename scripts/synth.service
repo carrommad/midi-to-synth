@@ -1,0 +1,16 @@
+[Unit]
+Description=FluidSynth Standalone Synth & Beat Station for Akai MPK Mini
+After=sound.target
+
+[Service]
+Type=simple
+User=cromero
+WorkingDirectory=/home/cromero
+ExecStart=/home/cromero/raspberry-mk2/scripts/start-synth.sh
+Restart=always
+RestartSec=3
+LimitRTPRIO=95
+LimitMEMLOCK=infinity
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Guía Rápida Akai MPK Mini MK3 - FluidSynth Standalone</title>
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 8mm 12mm 8mm 12mm;
+  }
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    background: #ffffff;
+    margin: 0;
+    padding: 0;
+    font-size: 8.4pt;
+    line-height: 1.28;
+  }
+  
+  /* Header banner */
+  .header-card {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #312e81 100%);
+    color: white;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .header-card h1 {
+    margin: 0;
+    font-size: 16pt;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    color: #ffffff;
+  }
+  .header-card .subtitle {
+    margin: 3px 0 0 0;
+    font-size: 9pt;
+    color: #cbd5e1;
+    font-weight: 400;
+  }
+  .badge {
+    background: #4f46e5;
+    color: #ffffff;
+    font-size: 7.5pt;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+
+  /* Grid layout */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 9px 11px;
+    page-break-inside: avoid;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1.5px solid #f1f5f9;
+  }
+  .card-header h2 {
+    margin: 0;
+    font-size: 10pt;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .card-header .icon {
+    font-size: 11pt;
+  }
+
+  /* Diagrams & Keyboards */
+  .diagram-box {
+    background: #0f172a;
+    color: #f8fafc;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 7.6pt;
+    line-height: 1.25;
+    margin-bottom: 6px;
+    white-space: pre;
+    overflow: hidden;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8pt;
+    margin: 3px 0;
+  }
+  th {
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 700;
+    text-align: left;
+    padding: 4px 6px;
+    border: 1px solid #e2e8f0;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  td {
+    padding: 4px 6px;
+    border: 1px solid #e2e8f0;
+    vertical-align: middle;
+  }
+  tr:nth-child(even) td {
+    background: #f8fafc;
+  }
+
+  /* Key badge tags */
+  .key-tag {
+    display: inline-block;
+    background: #e2e8f0;
+    color: #0f172a;
+    font-family: 'Consolas', monospace;
+    font-weight: 700;
+    font-size: 7.5pt;
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    margin: 0 1px;
+  }
+  .key-tag.white {
+    background: #ffffff;
+    border-color: #94a3b8;
+  }
+  .key-tag.black {
+    background: #1e293b;
+    color: #ffffff;
+    border-color: #0f172a;
+  }
+  .key-tag.accent {
+    background: #e0e7ff;
+    color: #3730a3;
+    border-color: #c7d2fe;
+  }
+  .key-tag.red {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fecaca;
+  }
+
+  /* Step by step workflow */
+  .workflow-step {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 5px;
+    align-items: flex-start;
+  }
+  .step-num {
+    background: #4f46e5;
+    color: white;
+    font-weight: 800;
+    font-size: 7.5pt;
+    min-width: 17px;
+    height: 17px;
+    line-height: 17px;
+    text-align: center;
+    border-radius: 50%;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+  .step-content {
+    flex: 1;
+    font-size: 8.2pt;
+  }
+  .step-title {
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  /* Matrix visual representations */
+  .matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin: 6px 0;
+  }
+  .matrix-cell {
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 5px 4px;
+    text-align: center;
+    background: #f8fafc;
+  }
+  .matrix-cell.top {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+  }
+  .matrix-cell.bottom {
+    background: #fdf4ff;
+    border-color: #f5d0fe;
+  }
+  .matrix-cell .cell-title {
+    font-weight: 800;
+    font-size: 7.2pt;
+    color: #1e293b;
+    display: block;
+    margin-bottom: 1px;
+  }
+  .matrix-cell .cell-sub {
+    font-size: 6.8pt;
+    color: #64748b;
+    line-height: 1.15;
+  }
+
+  .pad-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin: 5px 0;
+  }
+  .pad-cell {
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 4px 3px;
+    text-align: center;
+    background: #ffffff;
+  }
+  .pad-cell.layer {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+  }
+  .pad-cell.cmd {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+  .pad-cell .pad-label {
+    font-weight: 800;
+    font-size: 7.5pt;
+    color: #0f172a;
+  }
+  .pad-cell .pad-desc {
+    font-size: 6.8pt;
+    color: #475569;
+    line-height: 1.1;
+  }
+
+  .alert-box {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 5px;
+    padding: 6px 9px;
+    font-size: 7.8pt;
+    color: #92400e;
+    margin-top: 5px;
+  }
+
+  .page-break {
+    page-break-after: always;
+  }
+
+  .footer-note {
+    font-size: 7pt;
+    color: #94a3b8;
+    text-align: center;
+    margin-top: 8px;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- PÁGINA 1 -->
+<div class="header-card" style="margin-bottom: 8px;">
+  <div>
+    <h1>AKAI MPK MINI MK3 &bull; STANDALONE SYNTH</h1>
+    <div class="subtitle">Guía de Operación en Vivo sin Pantalla &bull; FluidSynth en Raspberry Pi</div>
+  </div>
+  <div class="badge">Cheat Sheet v2.0</div>
+</div>
+
+<!-- INTRODUCCIÓN AL SISTEMA RASPBERRY PI STANDALONE -->
+<div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-left: 4px solid #4f46e5; border-radius: 6px; padding: 7px 11px; margin-bottom: 9px; font-size: 7.9pt; color: #334155; line-height: 1.3;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+    <strong style="color: #0f172a; font-size: 8.5pt;">🍓 Sistema Autónomo Headless (Raspberry Pi 3B + FluidSynth)</strong>
+    <span style="font-size: 7.2pt; background: #e0e7ff; color: #3730a3; padding: 1px 6px; border-radius: 4px; font-weight: 700;">Zero-Screen &bull; Instant-Boot</span>
+  </div>
+  Este instrumento convierte el <strong>Akai MPK Mini</strong> en una estación musical de directo 100% independiente alimentada por una Raspberry Pi (sin ordenador, monitor ni ratón). El sistema arranca automáticamente en menos de 15 segundos al conectar la alimentación, reproduciendo un arpegio ascendente de bienvenida cuando el motor de audio de baja latencia (FluidSynth) y el controlador Python están listos para tocar.
+</div>
+
+<!-- FILA 1: MODIFICADORES 2x2 & FULL LEVEL -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🎹</span>
+      <h2>Arquitectura de Modificadores (Extremo Izquierdo)</h2>
+    </div>
+    <div style="background: #0f172a; border-radius: 6px; padding: 10px 12px; margin-bottom: 6px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);">
+      <svg viewBox="0 0 460 135" style="width: 100%; height: auto; display: block; font-family: 'Segoe UI', system-ui, sans-serif;">
+        <!-- Top Callout Badges (Black Keys) -->
+        <!-- Callout C#1 (Drums) -->
+        <path d="M 45 42 L 45 23" stroke="#f59e0b" stroke-width="1.8" stroke-dasharray="2,2"/>
+        <rect x="4" y="4" width="105" height="19" rx="4" fill="#78350f" stroke="#f59e0b" stroke-width="1.2"/>
+        <text x="56.5" y="17" fill="#fef3c7" font-size="8.6" font-weight="800" text-anchor="middle">C#1: 24 DRUM KITS</text>
+
+        <!-- Callout D#1 (Presets) -->
+        <path d="M 81 42 L 175 23" stroke="#ec4899" stroke-width="1.8" stroke-dasharray="2,2"/>
+        <rect x="116" y="4" width="124" height="19" rx="4" fill="#831843" stroke="#ec4899" stroke-width="1.2"/>
+        <text x="178" y="17" fill="#fce7f3" font-size="8.6" font-weight="800" text-anchor="middle">D#1: 8 PRESET BEATS</text>
+
+        <!-- Selection zone label on top right -->
+        <rect x="256" y="4" width="194" height="19" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1.2"/>
+        <text x="353" y="17" fill="#cbd5e1" font-size="8.4" font-weight="700" text-anchor="middle">TECLAS DE SELECCIÓN (3 a 25)</text>
+
+        <!-- Piano Keyboard Base -->
+        <g transform="translate(10, 36)">
+          <!-- White Keys -->
+          <!-- C1 (Modifier 1: KEYS) -->
+          <rect x="0" y="0" width="34" height="66" rx="3" fill="#3b82f6" stroke="#1d4ed8" stroke-width="1.8"/>
+          <text x="17" y="58" fill="#ffffff" font-size="10" font-weight="900" text-anchor="middle">C1</text>
+
+          <!-- D1 (Modifier 2: LOOPER) -->
+          <rect x="36" y="0" width="34" height="66" rx="3" fill="#10b981" stroke="#047857" stroke-width="1.8"/>
+          <text x="53" y="58" fill="#ffffff" font-size="10" font-weight="900" text-anchor="middle">D1</text>
+
+          <!-- Regular White keys (E1..B1, C2) -->
+          <rect x="72" y="0" width="28" height="66" rx="2" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+          <text x="86" y="58" fill="#64748b" font-size="8.2" font-weight="700" text-anchor="middle">E1</text>
+
+          <rect x="102" y="0" width="28" height="66" rx="2" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+          <text x="116" y="58" fill="#64748b" font-size="8.2" font-weight="700" text-anchor="middle">F1</text>
+
+          <rect x="132" y="0" width="28" height="66" rx="2" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+          <text x="146" y="58" fill="#64748b" font-size="8.2" font-weight="700" text-anchor="middle">G1</text>
+
+          <rect x="162" y="0" width="28" height="66" rx="2" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+          <text x="176" y="58" fill="#64748b" font-size="8.2" font-weight="700" text-anchor="middle">A1</text>
+
+          <rect x="192" y="0" width="28" height="66" rx="2" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+          <text x="206" y="58" fill="#64748b" font-size="8.2" font-weight="700" text-anchor="middle">B1</text>
+
+          <rect x="222" y="0" width="28" height="66" rx="2" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+          <text x="236" y="58" fill="#64748b" font-size="8.2" font-weight="700" text-anchor="middle">C2</text>
+
+          <!-- Selection strip representing the rest of keyboard -->
+          <rect x="252" y="0" width="188" height="66" rx="4" fill="#1e293b" stroke="#38bdf8" stroke-width="1.4" stroke-dasharray="4,3"/>
+          <text x="346" y="30" fill="#38bdf8" font-size="9" font-weight="800" text-anchor="middle">Toca cualquier tecla a la derecha</text>
+          <text x="346" y="46" fill="#94a3b8" font-size="8.2" font-weight="600" text-anchor="middle">para cambiar instrumento/kit</text>
+
+          <!-- Black Keys -->
+          <!-- C#1 (Modifier: DRUMS) -->
+          <rect x="24" y="0" width="21" height="40" rx="2" fill="#d97706" stroke="#fef3c7" stroke-width="1.4"/>
+          <text x="34.5" y="26" fill="#ffffff" font-size="8.2" font-weight="900" text-anchor="middle">C#1</text>
+
+          <!-- D#1 (Modifier: PRESETS) -->
+          <rect x="60" y="0" width="21" height="40" rx="2" fill="#db2777" stroke="#fce7f3" stroke-width="1.4"/>
+          <text x="70.5" y="26" fill="#ffffff" font-size="8.2" font-weight="900" text-anchor="middle">D#1</text>
+
+          <!-- Standard black keys -->
+          <rect x="122" y="0" width="17" height="40" rx="2" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+          <rect x="152" y="0" width="17" height="40" rx="2" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+          <rect x="182" y="0" width="17" height="40" rx="2" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+        </g>
+
+        <!-- Bottom Callout Badges (White Keys) -->
+        <!-- Callout C1 -->
+        <path d="M 27 102 L 27 113" stroke="#60a5fa" stroke-width="1.8" stroke-dasharray="2,2"/>
+        <rect x="4" y="112" width="112" height="19" rx="4" fill="#1e3a8a" stroke="#60a5fa" stroke-width="1.2"/>
+        <text x="60" y="125" fill="#dbeafe" font-size="8.6" font-weight="800" text-anchor="middle">C1: 24 KEYS / PIANOS</text>
+
+        <!-- Callout D1 -->
+        <path d="M 63 102 L 175 113" stroke="#34d399" stroke-width="1.8" stroke-dasharray="2,2"/>
+        <rect x="120" y="112" width="120" height="19" rx="4" fill="#064e3b" stroke="#34d399" stroke-width="1.2"/>
+        <text x="180" y="125" fill="#d1fae5" font-size="8.6" font-weight="800" text-anchor="middle">D1: LIVE BEAT LOOPER</text>
+      </svg>
+    </div>
+    <table style="margin-top: 4px;">
+      <tr>
+        <th style="width: 28%;">Modificador</th>
+        <th style="width: 32%;">Disparador</th>
+        <th>Efecto Inmediato en Vivo</th>
+      </tr>
+      <tr>
+        <td><span class="key-tag white">C1</span> (1ª Blanca)</td>
+        <td>Teclas <span class="key-tag">3..25</span></td>
+        <td><strong>24 Pianos y Sintes</strong> (Preview Celesta)</td>
+      </tr>
+      <tr>
+        <td><span class="key-tag black">C#1</span> (1ª Negra)</td>
+        <td>Teclas <span class="key-tag">3..25</span></td>
+        <td><strong>24 Kits de Batería</strong> (Preview Drum)</td>
+      </tr>
+      <tr>
+        <td><span class="key-tag white">D1</span> (2ª Blanca)</td>
+        <td>Pads <span class="key-tag">1..8</span></td>
+        <td><strong>LIVE BEAT LOOPER</strong> (4 Capas, Mutes)</td>
+      </tr>
+      <tr>
+        <td><span class="key-tag black">D#1</span> (2ª Negra)</td>
+        <td>Pads <span class="key-tag">1..8</span></td>
+        <td><strong>8 Ritmos Pregrabados</strong> (Lo-Fi a Trap)</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">⚡</span>
+      <h2>Atajos Globales de Seguridad y Respuesta</h2>
+    </div>
+    <table style="margin-bottom: 6px;">
+      <tr>
+        <th style="width: 35%;">Combinación</th>
+        <th>Comportamiento y Sonido</th>
+      </tr>
+      <tr>
+        <td><span class="key-tag white">C1</span> + <span class="key-tag black">C#1</span><br><small style="color:#64748b;">(Ambas a la vez)</small></td>
+        <td>
+          <strong>FULL LEVEL ON / OFF</strong><br>
+          Alterna entre volumen máximo (127) y sensibilidad táctil dinámica. Suena chime suave de confirmación.
+        </td>
+      </tr>
+      <tr>
+        <td><span class="key-tag white">C1</span> + <span class="key-tag accent">C3</span><br><small style="color:#64748b;">(Sostener 3 seg)</small></td>
+        <td>
+          <strong style="color:#b91c1c;">APAGADO SEGURO DE LA PI</strong><br>
+          C1 (más grave) + C3 (más aguda). Suena melodía descendente de despedida y apaga el SO protegiendo la SD.
+        </td>
+      </tr>
+      <tr>
+        <td><span class="key-tag">JOYSTICK</span></td>
+        <td>
+          <strong>Horizontal:</strong> Pitch Bend suave (&plusmn;2 semitonos).<br>
+          <strong>Vertical:</strong> Modulación & Vibrato expresivo.
+        </td>
+      </tr>
+    </table>
+    <div class="alert-box">
+      <strong>Zero Drum Leak:</strong> Al pulsar modificadores con pads o teclas, el sonido directo se silencia instantáneamente sin fugas de percusión.
+    </div>
+  </div>
+</div>
+
+<!-- FILA 2: LAS 8 PERILLAS (KNOBS) -->
+<div class="card" style="margin-bottom: 10px;">
+  <div class="card-header">
+    <span class="icon">🎛</span>
+    <h2>Las 8 Perillas Giratorias (Knobs) &bull; Matriz Simétrica 4x2</h2>
+  </div>
+  <div class="matrix-grid">
+    <div class="matrix-cell top">
+      <span class="cell-title">K1 &bull; DRUM REVERB</span>
+      <span class="cell-sub">Eco/Reverb en Caja y Platos (CC 91)</span>
+    </div>
+    <div class="matrix-cell top">
+      <span class="cell-title">K2 &bull; DRUM PITCH</span>
+      <span class="cell-sub">Afinación &plusmn;12 st (808 Sub a Trap)</span>
+    </div>
+    <div class="matrix-cell top">
+      <span class="cell-title">K3 &bull; LOOPER TEMPO</span>
+      <span class="cell-sub">Velocidad en vivo (30 a 210 BPM)</span>
+    </div>
+    <div class="matrix-cell top">
+      <span class="cell-title">K4 &bull; DRUM VOLUME</span>
+      <span class="cell-sub">Volumen de Batería y Pads (CC 7 Ch 10)</span>
+    </div>
+    <div class="matrix-cell bottom">
+      <span class="cell-title">K5 &bull; KEYS REVERB</span>
+      <span class="cell-sub">Reverb Catedral en Teclado (DSP)</span>
+    </div>
+    <div class="matrix-cell bottom">
+      <span class="cell-title">K6 &bull; KEYS CHORUS</span>
+      <span class="cell-sub">Grosor estéreo vintage Roland Juno</span>
+    </div>
+    <div class="matrix-cell bottom">
+      <span class="cell-title">K7 &bull; MOD SPEED</span>
+      <span class="cell-sub">Leslie Rotary / Trémolo (0.2 - 5 Hz)</span>
+    </div>
+    <div class="matrix-cell bottom">
+      <span class="cell-title">K8 &bull; MASTER VOL</span>
+      <span class="cell-sub">Volumen General (Curva Logarítmica)</span>
+    </div>
+  </div>
+</div>
+
+<!-- FILA 3: LIVE LOOPER HYBRID WORKFLOW -->
+<div class="card">
+  <div class="card-header">
+    <span class="icon">🎙</span>
+    <h2>Live Looper Profesional con Cierre Inteligente (Mantén D1 + Pads)</h2>
+  </div>
+
+  <div class="pad-grid">
+    <div class="pad-cell layer">
+      <div class="pad-label">PAD 5 &bull; CAPA 1</div>
+      <div class="pad-desc">Base / Bombo<br><strong>Tap:</strong> Mute | <strong>Hold:</strong> Del</div>
+    </div>
+    <div class="pad-cell layer">
+      <div class="pad-label">PAD 6 &bull; CAPA 2</div>
+      <div class="pad-desc">Caja / Ritmo<br><strong>Tap:</strong> Mute | <strong>Hold:</strong> Del</div>
+    </div>
+    <div class="pad-cell layer">
+      <div class="pad-label">PAD 7 &bull; CAPA 3</div>
+      <div class="pad-desc">Melodía / Armonía<br><strong>Tap:</strong> Mute | <strong>Hold:</strong> Del</div>
+    </div>
+    <div class="pad-cell layer">
+      <div class="pad-label">PAD 8 &bull; CAPA 4</div>
+      <div class="pad-desc">Arreglos / Solos<br><strong>Tap:</strong> Mute | <strong>Hold:</strong> Del</div>
+    </div>
+    <div class="pad-cell cmd">
+      <div class="pad-label">PAD 1 &bull; REC / PLAY</div>
+      <div class="pad-desc">Armar / Overdub / Cerrar</div>
+    </div>
+    <div class="pad-cell cmd">
+      <div class="pad-label">PAD 2 &bull; PAUSA</div>
+      <div class="pad-desc">Pausa o Reanuda Loop</div>
+    </div>
+    <div class="pad-cell cmd">
+      <div class="pad-label">PAD 3 &bull; METRÓNOMO</div>
+      <div class="pad-desc">Click Claqueta On/Off</div>
+    </div>
+    <div class="pad-cell cmd">
+      <div class="pad-label">PAD 4 &bull; CLEAR ALL</div>
+      <div class="pad-desc">Borra las 4 capas (Reset)</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
+    <div>
+      <div class="workflow-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <span class="step-title">Armar (D1 + Pad 1):</span> Suena el metrónomo continuo a BPM de K3. Escucha y aclimátate; <strong>no graba silencio</strong>.
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <span class="step-title">Primera Nota = Tiempo 0:</span> En cuanto tocas cualquier tecla o pad, suena chime agudo y arranca la grabación exacta.
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <span class="step-title">Cierre con Redondeo Inteligente:</span> Al terminar tu frase (1, 2 o 4 compases), pulsa <strong>D1 + Pad 1</strong>. Con su margen de tolerancia (~0.5 compás), redondea al compás exacto y <strong>entra en reproducción al instante sin compás vacío</strong>.
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="workflow-step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <span class="step-title">Overdubbing (Capas 2, 3 y 4):</span> Pulsa <strong>D1 + Pad 1</strong> durante la reproducción para grabar encima; vuelve a pulsarlo para cerrar la capa.
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <span class="step-title">Mute & Borrado Individual (Pads 5..8):</span>
+          <br>&bull; <strong>Toque corto:</strong> Silencia / activa esa capa (chime grave/agudo).
+          <br>&bull; <strong>Sostener > 1.0s:</strong> Borra exclusivamente esa pista para regrabarla.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">Continúa en página 2: Catálogo de 24 Instrumentos, 24 Kits de Batería, Modo CC y 8 Grooves Pregrabados &bull; Página 1 de 2</div>
+
+<div class="page-break"></div>
+
+<!-- PÁGINA 2 -->
+<div class="header-card" style="margin-bottom: 10px; padding: 10px 18px;">
+  <div>
+    <h1 style="font-size: 13pt;">REFERENCIA DE SONIDOS, MODOS CC Y GROOVES</h1>
+    <div class="subtitle">Guía de Asignaciones Rápidas para Interpretación en Directo</div>
+  </div>
+  <div class="badge">Página 2 / 2</div>
+</div>
+
+<!-- FILA 1 PÁGINA 2: PADS MODO CC Y 8 PRESETS -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🎚</span>
+      <h2>Pads en Modo CC (Botón físico 'CC' activo)</h2>
+    </div>
+    <table>
+      <tr>
+        <th style="width: 22%;">Pad</th>
+        <th style="width: 38%;">Función</th>
+        <th>Comportamiento en Vivo</th>
+      </tr>
+      <tr>
+        <td><strong>Pad 1</strong></td>
+        <td><strong>Sustain Pedal</strong> (Toggle)</td>
+        <td>Sostiene las notas libres sin pedal de pie.</td>
+      </tr>
+      <tr>
+        <td><strong>Pad 2</strong></td>
+        <td><strong>Portamento</strong> (Glide)</td>
+        <td>Deslizamiento fluido de tono entre notas.</td>
+      </tr>
+      <tr>
+        <td><strong>Pad 3</strong></td>
+        <td><strong>Cutoff Boost</strong></td>
+        <td>Realce de brillo y frecuencias agudas.</td>
+      </tr>
+      <tr>
+        <td><strong>Pad 4</strong></td>
+        <td><strong>Reverb Kill</strong> (Momentáneo)</td>
+        <td>Corte instantáneo de reverb al pulsar.</td>
+      </tr>
+      <tr>
+        <td><strong>Pad 5</strong></td>
+        <td><strong>Chorus Splash</strong> (Momentáneo)</td>
+        <td>Explosión de chorus espacial al pulsar.</td>
+      </tr>
+      <tr>
+        <td><strong>Pad 6</strong></td>
+        <td><strong>Instrumento Anterior</strong></td>
+        <td>Navega hacia atrás en la lista con preview.</td>
+      </tr>
+      <tr>
+        <td><strong>Pad 7</strong></td>
+        <td><strong>Instrumento Siguiente</strong></td>
+        <td>Navega hacia adelante en la lista con preview.</td>
+      </tr>
+      <tr>
+        <td><strong>Pad 8</strong></td>
+        <td><strong>¡PÁNICO! / STOP TOTAL</strong></td>
+        <td>Silencia de golpe notas colgadas y loops.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🥁</span>
+      <h2>8 Ritmos Pregrabados (Mantén D#1 + Pads)</h2>
+    </div>
+    <table>
+      <tr>
+        <th style="width: 20%;">Pad</th>
+        <th style="width: 50%;">Estilo / Patrón Musical</th>
+        <th style="width: 30%;">Tempo Base</th>
+      </tr>
+      <tr>
+        <td><strong>Pad 1</strong></td>
+        <td>Lo-Fi Chill Hop</td>
+        <td><strong>76 BPM</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Pad 2</strong></td>
+        <td>Boom-Bap 90s Classic</td>
+        <td><strong>88 BPM</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Pad 3</strong></td>
+        <td>Modern Trap 808</td>
+        <td><strong>138 BPM</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Pad 4</strong></td>
+        <td>Deep House 4-on-Floor</td>
+        <td><strong>124 BPM</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Pad 5</strong></td>
+        <td>Acoustic Pop / Rock</td>
+        <td><strong>104 BPM</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Pad 6</strong></td>
+        <td>Neo-Soul / Funk Pocket</td>
+        <td><strong>94 BPM</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Pad 7</strong></td>
+        <td>Jazz Swing Ride</td>
+        <td><strong>118 BPM</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Pad 8</strong></td>
+        <td>Afrobeat / Latin Groove</td>
+        <td><strong>108 BPM</strong></td>
+      </tr>
+    </table>
+    <div style="font-size: 7.4pt; color: #64748b; margin-top: 4px;">
+      * Pulsa de nuevo el mismo pad para detener la base. Puedes ajustar la velocidad en directo con el <strong>Knob K3</strong>.
+    </div>
+  </div>
+</div>
+
+<!-- FILA 2 PÁGINA 2: CATÁLOGOS COMPLETOS 24 MELÓDICOS Y 24 BATERÍAS -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🎹</span>
+      <h2>24 Instrumentos Melódicos (Mantén C1 + Tecla)</h2>
+    </div>
+    <table>
+      <tr>
+        <th style="width: 20%;">Tecla</th>
+        <th>Instrumento SoundFont</th>
+        <th style="width: 20%;">Tecla</th>
+        <th>Instrumento SoundFont</th>
+      </tr>
+      <tr>
+        <td><strong>T 3 (D1)</strong></td>
+        <td>Yamaha Grand Piano</td>
+        <td><strong>T 15 (D2)</strong></td>
+        <td>Acoustic Upright Bass</td>
+      </tr>
+      <tr>
+        <td><strong>T 4 (D#1)</strong></td>
+        <td>Bright Acoustic Piano</td>
+        <td><strong>T 16 (D#2)</strong></td>
+        <td>Fingered Electric Bass</td>
+      </tr>
+      <tr>
+        <td><strong>T 5 (E1)</strong></td>
+        <td>Electric Piano (Rhodes)</td>
+        <td><strong>T 17 (E2)</strong></td>
+        <td>Slap Funk Bass</td>
+      </tr>
+      <tr>
+        <td><strong>T 6 (F1)</strong></td>
+        <td>Electric Piano (FM DX7)</td>
+        <td><strong>T 18 (F2)</strong></td>
+        <td>Synth Bass 1 (808 Sub)</td>
+      </tr>
+      <tr>
+        <td><strong>T 7 (F#1)</strong></td>
+        <td>Harpsichord</td>
+        <td><strong>T 19 (F#2)</strong></td>
+        <td>Synth Bass 2 (Acid 303)</td>
+      </tr>
+      <tr>
+        <td><strong>T 8 (G1)</strong></td>
+        <td>Clavinet</td>
+        <td><strong>T 20 (G2)</strong></td>
+        <td>String Ensemble</td>
+      </tr>
+      <tr>
+        <td><strong>T 9 (G#1)</strong></td>
+        <td>Drawbar Organ (B3)</td>
+        <td><strong>T 21 (G#2)</strong></td>
+        <td>Synth Strings</td>
+      </tr>
+      <tr>
+        <td><strong>T 10 (A1)</strong></td>
+        <td>Church Pipe Organ</td>
+        <td><strong>T 22 (A2)</strong></td>
+        <td>Trumpet (Trompeta)</td>
+      </tr>
+      <tr>
+        <td><strong>T 11 (A#1)</strong></td>
+        <td>Nylon Acoustic Guitar</td>
+        <td><strong>T 23 (A#2)</strong></td>
+        <td>Alto Saxophone</td>
+      </tr>
+      <tr>
+        <td><strong>T 12 (B1)</strong></td>
+        <td>Steel String Guitar</td>
+        <td><strong>T 24 (B2)</strong></td>
+        <td>Synth Lead 1 (Square)</td>
+      </tr>
+      <tr>
+        <td><strong>T 13 (C2)</strong></td>
+        <td>Clean Electric Guitar</td>
+        <td><strong>T 25 (C3)</strong></td>
+        <td>Synth Lead 2 (Sawtooth)</td>
+      </tr>
+      <tr>
+        <td><strong>T 14 (C#2)</strong></td>
+        <td>Overdrive Rock Guitar</td>
+        <td><strong>T 26 (C#3)</strong></td>
+        <td>Warm Synth Pad</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🥁</span>
+      <h2>24 Kits de Percusión (Mantén C#1 + Tecla)</h2>
+    </div>
+    <table>
+      <tr>
+        <th style="width: 20%;">Tecla</th>
+        <th>Kit de Batería SoundFont</th>
+        <th style="width: 20%;">Tecla</th>
+        <th>Kit de Batería SoundFont</th>
+      </tr>
+      <tr>
+        <td><strong>T 3 (D1)</strong></td>
+        <td>Standard Drum Kit</td>
+        <td><strong>T 15 (D2)</strong></td>
+        <td>Roland TR-808 Trap</td>
+      </tr>
+      <tr>
+        <td><strong>T 4 (D#1)</strong></td>
+        <td>Standard Kit 1</td>
+        <td><strong>T 16 (D#2)</strong></td>
+        <td>Jazz Drum Kit</td>
+      </tr>
+      <tr>
+        <td><strong>T 5 (E1)</strong></td>
+        <td>Standard Kit 2</td>
+        <td><strong>T 17 (E2)</strong></td>
+        <td>Jazz Kit 1</td>
+      </tr>
+      <tr>
+        <td><strong>T 6 (F1)</strong></td>
+        <td>Standard Kit 3</td>
+        <td><strong>T 18 (F2)</strong></td>
+        <td>Jazz Kit 2</td>
+      </tr>
+      <tr>
+        <td><strong>T 7 (F#1)</strong></td>
+        <td>Standard Kit 4</td>
+        <td><strong>T 19 (F#2)</strong></td>
+        <td>Brush Kit (Escobillas)</td>
+      </tr>
+      <tr>
+        <td><strong>T 8 (G1)</strong></td>
+        <td>Room Rock Drum Kit</td>
+        <td><strong>T 20 (G2)</strong></td>
+        <td>Brush Kit 1</td>
+      </tr>
+      <tr>
+        <td><strong>T 9 (G#1)</strong></td>
+        <td>Room Kit 1</td>
+        <td><strong>T 21 (G#2)</strong></td>
+        <td>Orchestral Percussion</td>
+      </tr>
+      <tr>
+        <td><strong>T 10 (A1)</strong></td>
+        <td>Room Kit 2</td>
+        <td><strong>T 22 (A2)</strong></td>
+        <td>Standard Drum (Alt)</td>
+      </tr>
+      <tr>
+        <td><strong>T 11 (A#1)</strong></td>
+        <td>Power Gated Rock Kit</td>
+        <td><strong>T 23 (A#2)</strong></td>
+        <td>Room Rock (Alt)</td>
+      </tr>
+      <tr>
+        <td><strong>T 12 (B1)</strong></td>
+        <td>Power Kit 1</td>
+        <td><strong>T 24 (B2)</strong></td>
+        <td>Power Rock (Alt)</td>
+      </tr>
+      <tr>
+        <td><strong>T 13 (C2)</strong></td>
+        <td>Power Kit 2</td>
+        <td><strong>T 25 (C3)</strong></td>
+        <td>Electro 909 (Alt)</td>
+      </tr>
+      <tr>
+        <td><strong>T 14 (C#2)</strong></td>
+        <td>Electronic 909 Techno</td>
+        <td><strong>T 26 (C#3)</strong></td>
+        <td>Roland TR-808 (Alt)</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div class="footer-note" style="margin-top: 10px;">
+  Sistema de Producción Musical Autónomo Raspberry Pi 3B &bull; Akai MPK Mini MK3 &bull; FluidSynth Linux Engine
+</div>
+
+</body>
+</html>

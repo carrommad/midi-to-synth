@@ -1,0 +1,16 @@
+# Temporary, swap and cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# System generated or logs
+*.log
