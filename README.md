@@ -1,10 +1,10 @@
-# Sintetizador Autónomo Raspberry Pi 3B + Akai MPK Mini MK2 (Ruta A: FluidSynth)
+# Sintetizador Autónomo Raspberry Pi 3B + Akai MPK Mini MK3 (FluidSynth Standalone)
 
-Transforma tu **Raspberry Pi 3 Model B (v1.2)** en un módulo de sonido y sintetizador independiente, de baja latencia y arranque automático sin monitor, controlado por el teclado y pads del **Akai MPK Mini MK2**.
+Convierte tu **Raspberry Pi 3 Model B (v1.2)** en una estación de sonido y ritmos independiente, con arranque automático sin monitor ni ratón (*zero-screen*), controlada al 100% desde el teclado, perillas y pads del **Akai MPK Mini MK3** (compatible también con MK2).
 
 ---
 
-## 🖥️ Especificaciones del Sistema (Hardware & OS Verificado)
+## 🖥️ Especificaciones del Hardware & Sistema
 
 | Componente | Detalle Verificado |
 |---|---|
@@ -12,186 +12,111 @@ Transforma tu **Raspberry Pi 3 Model B (v1.2)** en un módulo de sonido y sintet
 | **Sistema Operativo** | **Raspberry Pi OS (Debian GNU/Linux 13 "Trixie")** |
 | **Arquitectura** | **64-bit (`arm64` / `aarch64`)** |
 | **Kernel** | `Linux 6.12.75+rpt-rpi-v8 #1 SMP PREEMPT` |
-| **Edición de Imagen** | `pi-gen stage2` (Raspberry Pi OS Lite - Headless / Sin entorno gráfico) |
-| **Controlador MIDI** | Akai MPK Mini MK2 / MK3 (USB Class-Compliant) |
-| **Salida de Audio** | Salida analógica integrada Jack 3.5mm (`bcm2835 Headphones`, ALSA `hw:0,0`) |
+| **Controlador MIDI** | **Akai MPK Mini MK3 / MK2** (USB Class-Compliant) |
+| **Motor de Sonido** | **FluidSynth** (ALSA Audio, baja latencia, procesador de efectos reverb y chorus activos) |
+| **Salida de Audio** | Salida Jack 3.5mm estéreo hacia Roland S-1 (MIX IN) / Auriculares / Altavoces |
 
 ---
 
-## 🎹 Arquitectura del Sistema (Conexión a Roland S-1 y Altavoz)
+## 🎹 Arquitectura del Sistema
 
 ```mermaid
 graph TD
     subgraph Controladores & Fuentes
-        Akai[Akai MPK Mini MK2] -->|Cable USB / MIDI| RPi[Raspberry Pi 3B]
+        Akai[Akai MPK Mini MK3] -->|Cable USB MIDI| RPi[Raspberry Pi 3B]
         Power[Fuente 5V 2.5A] -->|Micro-USB| RPi
     end
 
-    subgraph Módulo de Sonido (Pi 3B)
+    subgraph Módulo de Sonido (Pi 3B Headless)
         RPi --> ALSA_SEQ[ALSA Sequencer Driver]
         ALSA_SEQ -->|Autoconexión MIDI| Fluid[FluidSynth Engine]
-        SoundFont[FluidR3_GM.sf2 - 128 Instrumentos + Baterías] --> Fluid
+        Controller[akai_controller.py &bull; Daemon] -->|Socket TCP 9800| Fluid
+        SoundFont[FluidR3_GM.sf2 &bull; 128 Instrumentos + Baterías] --> Fluid
         Fluid -->|ALSA Audio| Jack[Jack 3.5mm Out]
     end
 
-    subgraph Sintetizador & Salida Externa
-        Jack -->|Cable Jack 3.5mm Estéreo| Roland[Roland S-1 MIX IN]
-        Roland -->|Suma de Audio + Efectos S-1| MixOut[Roland S-1 MIX OUT]
-        MixOut -->|Cable Aux / RCA / Jack| Speaker[Altavoz / Monitores de Audio]
+    subgraph Salida de Audio
+        Jack -->|Cable Jack 3.5mm| Roland[Roland S-1 MIX IN / Altavoz]
     end
 ```
 
 ---
 
-## 📁 Estructura del Proyecto
+## 📑 Manual de Instrucciones en PDF (2 Páginas A4)
 
-```
-raspberry-mk2/
-├── README.md                      # Documentación central y guía operativa
-├── scripts/
-│   ├── start-synth.sh             # Script de arranque de FluidSynth con autoconexión
-│   ├── synth.service              # Unidad de servicio Systemd para arranque headless
-│   └── install_fluidsynth.sh      # Script de instalación y configuración integral
-└── docs/
-    ├── FASE_A_FLUIDSYNTH.md       # Procedimiento técnico detallado de la Ruta A
-    ├── MIDI_MAPPING_AKAI.md       # Mapeo de teclas, pads (Canal 10) y cambio de instrumentos
-    └── OPTIMIZACION_LATENCIA.md   # Ajuste de buffers, prioridades rtprio y derivación a mt32-pi
-```
+Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales de las teclas y atajos:
+* 📄 **[Manual de Instrucciones Akai MPK Mini (PDF)](docs/Manual_Instrucciones_Akai_MPK_Mini.pdf)**
+* 🌐 **[Código fuente del manual (HTML)](docs/manual_akai_mpk.html)**
+* 📋 **[Mapeo técnico detallado (Markdown)](docs/MIDI_MAPPING_AKAI.md)**
 
 ---
 
-## 🚀 Despliegue Rápido en la Raspberry Pi
+## ⚡ Guía Rápida de Operación en Vivo
 
-### 1. Conexión por SSH (Sin Contraseña)
-```bash
-ssh cromero@192.168.1.29
-```
-
-### 2. Sincronizar este proyecto a la Pi
-Desde tu PC (PowerShell):
-```powershell
-scp -r "c:\Users\cromero\Desktop\raspberry-mk2" cromero@192.168.1.29:/home/cromero/
-```
-
-### 3. Ejecutar el instalador automatizado
-En la terminal de la Raspberry Pi:
-```bash
-cd /home/cromero/raspberry-mk2
-chmod +x scripts/*.sh
-./scripts/install_fluidsynth.sh
-```
+### 1. Los 4 Modificadores Sin Pantalla (Extremo Izquierdo)
+Las 4 primeras teclas del extremo izquierdo del teclado actúan como selectores ergonómicos:
+* **`C1` (1ª Blanca) + Teclas (3 a 25)**: Cambia entre **24 Instrumentos Melódicos** (Pianos acústicos, Rhodes, DX7, Órgano Hammond B3, Guitarras, Bajos 808/303, Cuerdas y Sintetizadores) con preview sonoro en celesta.
+* **`C#1` (1ª Negra) + Teclas (3 a 25)**: Cambia entre **24 Kits de Batería** (Standard, Room Rock, Heavy Gated, Roland TR-808 Trap, Jazz, Escobillas, Orquestal...) con preview en bombo/caja.
+* **`D1` (2ª Blanca) + Pads (1 a 8)**: Control completo del **LIVE BEAT LOOPER**:
+  - `Pad 1`: Armar metrónomo / Cerrar loop con redondeo inteligente / Grabar Overdub en capas 2, 3 y 4.
+  - `Pad 2`: Pausar o reanudar el bucle.
+  - `Pad 3`: Metrónomo click On / Off.
+  - `Pad 4`: Borrar todas las pistas (Reset).
+  - `Pads 5, 6, 7 y 8`: **Control de Capas 1 a 4** (Toque corto: Silenciar/Mute toggle con chime grave/agudo; Sostener > 1.0s: Borrado individual de esa capa).
+* **`D#1` (2ª Negra) + Pads (1 a 8)**: **8 Ritmos Pregrabados** listos para improvisar (1: Lo-Fi 76 BPM, 2: Boom-Bap 88 BPM, 3: Trap 808 138 BPM, 4: Deep House 124 BPM, 5: Rock 104 BPM, 6: Funk 94 BPM, 7: Jazz 118 BPM, 8: Afrobeat 108 BPM).
 
 ---
 
-## 🛠️ Fases del Plan de Implementación
-
-| Fase | Descripción | Estado |
-|:---:|:---|:---:|
-| **Fase 0** | Diagnóstico inicial (SSH, periféricos, audio físico) | ✅ Completada |
-| **Fase 1** | Verificación de hardware (`lsusb`, `speaker-test`) | ✅ Completada |
-| **Fase 2** | Instalación de FluidSynth y SoundFont General MIDI | ⏳ En curso |
-| **Fase 3** | Conexión MIDI y prueba interactiva de sonido | Pendiente |
-| **Fase 4** | Automatización como servicio Systemd en arranque | Pendiente |
-| **Fase 5** | Optimización de latencia (buffer 128, rtprio, CPU performance) | Lista para aplicar |
+### 2. Atajos Globales de Teclado
+* **`C1` + `C#1` (Pulsar a la vez)**: Alterna el modo **FULL LEVEL** del teclado (100% fuerza fija en todas las notas vs curva dinámica táctil).
+* **`C1` + `C3` (Sostener 3 segundos)**: **Apagado Seguro** de la Raspberry Pi. Silencia de inmediato las notas extremas, avisa con un sutil chime y reproduce un arpegio descendente de despedida (el inverso exacto de la melodía de arranque) antes de apagar el sistema para proteger la tarjeta microSD.
+* **Joystick 4 direcciones**:
+  - *Horizontal*: Pitch Bend suave (&plusmn;2 semitonos).
+  - *Vertical*: Modulación / Vibrato expresivo.
 
 ---
 
-## 🎹 Selector de Sonidos Sin Pantalla (C1 y C#1 en el Extremo Izquierdo)
+### 3. Matriz Simétrica 4x2 de los 8 Knobs
+* **Fila Superior (Batería y Looper)**:
+  - `K1`: **Drum Reverb Splash** (CC 91 caja y platos).
+  - `K2`: **Drum Pitch Tuning** (Afinación &plusmn;12 semitonos).
+  - `K3`: **Looper Tempo** (Control de velocidad en vivo de 30 a 210 BPM).
+  - `K4`: **Drum Volume** (Volumen de batería y pads en CC 7 Ch 10).
+* **Fila Inferior (Teclado y Master)**:
+  - `K5`: **Keys Reverb Eco** (Reverberación catedral en teclado).
+  - `K6`: **Keys Chorus Lush** (Grosor vintage Roland Juno).
+  - `K7`: **Chorus Speed / Leslie Rotary Rate** (Modulación lenta a rotación rápida de 0.2 a 5.0 Hz).
+  - `K8`: **Master Volume** (Volumen general de todo el sistema).
 
-¡Ergonomía perfecta con una sola mano en el extremo izquierdo y opciones a la derecha!
+---
 
+### 4. Modo CC en los Pads (Botón físico 'CC' activo)
+* `Pad 1`: **Pedal de Sustain** (Toggle para mantener notas flotando sin pedal de pie).
+* `Pad 2`: **Portamento / Glide** (Deslizamiento fluido de tono entre notas ligadas).
+* `Pad 3`: **Cutoff Boost** (Apertura de filtro y brillo al 100%).
+* `Pad 4`: **Reverb Kill** (Corte momentáneo de reverb mientras se pulsa).
+* `Pad 5`: **Chorus Splash** (Explosión de chorus espacial mientras se pulsa).
+* `Pad 6`: **Instrumento Anterior** (con preview sonoro).
+* `Pad 7`: **Instrumento Siguiente** (con preview sonoro).
+* `Pad 8`: **¡Pánico / Stop Total!** (silencia cualquier nota o bucle colgado).
+
+---
+
+## 📁 Estructura del Repositorio
+
+```text
+raspberry3-mpk3-music/
+├── README.md                      # Esta guía central
+├── docs/
+│   ├── Manual_Instrucciones_Akai_MPK_Mini.pdf  # Manual imprimible de 2 páginas A4
+│   ├── manual_akai_mpk.html                    # Fuente HTML del manual visual
+│   ├── MIDI_MAPPING_AKAI.md                    # Mapeo y arquitectura técnica de notas
+│   ├── FASE_A_FLUIDSYNTH.md                    # Documentación de instalación base
+│   └── OPTIMIZACION_LATENCIA.md                # Parámetros ALSA y buffers de baja latencia
+└── scripts/
+    ├── akai_controller.py         # Daemon principal (Looper, modificadores, routing, apagado)
+    ├── start-synth.sh             # Script de arranque del servicio FluidSynth
+    ├── synth.service              # Unidad de servicio Systemd para boot headless
+    ├── install_fluidsynth.sh      # Script de aprovisionamiento de dependencias
+    └── select_sound.sh            # Utilidad CLI para selección por terminal
 ```
-    [C#1] Negra (Baterías)
-   ┌──┬─┬──┬──┬─┬──┬─┬──┬──┬─┬──┬──┐
-   │C1│█│D1│  │█│  │█│  │  │█│  │█ │   (Opciones 1, 2, 3, 4, 5... a la derecha)
-   └──┴─┴──┴──┴─┴──┴─┴──┴──┴─┴──┴──┘
-   [C1] Blanca (Pianos/Melódicos)
-```
-
-### 1. Cambiar Sonido de Piano / Sintetizador / Bajo:
-- **Mantén pulsada la Tecla 1 (C1, tecla blanca en el extremo izquierdo)**.
-- Con la mano derecha toca cualquiera de las teclas del piano a la derecha (D1 en adelante):
-  - *D1:* Yamaha Grand Piano | *E1:* Rhodes | *G1:* Hammond | *E2:* Synth Bass 808 | *A#2 / B2:* Synth Leads.
-
-### 2. Cambiar Kit de Batería (808, 909, Rock, Jazz...):
-- **Mantén pulsada la Tecla 2 (C#1, tecla negra contigua, fácil de ubicar al tacto)**.
-- Toca una tecla a la derecha (o uno de los 8 pads) para cambiar el kit de batería.
-
-### 3. Las 8 Perillas Giratorias (Knobs) - 2 Bancos de 8 Efectos:
-Las 8 perillas controlan **16 parámetros de sonido en tiempo real**:
-- **BANCO A (Teclado y Master):** Activo por defecto.
-  - `K1`: Cutoff / Brillo | `K2`: Resonancia | `K3`: Ataque | `K4`: Release/Cola
-  - `K5`: Reverb Sala | `K6`: Chorus Juno | `K7`: Paneo estéreo | `K8`: **Volumen Maestro**
-- **BANCO B (Baterías y Espacio Global):** Se activa al pulsar `BANK A/B` o mantener `C#1`.
-  - `K1`: Filtro de Batería | `K2`: Pegada | `K3`: Decaimiento | `K4`: Reverb Batería
-  - `K5`: Tamaño de Sala | `K6`: Chorus Depth | `K7`: Paneo Batería | `K8`: Balance de Batería
-
-### 4. Modo `CC` en los Pads (Live FX & Beat Drops - 2 Bancos):
-Al pulsar el botón físico **`CC`**, los 8 pads se convierten en disparadores de efectos:
-- **BANCO A (Expresión de Teclado):** `Pad 1`: **Sustain Pedal** (pedal de sostenido mientras lo pulsas) | `Pad 2`: Glide/Portamento | `Pad 3`: Apertura de Filtro | `Pad 4`: Reverb Mute | `Pad 8`: Pánico (silencio).
-- **BANCO B (DJ & Beat Drops):** `Pad 1`: **BEAT DROP** (mutea/desmutea la batería) | `Pad 2`: Mutea el teclado | `Pad 3`: Reverb Dub Splash | `Pad 4`: Batería Bajo el Agua (Choke) | `Pad 7`: Reset general de efectos.
-
-- **Joystick:** 100% libre para Pitch Bend y Vibrato.
-
----
-
-## 📋 Cambio Rápido de Instrumentos por Terminal (Opcional)
-
-Hemos incluido la herramienta de línea de comandos **`select-sound`** directamente en la Raspberry Pi para cambiar kits de batería y timbres de teclado en tiempo real sin reiniciar nada:
-
-```bash
-# Cambiar la batería de los PADS (Canal 10):
-select-sound 808          # Cambia a la mítica caja de ritmos Roland TR-808
-select-sound electronic   # Batería electrónica estilo 909 / Techno
-select-sound standard     # Batería acústica estándar
-select-sound power        # Batería rockera con pegada
-select-sound jazz         # Batería estilo jazz
-
-# Cambiar el sonido de las TECLAS (Canal 1):
-select-sound piano        # Piano de cola de concierto Yamaha
-select-sound rhodes       # Piano eléctrico vintage (Rhodes)
-select-sound synthbass    # Sub-bajo sintetizado tipo 808
-select-sound organ        # Órgano Hammond con rotary
-select-sound lead         # Sintetizador solista Diente de Sierra (Saw)
-select-sound pad          # Colchón cálido ambiental (Warm Pad)
-
-# Ver el estado y sonidos actuales:
-select-sound status
-select-sound list
-```
-
----
-
-## 📋 Mapeo Rápido de Instrumentos
-
-- **Teclas (Canal 1)**: Reproducen instrumentos melódicos. Por defecto: `000 Acoustic Grand Piano`.
-  - Para cambiar instrumento en vivo desde la consola de FluidSynth: `prog 0 <número>` (ej. `prog 0 38` para Synth Bass, `prog 0 81` para Lead Sawtooth).
-- **Pads (Canal 10)**: Reproducen el kit de percusión General MIDI:
-  - **Pad 1 (C1 / 36)**: Bombo 808 / Kick
-  - **Pad 2 (D1 / 38)**: Caja / Snare
-  - **Pad 3 (F#1 / 42)**: Charles cerrado / Closed Hat
-  - **Pad 4 (A#1 / 46)**: Charles abierto / Open Hat
-  - **Pad 5 (D#1 / 39)**: Palmada / Clap
-  - **Pad 6 (F1 / 41)**: Tom grave
-  - **Pad 7 (G1 / 43)**: Tom agudo
-  - **Pad 8 (C#2 / 49)**: Plato Crash
-
----
-
-## ⚠️ Árbol de Decisión para Problemas Comunes
-
-| Síntoma | Causa Probable | Solución Inmediata |
-|:---|:---|:---|
-| `aconnect -i` no muestra el MPK | Cable USB o puerto | Probar otro cable o puerto. Verificar con `dmesg \| tail`. |
-| El teclado aparece pero no suena | Falta conectar puertos ALSA | Ejecutar `aconnect 'MPK mini':0 'FLUID Synth':0`. |
-| Sonido con crujidos o latencia | Buffer muy pequeño o CPU scaling | Subir a `period-size=256` o fijar CPU en modo `performance`. |
-| Los pads tocan notas y no cambian instrumentos | Configuración de fábrica del Akai | Usar el software **Akai MPK Editor** en Windows para asignar `Program Change`. |
-| El servicio systemd no arranca | Rutas o permisos | Revisar logs con `sudo journalctl -u synth.service -n 20`. |
-
----
-
-## 📚 Enlaces a la Documentación
-- [Integración con Sintetizador Roland S-1 y Altavoces](file:///c:/Users/cromero/Desktop/raspberry-mk2/docs/ROLAND_S1_INTEGRATION.md)
-- [Guía Detallada Paso a Paso (Ruta A)](file:///c:/Users/cromero/Desktop/raspberry-mk2/docs/FASE_A_FLUIDSYNTH.md)
-- [Mapeo MIDI y Uso de Pads con Akai MPK Mini](file:///c:/Users/cromero/Desktop/raspberry-mk2/docs/MIDI_MAPPING_AKAI.md)
-- [Optimización de Latencia y Derivación a mt32-pi](file:///c:/Users/cromero/Desktop/raspberry-mk2/docs/OPTIMIZACION_LATENCIA.md)
