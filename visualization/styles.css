@@ -312,8 +312,9 @@ select {
 }
 
 .panel-header {
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
   padding: 0.65rem 0.9rem;
   background: rgba(10, 14, 22, 0.7);
   border-bottom: 1px solid var(--border-color);
@@ -324,6 +325,7 @@ select {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  width: 100%;
 }
 
 .panel-title h2 {
@@ -339,6 +341,7 @@ select {
   height: 8px;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
 .dot.green { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
 .dot.cyan { background: var(--accent-cyan); box-shadow: 0 0 6px var(--accent-cyan); }
@@ -346,15 +349,16 @@ select {
 .dot.violet { background: var(--accent-violet); box-shadow: 0 0 6px var(--accent-violet); }
 
 .panel-actions {
-  display: flex;
+  display: flex !important;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.75rem;
   font-size: 0.74rem;
   font-family: var(--font-mono);
   color: var(--text-muted);
-  padding-top: 0.35rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  width: 100%;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .toggle-control {
