@@ -2,6 +2,7 @@
 > **Target:** `visualization/`
 
 - 2026-10-19 18:03: Committed and pushed all visualizer files and documentation to origin/main (commit e330217). [Done]
+- 2026-10-19 18:28: Copied visualization files into docs/ (index.html, styles.css, app.js, favicon.svg) to support native GitHub Pages /docs folder deployment without Actions dependency. [Done]
 - 2026-10-19 18:15: Re-architected all graph cards to display the full title on top and controls in a clean row below. [Done]
 - 2026-10-19 18:14: Simplified audio pass-through to clean text-only "Speaker: Mute / Unmute" (no icons). [Done]
 - 2026-10-19 18:11: Created GitHub Actions deployment workflow (.github/workflows/deploy-pages.yml) for automated GitHub Pages hosting and cleaned up Speaker Output control label. [Done]
