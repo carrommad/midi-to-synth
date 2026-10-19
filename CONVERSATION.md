@@ -1,6 +1,9 @@
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
 
+- 2026-10-19 18:03: Committed and pushed all visualizer files and documentation to origin/main (commit e330217). [Done]
+- 2026-10-19 18:11: Created GitHub Actions deployment workflow (.github/workflows/deploy-pages.yml) for automated GitHub Pages hosting and cleaned up Speaker Output control label. [Done]
+- 2026-10-19 18:09: Standardized header control bar: aligned heights to 48px, unified card enclosures, styled typography, and balanced button dimensions. [Done]
 - 2026-10-19 18:00: Added Roland circular sine wave favicon SVG to browser tab. [Done]
 - 2026-10-19 17:59: Set Front-High as default preset with increased viewing elevation (pitch: 0.38, yaw: 0.08), expanded background to 180 dense lines, and widened perspective taper. [Done]
 - 2026-10-19 17:56: Saved exact screenshot view as default (yaw: 0.82, pitch: 0.52, zoom: 1.15, panX: -45, panY: 12), expanded to 140 lines, and slowed color fading with 45% alpha floor. [Done]
