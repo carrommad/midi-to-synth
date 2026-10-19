@@ -1,0 +1,21 @@
+# Roland S-1 Audio Visualizer
+> **Target:** `visualization/`
+
+- 2026-10-19 18:00: Added Roland circular sine wave favicon SVG to browser tab. [Done]
+- 2026-10-19 17:59: Set Front-High as default preset with increased viewing elevation (pitch: 0.38, yaw: 0.08), expanded background to 180 dense lines, and widened perspective taper. [Done]
+- 2026-10-19 17:56: Saved exact screenshot view as default (yaw: 0.82, pitch: 0.52, zoom: 1.15, panX: -45, panY: 12), expanded to 140 lines, and slowed color fading with 45% alpha floor. [Done]
+- 2026-10-19 17:54: Set exact Profile / Side view from user screenshot (yaw: 0.75, pitch: 0.45, panX: -30) as default startup preset. [Done]
+- 2026-10-19 17:52: Set user-preferred 3D angle (yaw: 0.52, pitch: 0.62) as default, expanded history to 100 slices, and raised minimum line opacity to 35% for maximum depth visibility. [Done]
+- 2026-10-19 17:50: Enabled Ctrl + Drag (and Right-Click Drag) free coordinate panning inside the 3D Waterfall viewport. [Done]
+- 2026-10-19 17:49: Stabilized Harmonic Series partials graph with dual-engine tracking (FFT spectral fallback + autocorrelation), pitch memory latching, and exponential visual decay smoothing. [Done]
+- 2026-10-19 17:48: Doubled 3D Waterfall depth capacity to 64 slices, halved frame scroll rate, and raised minimum tail opacity to 22% for persistent cascading history. [Done]
+- 2026-10-19 17:47: Added dynamic AGC auto-scaling (0 to 1 normalization between noise floor and active harmonics) to both Rolling Spectrogram and 3D Waterfall so low volumes are vivid and visible. [Done]
+- 2026-10-19 17:45: Increased default vertical height to 88% and combined the V-Gain slider as an active booster even when Auto-Gain is checked. [Done]
+- 2026-10-19 17:43: Added Auto-Gain normalization and V-Gain slider to Oscilloscope to automatically expand low-amplitude synth square waves to fill the display. [Done]
+- 2026-10-19 17:41: Upgraded Rolling Spectrogram and 3D Waterfall to Mel-scale perceptual frequency warping with dynamic range boost and scale selector (Mel / Log / Linear). [Done]
+- 2026-10-19 17:40: Added interactive POV camera controls to 3D Waterfall (Click & Drag yaw/pitch/pan, Scroll zoom, and Camera Preset dropdown: Isometric, Front-High, Side Profile, Top-Down). [Done]
+- 2026-10-19 17:38: Added Roland circular sine wave icon to S-1 header badge. [Done]
+- 2026-10-19 17:37: Added 3D Waterfall, Harmonic Partials (1f0-16f0), Chromagram Dial, VCF Cutoff Tracker, Input Gain booster, and enabled Headset Mic in ALSA. [Done]
+- 2026-10-19 17:29: Added audio monitoring pass-through (listen via laptop speakers/phones with volume control). [Done]
+- 2026-10-19 17:25: Created visualization directory with index.html, styles.css, app.js, and run.sh. [Done]
+- 2026-10-19 17:24: Initialized visualization directory and multi-graph audio visualizer web app. [In Progress]
