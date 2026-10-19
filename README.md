@@ -105,7 +105,7 @@ Las 4 primeras teclas del extremo izquierdo del teclado actúan como selectores 
 ## 📁 Estructura del Repositorio
 
 ```text
-raspberry3-mpk3-music/
+midi-to-synth/
 ├── README.md                      # Esta guía central
 ├── docs/
 │   ├── Manual_Instrucciones_Akai_MPK_Mini.pdf  # Manual imprimible de 2 páginas A4
