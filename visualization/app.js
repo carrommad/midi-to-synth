@@ -860,7 +860,7 @@ inputGain.addEventListener('input', () => {
 
 monitorToggle.addEventListener('change', () => {
   const span = monitorToggle.parentElement.querySelector('span');
-  if (span) span.textContent = monitorToggle.checked ? 'Live' : 'Mute';
+  if (span) span.textContent = monitorToggle.checked ? 'Mute' : 'Unmute';
   if (monitorGainNode && audioCtx) {
     const targetGain = monitorToggle.checked ? parseFloat(monitorVol.value) : 0;
     monitorGainNode.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.02);
