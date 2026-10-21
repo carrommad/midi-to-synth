@@ -24,21 +24,21 @@ Convierte tu **Raspberry Pi 3 Model B (v1.2)** en una estación de sonido y ritm
 
 ```mermaid
 graph TD
-    subgraph Controladores & Fuentes
-        Akai[Akai MPK Mini MK3] -->|Cable USB MIDI| RPi[Raspberry Pi 3B]
-        Power[Fuente 5V 2.5A] -->|Micro-USB| RPi
+    subgraph "Controladores y Fuentes"
+        Akai["Akai MPK Mini MK3"] -->|"Cable USB MIDI"| RPi["Raspberry Pi 3B"]
+        Power["Fuente 5V 2.5A"] -->|"Micro-USB"| RPi
     end
 
-    subgraph Módulo de Sonido (Pi 3B Headless)
-        RPi --> ALSA_SEQ[ALSA Sequencer Driver]
-        ALSA_SEQ -->|Autoconexión MIDI| Fluid[FluidSynth Engine]
-        Controller[akai_controller.py &bull; Daemon] -->|Socket TCP 9800| Fluid
-        SoundFont[FluidR3_GM.sf2 &bull; 128 Instrumentos + Baterías] --> Fluid
-        Fluid -->|ALSA Audio| Jack[Jack 3.5mm Out]
+    subgraph "Módulo de Sonido (Pi 3B Headless)"
+        RPi --> ALSA_SEQ["ALSA Sequencer Driver"]
+        ALSA_SEQ -->|"Autoconexión MIDI"| Fluid["FluidSynth Engine"]
+        Controller["akai_controller.py • Daemon"] -->|"Socket TCP 9800"| Fluid
+        SoundFont["FluidR3_GM.sf2 • 128 Instrumentos + Baterías"] --> Fluid
+        Fluid -->|"ALSA Audio"| Jack["Jack 3.5mm Out"]
     end
 
-    subgraph Salida de Audio
-        Jack -->|Cable Jack 3.5mm| Roland[Roland S-1 MIX IN / Altavoz]
+    subgraph "Salida de Audio"
+        Jack -->|"Cable Jack 3.5mm"| Roland["Roland S-1 MIX IN / Altavoz"]
     end
 ```
 
