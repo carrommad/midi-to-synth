@@ -63,17 +63,17 @@
       <div class="control-card">
         <label for="monitorToggle">Speaker</label>
         <div class="monitor-inner">
-          <label class="toggle-control">
-            <input type="checkbox" id="monitorToggle">
-            <span>Unmute</span>
+          <label class="switch" title="Play input through laptop speakers (volume = system volume)">
+            <input type="checkbox" id="monitorToggle" role="switch">
+            <span class="switch-track"><span class="switch-thumb"></span></span>
+            <span id="monitorState" class="switch-text">Off</span>
           </label>
-          <input type="range" id="monitorVol" min="0" max="1" step="0.01" value="0.7" title="Speaker Volume">
         </div>
       </div>
 
       <div class="button-card-group">
-        <button id="toggleAudioBtn" class="btn primary">Start Audio</button>
         <button id="freezeBtn" class="btn secondary" disabled>Freeze View</button>
+        <button id="toggleAudioBtn" class="btn primary">Start Audio</button>
       </div>
     </div>
   </header>
@@ -100,6 +100,7 @@
       <div class="metric-card level-meter-card">
         <div class="meter-bar-container">
           <div id="meterLevel" class="meter-bar-fill"></div>
+          <span id="clipIndicator" class="clip-indicator" title="Input is clipping: lower Input Gain or S-1 volume">CLIP</span>
         </div>
       </div>
     </section>

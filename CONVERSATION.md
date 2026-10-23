@@ -1,6 +1,11 @@
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
 
+- 2026-10-23 20:57: Faster response: fast 2048 analysers for scope/FFT/waterfall/spectrogram + separate 8192 analyser for pitch/harmonics/chroma; smoothing 0.5. Freeze button cyan (amber when frozen). [Done]
+- 2026-10-23 20:55: visualization/ is now single source (removed docs/ copies; Pages via Actions). Added gated McLeod pitch detection, fftSize 8192, CLIP indicator. [Done]
+- 2026-10-23 20:48: Fixed oscilloscope Auto Gain (no longer multiplied by V-Gain -> no off-screen clipping), added fast-attack/slow-release smoothing, V-Gain disabled while Auto Gain on. docs/ + visualization/. [Done]
+- 2026-10-23 20:46: Speaker control -> toggle switch (no icon); moved Start Audio button to far right. docs/ + visualization/. [Done]
+- 2026-10-23 20:44: Simplified Speaker control to single On/Off button (removed volume slider; level follows system volume) in docs/ and visualization/. [Done]
 - 2026-10-19 18:03: Committed and pushed all visualizer files and documentation to origin/main (commit e330217). [Done]
 - 2026-10-19 18:28: Copied visualization files into docs/ (index.html, styles.css, app.js, favicon.svg) to support native GitHub Pages /docs folder deployment without Actions dependency. [Done]
 - 2026-10-19 18:15: Re-architected all graph cards to display the full title on top and controls in a clean row below. [Done]
