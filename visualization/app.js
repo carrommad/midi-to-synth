@@ -129,19 +129,19 @@ function autoCorrelate(fullBuf, sampleRate) {
     nsdf[lag] = m > 0 ? (2 * acf) / m : 0;
   }
 
-  // Global max, then pick the first peak within 90% of it (avoids octave errors)
-  let globalMax = 0;
-  for (let lag = minLag; lag <= maxLag; lag++) if (nsdf[lag] > globalMax) globalMax = nsdf[lag];
-  if (globalMax < PITCH_MIN_CLARITY) return -1;
-
-  let T0 = -1;
-  for (let lag = minLag + 1; lag <= maxLag; lag++) {
-    if (nsdf[lag] >= 0.9 * globalMax && nsdf[lag] >= nsdf[lag - 1] && nsdf[lag] >= nsdf[lag + 1]) {
-      T0 = lag;
-      break;
+  // Find local peaks in NSDF and pick the highest clarity peak
+  let maxPeakVal = 0;
+  let bestLag = -1;
+  for (let lag = minLag + 1; lag < maxLag; lag++) {
+    if (nsdf[lag] > nsdf[lag - 1] && nsdf[lag] >= nsdf[lag + 1] && nsdf[lag] > 0) {
+      if (nsdf[lag] > maxPeakVal) {
+        maxPeakVal = nsdf[lag];
+        bestLag = lag;
+      }
     }
   }
-  if (T0 <= 0) return -1;
+  if (maxPeakVal < PITCH_MIN_CLARITY || bestLag <= 0) return -1;
+  const T0 = bestLag;
 
   // Parabolic interpolation for sub-sample accuracy
   const x1 = nsdf[T0 - 1], x2 = nsdf[T0], x3 = nsdf[T0 + 1];
@@ -305,10 +305,7 @@ function drawGrid(ctx, w, h, xDivs = 8, yDivs = 6) {
   ctx.stroke();
 }
 
-let oscTriggerTemplate = null;
-let oscTemplateFreq = 0;
-
-// 1. Oscilloscope with Auto-Gain, Cross-Correlation Template Lock and Edge Sync
+// 1. Oscilloscope with Auto-Gain and Peak-Anchored Edge Sync
 function renderOscilloscope(dataTimeL, w, h, fundFreq = 0, sampleRate = 48000) {
   oscCtx.fillStyle = '#080a0f';
   oscCtx.fillRect(0, 0, w, h);
@@ -340,76 +337,50 @@ function renderOscilloscope(dataTimeL, w, h, fundFreq = 0, sampleRate = 48000) {
   }
 
   // Robust Trigger search:
-  // For composite waves (square + sub, PWM), use template-matching correlation against the
-  // previous frame's fundamental period. This locks to the exact same step every frame.
+  // For complex waveforms (like square + sub-oscillator mixes), find the global peak (crest)
+  // within the fundamental cycle period, then lock to the edge preceding that crest.
   let startIdx = 0;
   if (triggerSync.checked && maxAmp > 0.005) {
     const searchLimit = Math.max(0, dataTimeL.length - sampleCount - 1);
     let found = false;
 
-    if (fundFreq > 20 && fundFreq < 4000) {
-      const periodSamples = Math.round(sampleRate / fundFreq);
+    // Determine cycle window in samples (from pitch, or fallback default)
+    const periodSamples = (fundFreq > 20 && fundFreq < 4000)
+      ? Math.round(sampleRate / fundFreq)
+      : 0;
 
-      // If frequency shifted substantially (>6%), discard old template to avoid phase pulling
-      if (!oscTriggerTemplate || Math.abs(fundFreq - oscTemplateFreq) / oscTemplateFreq > 0.06 || oscTriggerTemplate.length !== periodSamples) {
-        // Initial lock: find the global steepest rising edge across 2 fundamental cycles
-        let maxSlope = -Infinity;
-        let initIdx = 0;
-        const initWindow = Math.min(searchLimit, periodSamples * 2);
-        for (let i = 0; i < initWindow; i++) {
-          const slope = dataTimeL[i + 1] - dataTimeL[i];
-          if (slope > maxSlope) {
-            maxSlope = slope;
-            initIdx = i;
-          }
-        }
-        startIdx = initIdx;
-        found = true;
-
-        // Seed new template from this initial alignment
-        oscTriggerTemplate = new Float32Array(periodSamples);
-        for (let k = 0; k < periodSamples; k++) {
-          oscTriggerTemplate[k] = dataTimeL[startIdx + k] || 0;
-        }
-        oscTemplateFreq = fundFreq;
-      } else {
-        // Template Match: find offset in [0, min(periodSamples * 2, searchLimit)] with minimal Difference
-        const matchWindow = Math.min(searchLimit, periodSamples * 2);
-        const tLen = oscTriggerTemplate.length;
-        let minDiff = Infinity;
-        let bestOffset = 0;
-
-        for (let i = 0; i < matchWindow; i++) {
-          let diff = 0;
-          // Step by 2 for speed
-          for (let k = 0; k < tLen; k += 2) {
-            const d = dataTimeL[i + k] - oscTriggerTemplate[k];
-            diff += d * d;
-            if (diff >= minDiff) break; // early exit
-          }
-          if (diff < minDiff) {
-            minDiff = diff;
-            bestOffset = i;
-          }
-        }
-        startIdx = bestOffset;
-        found = true;
-
-        // Smoothly adapt template toward current waveform to follow slow pitch/timbre evolution
-        for (let k = 0; k < tLen; k++) {
-          oscTriggerTemplate[k] = oscTriggerTemplate[k] * 0.85 + (dataTimeL[startIdx + k] || 0) * 0.15;
+    if (periodSamples > 8 && periodSamples < searchLimit) {
+      // Find the absolute highest sample (global maximum crest) in the first cycle
+      let crestVal = -Infinity;
+      let crestIdx = 0;
+      const windowLen = Math.min(searchLimit, periodSamples);
+      for (let i = 0; i < windowLen; i++) {
+        if (dataTimeL[i] > crestVal) {
+          crestVal = dataTimeL[i];
+          crestIdx = i;
         }
       }
-    } else {
-      oscTriggerTemplate = null;
+
+      // Find the rising edge immediately leading up to that crest (looking backwards)
+      // Crossing below half the crest
+      const midLevel = crestVal * 0.5;
+      for (let i = crestIdx; i >= Math.max(0, crestIdx - periodSamples); i--) {
+        if (dataTimeL[i] <= midLevel && dataTimeL[i + 1] > midLevel) {
+          startIdx = i;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        startIdx = crestIdx;
+        found = true;
+      }
     }
 
-    // Fallback: dual-pass hysteresis edge sync (locks on rising or sharp falling unpitched/noise/sawtooth)
+    // Fallback: standard hysteresis edge sync
     if (!found) {
       const hysteresis = maxAmp * 0.15;
       let armed = false;
-
-      // Pass 1: standard rising-edge trigger with arming hysteresis
       for (let i = 0; i < searchLimit; i++) {
         if (!armed) {
           if (dataTimeL[i] < -hysteresis) armed = true;
@@ -419,8 +390,6 @@ function renderOscilloscope(dataTimeL, w, h, fundFreq = 0, sampleRate = 48000) {
           break;
         }
       }
-
-      // Pass 2: fallback for inverted/steep falling sawtooth
       if (!found) {
         armed = false;
         for (let i = 0; i < searchLimit; i++) {
