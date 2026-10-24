@@ -761,19 +761,20 @@ function renderChromagram(dataFreqL, sampleRate, w, h) {
     chroma[pClass] += linAmp;
   }
 
-  let maxChroma = Math.max(...chroma, 0.0001);
+  let maxChroma = Math.max(...chroma, 0.00001);
   const cx = w / 2;
   const cy = h / 2;
   const rOuter = Math.min(w, h) * 0.38;
   const rInner = rOuter * 0.45;
 
-  // Gate chromagram: if signal is below noise threshold, dim sectors completely
-  const isSilent = maxChroma < 0.05 || (lastValidFundFreq <= 20 && pitchHoldCounter === 0);
+  // Gate chromagram based on spectral dynamic range rather than single-note tracking:
+  // When audio is just silent/room noise (dynamicPeakDb < -55 or maxChroma is tiny), draw dim resting ring
+  const isSilent = dynamicPeakDb < -55.0 || maxChroma < 0.0005;
 
   for (let i = 0; i < 12; i++) {
     const angleStart = (i * Math.PI * 2) / 12 - Math.PI / 2;
     const angleEnd = ((i + 1) * Math.PI * 2) / 12 - Math.PI / 2;
-    const val = isSilent ? 0 : (chroma[i] / maxChroma);
+    const val = isSilent ? 0 : Math.min(1, chroma[i] / maxChroma);
 
     chromaCtx.beginPath();
     chromaCtx.arc(cx, cy, rInner + val * (rOuter - rInner), angleStart, angleEnd);
@@ -781,15 +782,15 @@ function renderChromagram(dataFreqL, sampleRate, w, h) {
     chromaCtx.closePath();
 
     chromaCtx.fillStyle = isSilent 
-      ? 'rgba(255, 255, 255, 0.03)' 
-      : `hsla(${i * 30}, 85%, 55%, ${0.2 + val * 0.8})`;
+      ? 'rgba(255, 255, 255, 0.04)' 
+      : `hsla(${i * 30}, 85%, 55%, ${0.25 + val * 0.75})`;
     chromaCtx.fill();
 
     // Label
     const midAngle = (angleStart + angleEnd) / 2;
     const lx = cx + Math.cos(midAngle) * (rOuter + 14);
     const ly = cy + Math.sin(midAngle) * (rOuter + 14);
-    chromaCtx.fillStyle = (!isSilent && val > 0.6) ? '#00f0ff' : '#8b9bb4';
+    chromaCtx.fillStyle = (!isSilent && val > 0.45) ? '#00f0ff' : '#8b9bb4';
     chromaCtx.font = '10px JetBrains Mono';
     chromaCtx.textAlign = 'center';
     chromaCtx.textBaseline = 'middle';
