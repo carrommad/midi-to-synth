@@ -1,5 +1,6 @@
 # Akai MPK Mini & Roland S-1 Synth Controller
 > **Target:** `scripts/akai_controller.py`
+- 2026-10-24 19:32: [REMINDER FOR NEXT SESSION] When on the same Wi-Fi as the Pi: 1) Configure `~/.ssh/config` for host `pi`, 2) `git pull origin main` on the Pi, 3) Restart `synth.service` to test arpeggiator auto-tempo detection with S-1. [Pending]
 - 2026-10-24 19:23: Added real-time arpeggiator note interval tempo detector so preset patterns automatically launch at the exact BPM shown on the Akai OLED screen. [Done]
 
 # Roland S-1 Audio Visualizer
