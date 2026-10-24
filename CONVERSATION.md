@@ -1,5 +1,6 @@
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-24 17:19: Replaced cycle crest search with pure hardware-grade Schmitt trigger (hysteresis arming + zero crossing) for rock-solid lock during PWM and LFO modulation. [Done]
 - 2026-10-24 17:07: Fixed pitch detector octave-jumping and upgraded oscilloscope to peak-anchored crest trigger (locks unambiguously to tallest plateau on composite waveforms). [Done]
 - 2026-10-24 17:04: Upgraded oscilloscope to cross-correlation template trigger, locking firmly to multi-step square + sub waveforms without phase jumping. [Done]
 - 2026-10-24 17:01: Added fundamental period-lock trigger to oscilloscope to eliminate sub-harmonic jumping when mixing main + sub-oscillators. [Done]

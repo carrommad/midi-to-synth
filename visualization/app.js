@@ -336,70 +336,37 @@ function renderOscilloscope(dataTimeL, w, h, fundFreq = 0, sampleRate = 48000) {
     vertScale = parseFloat(vGain.value);
   }
 
-  // Robust Trigger search:
-  // For complex waveforms (like square + sub-oscillator mixes), find the global peak (crest)
-  // within the fundamental cycle period, then lock to the edge preceding that crest.
+  // Robust Hardware-Grade Schmitt Trigger:
+  // Arms below -hysteresis, fires upon crossing 0 with positive slope.
+  // Perfectly stabilizes PWM (pulse-width modulation), square waves, sawtooths, and sub-mixes.
   let startIdx = 0;
   if (triggerSync.checked && maxAmp > 0.005) {
     const searchLimit = Math.max(0, dataTimeL.length - sampleCount - 1);
+    const hysteresis = maxAmp * 0.12;
+    let armed = false;
     let found = false;
 
-    // Determine cycle window in samples (from pitch, or fallback default)
-    const periodSamples = (fundFreq > 20 && fundFreq < 4000)
-      ? Math.round(sampleRate / fundFreq)
-      : 0;
-
-    if (periodSamples > 8 && periodSamples < searchLimit) {
-      // Find the absolute highest sample (global maximum crest) in the first cycle
-      let crestVal = -Infinity;
-      let crestIdx = 0;
-      const windowLen = Math.min(searchLimit, periodSamples);
-      for (let i = 0; i < windowLen; i++) {
-        if (dataTimeL[i] > crestVal) {
-          crestVal = dataTimeL[i];
-          crestIdx = i;
-        }
-      }
-
-      // Find the rising edge immediately leading up to that crest (looking backwards)
-      // Crossing below half the crest
-      const midLevel = crestVal * 0.5;
-      for (let i = crestIdx; i >= Math.max(0, crestIdx - periodSamples); i--) {
-        if (dataTimeL[i] <= midLevel && dataTimeL[i + 1] > midLevel) {
-          startIdx = i;
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        startIdx = crestIdx;
+    // Pass 1: Standard rising-edge Schmitt trigger
+    for (let i = 0; i < searchLimit; i++) {
+      if (!armed) {
+        if (dataTimeL[i] < -hysteresis) armed = true;
+      } else if (dataTimeL[i] >= 0) {
+        startIdx = i;
         found = true;
+        break;
       }
     }
 
-    // Fallback: standard hysteresis edge sync
+    // Pass 2: Fallback for falling-edge (e.g. sharp downward sawtooth) if no rising edge found
     if (!found) {
-      const hysteresis = maxAmp * 0.15;
-      let armed = false;
+      armed = false;
       for (let i = 0; i < searchLimit; i++) {
         if (!armed) {
-          if (dataTimeL[i] < -hysteresis) armed = true;
-        } else if (dataTimeL[i] >= 0) {
+          if (dataTimeL[i] > hysteresis) armed = true;
+        } else if (dataTimeL[i] <= 0) {
           startIdx = i;
           found = true;
           break;
-        }
-      }
-      if (!found) {
-        armed = false;
-        for (let i = 0; i < searchLimit; i++) {
-          if (!armed) {
-            if (dataTimeL[i] > hysteresis) armed = true;
-          } else if (dataTimeL[i] <= 0) {
-            startIdx = i;
-            found = true;
-            break;
-          }
         }
       }
     }
