@@ -305,8 +305,8 @@ function drawGrid(ctx, w, h, xDivs = 8, yDivs = 6) {
   ctx.stroke();
 }
 
-// 1. Oscilloscope with Auto-Gain and Edge Sync
-function renderOscilloscope(dataTimeL, w, h) {
+// 1. Oscilloscope with Auto-Gain, Period Lock and Edge Sync
+function renderOscilloscope(dataTimeL, w, h, fundFreq = 0, sampleRate = 48000) {
   oscCtx.fillStyle = '#080a0f';
   oscCtx.fillRect(0, 0, w, h);
   drawGrid(oscCtx, w, h);
@@ -336,35 +336,69 @@ function renderOscilloscope(dataTimeL, w, h) {
     vertScale = parseFloat(vGain.value);
   }
 
-  // Robust Trigger search: hysteresis-based edge sync (locks on rising or sharp falling sawtooth)
+  // Robust Trigger search:
+  // When a valid pitch is detected (e.g. square + sub-oscillator combinations), lock directly
+  // to the master fundamental cycle period to prevent sub-harmonic frame jumping.
   let startIdx = 0;
   if (triggerSync.checked && maxAmp > 0.005) {
-    const hysteresis = maxAmp * 0.15;
     const searchLimit = Math.max(0, dataTimeL.length - sampleCount - 1);
-    let armed = false;
     let found = false;
 
-    // Pass 1: standard rising-edge trigger with arming hysteresis
-    for (let i = 0; i < searchLimit; i++) {
-      if (!armed) {
-        if (dataTimeL[i] < -hysteresis) armed = true;
-      } else if (dataTimeL[i] >= 0) {
-        startIdx = i;
+    if (fundFreq > 20 && fundFreq < 4000) {
+      const periodSamples = Math.round(sampleRate / fundFreq);
+      if (periodSamples > 4 && periodSamples < searchLimit) {
+        // Search first fundamental period for the dominant feature (steepest edge or global cycle crest)
+        let bestScore = -Infinity;
+        let bestIdx = 0;
+        const windowLimit = Math.min(searchLimit, periodSamples * 2);
+        for (let i = 0; i < windowLimit; i++) {
+          // Combined metric: amplitude + positive slope difference
+          const slope = dataTimeL[i + 1] - dataTimeL[i];
+          const score = dataTimeL[i] + Math.abs(slope) * 2;
+          if (score > bestScore) {
+            bestScore = score;
+            bestIdx = i;
+          }
+        }
+        // Snap bestIdx to the nearest local zero-crossing for clean baseline display
+        for (let j = Math.max(0, bestIdx - Math.floor(periodSamples / 4)); j <= Math.min(searchLimit, bestIdx + Math.floor(periodSamples / 4)); j++) {
+          if (dataTimeL[j] <= 0 && dataTimeL[j + 1] > 0) {
+            bestIdx = j;
+            break;
+          }
+        }
+        startIdx = bestIdx;
         found = true;
-        break;
       }
     }
 
-    // Pass 2: fallback for inverted/steep falling sawtooth (armed high, triggers on negative transition)
+    // Fallback: dual-pass hysteresis edge sync (locks on rising or sharp falling sawtooth/square)
     if (!found) {
-      armed = false;
+      const hysteresis = maxAmp * 0.15;
+      let armed = false;
+
+      // Pass 1: standard rising-edge trigger with arming hysteresis
       for (let i = 0; i < searchLimit; i++) {
         if (!armed) {
-          if (dataTimeL[i] > hysteresis) armed = true;
-        } else if (dataTimeL[i] <= 0) {
+          if (dataTimeL[i] < -hysteresis) armed = true;
+        } else if (dataTimeL[i] >= 0) {
           startIdx = i;
           found = true;
           break;
+        }
+      }
+
+      // Pass 2: fallback for inverted/steep falling sawtooth (armed high, triggers on negative transition)
+      if (!found) {
+        armed = false;
+        for (let i = 0; i < searchLimit; i++) {
+          if (!armed) {
+            if (dataTimeL[i] > hysteresis) armed = true;
+          } else if (dataTimeL[i] <= 0) {
+            startIdx = i;
+            found = true;
+            break;
+          }
         }
       }
     }
@@ -939,7 +973,7 @@ function renderLoop() {
   updateDynamicRange(dataFreqL, audioCtx.sampleRate / 2);
 
   // Draw 6 comprehensive synth graphs
-  renderOscilloscope(dataTimeL, oscCanvas.width, oscCanvas.height);
+  renderOscilloscope(dataTimeL, oscCanvas.width, oscCanvas.height, freq > 20 ? freq : 0, audioCtx.sampleRate);
   renderFFT(dataFreqL, fftCanvas.width, fftCanvas.height, audioCtx.sampleRate);
   render3DWaterfall(dataFreqL, waterfallCanvas.width, waterfallCanvas.height, audioCtx.sampleRate);
   renderHarmonics(fineFreq, freq > 20 ? freq : 0, audioCtx.sampleRate, harmonicsCanvas.width, harmonicsCanvas.height);

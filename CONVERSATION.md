@@ -1,5 +1,6 @@
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-24 17:01: Added fundamental period-lock trigger to oscilloscope to eliminate sub-harmonic jumping when mixing main + sub-oscillators. [Done]
 - 2026-10-24 16:57: Upgraded oscilloscope trigger to dual-pass hysteresis edge sync (locks reliably to both rising ramps and falling sawtooth waves). [Done]
 - 2026-10-24 12:47: Substituted docs/assets/waveform_lab_preview.png with latest screenshot showing active Chromagram and Stereo Goniometer. [Done]
 - 2026-10-24 12:44: Added dynamic auto-gain expansion and multi-ring reticle to Stereo Goniometer to scale quiet mono/stereo signals. [Done]
