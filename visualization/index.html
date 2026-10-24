@@ -61,6 +61,17 @@
       </div>
 
       <div class="control-card">
+        <label for="filterWhineToggle">Filter Whine</label>
+        <div class="monitor-inner">
+          <label class="switch" title="Filter out high-frequency USB ground loop whine (6.4 kHz & 12.8 kHz)">
+            <input type="checkbox" id="filterWhineToggle" role="switch" checked>
+            <span class="switch-track"><span class="switch-thumb"></span></span>
+            <span id="filterWhineState" class="switch-text">On</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="control-card">
         <label for="monitorToggle">Speaker</label>
         <div class="monitor-inner">
           <label class="switch" title="Play input through laptop speakers (volume = system volume)">

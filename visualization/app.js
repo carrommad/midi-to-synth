@@ -7,6 +7,8 @@ let analyserLeft = null;
 let analyserRight = null;
 let analyserFine = null;
 let monitorGainNode = null;
+let notchFilter1 = null; // 6.4 kHz USB switching whistle notch
+let notchFilter2 = null; // 12.8 kHz 2nd harmonic notch
 let stream = null;
 let animationId = null;
 let isFrozen = false;
@@ -18,6 +20,9 @@ const deviceSelect = document.getElementById('deviceSelect');
 const monitorToggle = document.getElementById('monitorToggle');
 const monitorState = document.getElementById('monitorState');
 let monitorOn = false;
+const filterWhineToggle = document.getElementById('filterWhineToggle');
+const filterWhineState = document.getElementById('filterWhineState');
+let filterWhineOn = true;
 const inputGain = document.getElementById('inputGain');
 const gainVal = document.getElementById('gainVal');
 
@@ -216,6 +221,20 @@ async function startAudio() {
     inputGainNode.gain.value = parseFloat(inputGain.value);
     sourceNode.connect(inputGainNode);
 
+    // Steep Notch Filters for Ground Loop Whine (~6.4 kHz fundamental & ~12.8 kHz harmonic)
+    notchFilter1 = audioCtx.createBiquadFilter();
+    notchFilter1.type = 'notch';
+    notchFilter1.frequency.value = 6450;
+    notchFilter1.Q.value = 12.0;
+
+    notchFilter2 = audioCtx.createBiquadFilter();
+    notchFilter2.type = 'notch';
+    notchFilter2.frequency.value = 12900;
+    notchFilter2.Q.value = 12.0;
+
+    // Apply or bypass whine filter
+    updateWhineFilterRouting();
+
     // Stereo split
     splitterNode = audioCtx.createChannelSplitter(2);
     analyserLeft = audioCtx.createAnalyser();
@@ -232,7 +251,6 @@ async function startAudio() {
     analyserFine.fftSize = 8192;
     analyserFine.smoothingTimeConstant = 0.5;
 
-    inputGainNode.connect(splitterNode);
     splitterNode.connect(analyserLeft, 0);
     splitterNode.connect(analyserRight, 1);
     splitterNode.connect(analyserFine, 0);
@@ -240,7 +258,6 @@ async function startAudio() {
     // Monitoring pass-through to speakers/headphones
     monitorGainNode = audioCtx.createGain();
     monitorGainNode.gain.value = monitorOn ? 1.0 : 0;
-    sourceNode.connect(monitorGainNode);
     monitorGainNode.connect(audioCtx.destination);
 
     toggleAudioBtn.textContent = 'Stop Audio';
@@ -1014,6 +1031,37 @@ monitorToggle.addEventListener('change', () => {
   if (monitorGainNode && audioCtx) {
     monitorGainNode.gain.setTargetAtTime(monitorOn ? 1.0 : 0, audioCtx.currentTime, 0.02);
   }
+});
+
+function updateWhineFilterRouting() {
+  if (!audioCtx || !inputGainNode || !notchFilter1 || !notchFilter2) return;
+  try {
+    inputGainNode.disconnect();
+    notchFilter1.disconnect();
+    notchFilter2.disconnect();
+  } catch (e) {
+    // ignore disconnect errors during re-route
+  }
+
+  if (filterWhineOn) {
+    // Route: inputGain -> Notch1 (6.4k) -> Notch2 (12.8k) -> Splitter / Monitor
+    inputGainNode.connect(notchFilter1);
+    notchFilter1.connect(notchFilter2);
+    if (splitterNode) notchFilter2.connect(splitterNode);
+    if (monitorGainNode) notchFilter2.connect(monitorGainNode);
+  } else {
+    // Direct bypass
+    if (splitterNode) inputGainNode.connect(splitterNode);
+    if (monitorGainNode) inputGainNode.connect(monitorGainNode);
+  }
+}
+
+filterWhineToggle.addEventListener('change', () => {
+  filterWhineOn = filterWhineToggle.checked;
+  if (filterWhineState) {
+    filterWhineState.textContent = filterWhineOn ? 'On' : 'Off';
+  }
+  updateWhineFilterRouting();
 });
 
 deviceSelect.addEventListener('change', () => {

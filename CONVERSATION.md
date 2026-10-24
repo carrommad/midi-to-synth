@@ -6,6 +6,7 @@
 
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-24 21:13: Added dual high-Q notch filters (6.45 kHz and 12.9 kHz) and 'Filter Whine' header toggle in Waveform Lab to eliminate USB power switching noise spikes from the waterfall, FFT, and speaker monitor. [Done]
 - 2026-10-24 17:55: Enforced strict `grid-template-rows: repeat(2, 1fr)` so row 1 and row 2 remain exactly equal 50/50 height under all panel arrangements. [Done]
 - 2026-10-24 17:50: Simplified dragstart event filtering to ensure panels drag smoothly across all browsers without accidental cancellation. [Done]
 - 2026-10-24 17:48: Restored natural ergonomic widths to header control cards (audio input ~220px, input gain ~125px, speaker ~95px) at unified 48px height. [Done]
