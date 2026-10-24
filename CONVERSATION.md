@@ -1,5 +1,7 @@
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-24 17:36: Enhanced full-width dB broadcast meter bar height (28px), tick typography, z-index layering, and vivid gradient fill. [Done]
+- 2026-10-24 17:34: Unified 3 header control cards to equal 140px width with truncated device names; fixed panel drop reordering on layout grid. [Done]
 - 2026-10-24 17:31: Made all 6 graph panels draggable & reorderable with localStorage persistence; moved dB broadcast meter into dedicated full-width row. [Done]
 - 2026-10-24 17:19: Replaced cycle crest search with pure hardware-grade Schmitt trigger (hysteresis arming + zero crossing) for rock-solid lock during PWM and LFO modulation. [Done]
 - 2026-10-24 17:07: Fixed pitch detector octave-jumping and upgraded oscilloscope to peak-anchored crest trigger (locks unambiguously to tallest plateau on composite waveforms). [Done]

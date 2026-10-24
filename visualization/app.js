@@ -158,11 +158,14 @@ async function populateDevices() {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const audioInputs = devices.filter(d => d.kind === 'audioinput');
-    deviceSelect.innerHTML = '<option value="">Default Audio Input</option>';
+    deviceSelect.innerHTML = '<option value="">Default Input</option>';
     audioInputs.forEach((d, i) => {
       const opt = document.createElement('option');
       opt.value = d.deviceId;
-      opt.textContent = d.label || `Audio Input ${i + 1}`;
+      let lbl = d.label || `Input ${i + 1}`;
+      lbl = lbl.replace(/^default\s*-\s*/i, '').trim();
+      opt.textContent = lbl.length > 20 ? `${lbl.slice(0, 18)}…` : lbl;
+      opt.title = d.label || `Input ${i + 1}`;
       if (d.label.toLowerCase().includes('s-1') || d.label.toLowerCase().includes('roland') || d.label.toLowerCase().includes('headset')) {
         opt.selected = true;
       }
@@ -1048,7 +1051,6 @@ function initDraggablePanels() {
 
   chartsLayout.querySelectorAll('.chart-panel').forEach(panel => {
     panel.addEventListener('dragstart', (e) => {
-      // Don't drag if user is interacting with form controls or canvas
       const target = e.target;
       if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'CANVAS' || target.tagName === 'BUTTON') {
         e.preventDefault();
@@ -1061,36 +1063,46 @@ function initDraggablePanels() {
     });
 
     panel.addEventListener('dragend', () => {
-      panel.classList.remove('panel-dragging');
+      if (draggedPanel) draggedPanel.classList.remove('panel-dragging');
       chartsLayout.querySelectorAll('.chart-panel').forEach(p => p.classList.remove('panel-drag-over'));
       draggedPanel = null;
       resizeCanvases();
-      savePanelOrder();
     });
 
     panel.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       if (!draggedPanel || draggedPanel === panel) return;
-
-      const rect = panel.getBoundingClientRect();
-      const midX = rect.left + rect.width / 2;
       panel.classList.add('panel-drag-over');
-
-      if (e.clientX < midX) {
-        chartsLayout.insertBefore(draggedPanel, panel);
-      } else {
-        chartsLayout.insertBefore(draggedPanel, panel.nextSibling);
-      }
     });
 
-    panel.addEventListener('dragleave', () => {
-      panel.classList.remove('panel-drag-over');
+    panel.addEventListener('dragleave', (e) => {
+      // Only remove if leaving the panel itself, not hovering over children
+      if (!panel.contains(e.relatedTarget)) {
+        panel.classList.remove('panel-drag-over');
+      }
     });
 
     panel.addEventListener('drop', (e) => {
       e.preventDefault();
       panel.classList.remove('panel-drag-over');
+      if (!draggedPanel || draggedPanel === panel) return;
+
+      const rect = panel.getBoundingClientRect();
+      const midX = rect.left + rect.width / 2;
+      const midY = rect.top + rect.height / 2;
+
+      // Determine whether to place before or after target based on cursor position
+      const isBefore = (e.clientY < midY - 20) || (Math.abs(e.clientY - midY) <= 40 && e.clientX < midX);
+
+      if (isBefore) {
+        chartsLayout.insertBefore(draggedPanel, panel);
+      } else {
+        chartsLayout.insertBefore(draggedPanel, panel.nextSibling);
+      }
+
+      savePanelOrder();
+      resizeCanvases();
     });
   });
 
