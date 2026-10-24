@@ -1,6 +1,6 @@
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
-
+- 2026-10-24 12:44: Added dynamic auto-gain expansion and multi-ring reticle to Stereo Goniometer to scale quiet mono/stereo signals. [Done]
 - 2026-10-24 12:35: Added visual screenshots of Akai MIDI manual PDF and Roland S-1 Waveform Lab to README.md. [Done]
 - 2026-10-24 12:33: Updated README.md with comprehensive Waveform Lab documentation and live web links. [Done]
 - 2026-10-24 12:31: Aligned 20 Hz origin label cleanly to the left margin on FFT spectrum. [Done]

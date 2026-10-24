@@ -797,22 +797,46 @@ function renderChromagram(dataFreqL, sampleRate, w, h) {
   }
 }
 
-// 7. Stereo Phase Scope
+// 7. Stereo Phase Scope (Goniometer with dynamic auto-expansion)
+let phasePeakSmooth = 0.05;
+
 function renderPhaseScope(dataTimeL, dataTimeR, w, h) {
   phaseCtx.fillStyle = 'rgba(8, 10, 15, 0.25)';
   phaseCtx.fillRect(0, 0, w, h);
 
   const cx = w / 2;
   const cy = h / 2;
-  const scale = Math.min(w, h) * 0.42;
+  const targetRadius = Math.min(w, h) * 0.40;
+
+  const len = Math.min(dataTimeL.length, dataTimeR.length);
+
+  // Compute peak magnitude in recent window for dynamic scaling
+  let peakMag = 0.001;
+  for (let i = 0; i < len; i += 4) {
+    const l = Math.abs(dataTimeL[i]);
+    const r = Math.abs(dataTimeR[i]);
+    if (l > peakMag) peakMag = l;
+    if (r > peakMag) peakMag = r;
+  }
+
+  // Smooth attack / slow decay
+  if (peakMag > phasePeakSmooth) {
+    phasePeakSmooth = phasePeakSmooth * 0.6 + peakMag * 0.4;
+  } else {
+    phasePeakSmooth = phasePeakSmooth * 0.96 + peakMag * 0.04;
+  }
+
+  // Auto-gain multiplier (fill ~80% of reticle, clamped to avoid blowing up silence)
+  const normFloor = 0.02; // ~ -34 dB minimum reference
+  const gain = Math.min(40.0, 0.82 / Math.max(normFloor, phasePeakSmooth));
+  const scale = targetRadius * gain;
 
   phaseCtx.strokeStyle = '#bb86fc';
   phaseCtx.shadowColor = '#bb86fc';
-  phaseCtx.shadowBlur = 4;
-  phaseCtx.lineWidth = 1.5;
+  phaseCtx.shadowBlur = 6;
+  phaseCtx.lineWidth = 1.8;
   phaseCtx.beginPath();
 
-  const len = Math.min(dataTimeL.length, dataTimeR.length);
   for (let i = 0; i < len; i += 2) {
     const l = dataTimeL[i];
     const r = dataTimeR[i];
@@ -825,11 +849,12 @@ function renderPhaseScope(dataTimeL, dataTimeR, w, h) {
   phaseCtx.shadowBlur = 0;
 
   // Reticle
-  phaseCtx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  phaseCtx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
   phaseCtx.beginPath();
-  phaseCtx.arc(cx, cy, scale * 0.9, 0, Math.PI * 2);
-  phaseCtx.moveTo(cx - scale, cy); phaseCtx.lineTo(cx + scale, cy);
-  phaseCtx.moveTo(cx, cy - scale); phaseCtx.lineTo(cx, cy + scale);
+  phaseCtx.arc(cx, cy, targetRadius * 0.95, 0, Math.PI * 2);
+  phaseCtx.arc(cx, cy, targetRadius * 0.50, 0, Math.PI * 2);
+  phaseCtx.moveTo(cx - targetRadius, cy); phaseCtx.lineTo(cx + targetRadius, cy);
+  phaseCtx.moveTo(cx, cy - targetRadius); phaseCtx.lineTo(cx, cy + targetRadius);
   phaseCtx.stroke();
 }
 
