@@ -51,6 +51,11 @@ Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales 
 * 🌐 **[Código fuente del manual (HTML)](docs/manual_akai_mpk.html)**
 * 📋 **[Mapeo técnico detallado (Markdown)](docs/MIDI_MAPPING_AKAI.md)**
 
+<p align="center">
+  <img src="docs/assets/manual_page-1.png" width="48%" alt="Manual Akai MPK Mini - Página 1" style="border-radius: 8px; border: 1px solid #333;" />
+  <img src="docs/assets/manual_page-2.png" width="48%" alt="Manual Akai MPK Mini - Página 2" style="border-radius: 8px; border: 1px solid #333;" />
+</p>
+
 ---
 
 ## ⚡ Guía Rápida de Operación en Vivo
@@ -110,6 +115,12 @@ El repositorio incluye un laboratorio visualizador de audio en tiempo real dise�
 
 * 🌐 **Acceso Web en Vivo (GitHub Pages):** [https://carrommad.github.io/midi-to-synth/](https://carrommad.github.io/midi-to-synth/)
 * 🚀 **Ejecución local rápida:** `./visualization/run.sh`
+
+<p align="center">
+  <a href="https://carrommad.github.io/midi-to-synth/">
+    <img src="docs/assets/waveform_lab_preview.png" width="100%" alt="Roland S-1 Waveform Lab - Interfaz Web en Vivo" style="border-radius: 8px; border: 1px solid #00f0ff; box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);" />
+  </a>
+</p>
 
 ### Características de Gráficos e Instrumentación
 1. **Osciloscopio (Dominio Temporal):** Sincronización robusta por cruce por cero (*Sync Lock*), auto-ganancia suave con umbral antirruido y control manual de V-Gain / Zoom.
