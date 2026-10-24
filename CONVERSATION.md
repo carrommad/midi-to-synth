@@ -1,5 +1,7 @@
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-24 17:48: Restored natural ergonomic widths to header control cards (audio input ~220px, input gain ~125px, speaker ~95px) at unified 48px height. [Done]
+- 2026-10-24 17:46: Unified grid with `grid-auto-rows: 1fr` and `flex: 1 1 0` so both rows remain exactly equal; prevented audio stream restarts during panel drags. [Done]
 - 2026-10-24 17:40: Standardized all 6 panels to equal 360px height (with fixed 72px headers); restricted drag initiation strictly to title/grip handle to protect 3D waterfall history. [Done]
 - 2026-10-24 17:36: Enhanced full-width dB broadcast meter bar height (28px), tick typography, z-index layering, and vivid gradient fill. [Done]
 - 2026-10-24 17:34: Unified 3 header control cards to equal 140px width with truncated device names; fixed panel drop reordering on layout grid. [Done]
