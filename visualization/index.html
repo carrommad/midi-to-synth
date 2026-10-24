@@ -79,7 +79,7 @@
   </header>
 
   <main class="dashboard-grid">
-    <!-- Readouts bar -->
+    <!-- Readouts bar (4 metric cards) -->
     <section class="readouts-strip">
       <div class="metric-card">
         <span class="metric-label">Detected Pitch</span>
@@ -97,7 +97,11 @@
         <span class="metric-label">RMS / Peak</span>
         <span id="rmsReadout" class="metric-val">-&infin; / -&infin; dB</span>
       </div>
-      <div class="metric-card level-meter-card">
+    </section>
+
+    <!-- Dedicated Full-Width dB Broadcast Level Bar -->
+    <section class="level-meter-row">
+      <div class="level-meter-full">
         <div class="meter-bar-container">
           <div id="meterLevel" class="meter-bar-fill"></div>
           <div class="meter-ticks">
@@ -105,19 +109,20 @@
             <span class="tick" style="left: 33.3%;"><em>-40</em></span>
             <span class="tick" style="left: 66.6%;"><em>-20</em></span>
             <span class="tick" style="left: 83.3%;"><em>-10</em></span>
-            <span class="tick" style="left: 95%;"><em>0</em></span>
+            <span class="tick" style="left: 95%;"><em>0 dBFS</em></span>
           </div>
           <span id="clipIndicator" class="clip-indicator" title="Input is clipping: lower Input Gain or S-1 volume">CLIP</span>
         </div>
       </div>
     </section>
 
-    <!-- Graph Grid -->
-    <div class="charts-layout">
+    <!-- Graph Grid (Draggable & Reorderable) -->
+    <div class="charts-layout" id="chartsLayout">
       <!-- 1. Oscilloscope -->
-      <article class="chart-panel">
+      <article class="chart-panel" data-panel-id="oscilloscope" draggable="true">
         <div class="panel-header">
           <div class="panel-title">
+            <span class="drag-grip" title="Drag to reorder panel">⠿</span>
             <span class="dot green"></span>
             <h2>Oscilloscope (Time Domain)</h2>
           </div>
@@ -146,9 +151,10 @@
       </article>
 
       <!-- 2. FFT Spectrum Analyzer -->
-      <article class="chart-panel">
+      <article class="chart-panel" data-panel-id="fft" draggable="true">
         <div class="panel-header">
           <div class="panel-title">
+            <span class="drag-grip" title="Drag to reorder panel">⠿</span>
             <span class="dot cyan"></span>
             <h2>FFT Spectrum & Resonance Tracker</h2>
           </div>
@@ -169,9 +175,10 @@
       </article>
 
       <!-- 3. 3D Waterfall Spectrum -->
-      <article class="chart-panel">
+      <article class="chart-panel" data-panel-id="waterfall" draggable="true">
         <div class="panel-header">
           <div class="panel-title">
+            <span class="drag-grip" title="Drag to reorder panel">⠿</span>
             <span class="dot cyan"></span>
             <h2>3D Cascading Waterfall (Time &times; Freq)</h2>
           </div>
@@ -189,9 +196,10 @@
       </article>
 
       <!-- 4. Harmonic Partials Series -->
-      <article class="chart-panel">
+      <article class="chart-panel" data-panel-id="harmonics" draggable="true">
         <div class="panel-header">
           <div class="panel-title">
+            <span class="drag-grip" title="Drag to reorder panel">⠿</span>
             <span class="dot amber"></span>
             <h2>Harmonic Series (1f0 - 16f0 Partials)</h2>
           </div>
@@ -205,9 +213,10 @@
       </article>
 
       <!-- 5. Spectrogram Waterfall Heatmap -->
-      <article class="chart-panel">
+      <article class="chart-panel" data-panel-id="spectrogram" draggable="true">
         <div class="panel-header">
           <div class="panel-title">
+            <span class="drag-grip" title="Drag to reorder panel">⠿</span>
             <span class="dot amber"></span>
             <h2>Rolling Spectrogram (Waterfall)</h2>
           </div>
@@ -226,9 +235,10 @@
       </article>
 
       <!-- 6. Chromagram Note Dial & Phase Scope -->
-      <article class="chart-panel">
+      <article class="chart-panel" data-panel-id="chromagram" draggable="true">
         <div class="panel-header">
           <div class="panel-title">
+            <span class="drag-grip" title="Drag to reorder panel">⠿</span>
             <span class="dot violet"></span>
             <h2>Chromagram Dial & Stereo Goniometer</h2>
           </div>

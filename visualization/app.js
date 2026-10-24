@@ -1018,4 +1018,93 @@ deviceSelect.addEventListener('change', () => {
   if (audioCtx) startAudio();
 });
 
+// Drag and drop reordering for chart panels
+const chartsLayout = document.getElementById('chartsLayout');
+const STORAGE_PANEL_ORDER_KEY = 'roland_s1_charts_order';
+
+function initDraggablePanels() {
+  if (!chartsLayout) return;
+
+  // Restore saved panel order from localStorage
+  const savedOrder = localStorage.getItem(STORAGE_PANEL_ORDER_KEY);
+  if (savedOrder) {
+    try {
+      const orderIds = JSON.parse(savedOrder);
+      const panelsById = new Map();
+      chartsLayout.querySelectorAll('.chart-panel').forEach(p => {
+        const id = p.getAttribute('data-panel-id');
+        if (id) panelsById.set(id, p);
+      });
+      orderIds.forEach(id => {
+        const panel = panelsById.get(id);
+        if (panel) chartsLayout.appendChild(panel);
+      });
+    } catch (e) {
+      console.warn("Could not restore panel order:", e);
+    }
+  }
+
+  let draggedPanel = null;
+
+  chartsLayout.querySelectorAll('.chart-panel').forEach(panel => {
+    panel.addEventListener('dragstart', (e) => {
+      // Don't drag if user is interacting with form controls or canvas
+      const target = e.target;
+      if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'CANVAS' || target.tagName === 'BUTTON') {
+        e.preventDefault();
+        return;
+      }
+      draggedPanel = panel;
+      panel.classList.add('panel-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', panel.getAttribute('data-panel-id') || '');
+    });
+
+    panel.addEventListener('dragend', () => {
+      panel.classList.remove('panel-dragging');
+      chartsLayout.querySelectorAll('.chart-panel').forEach(p => p.classList.remove('panel-drag-over'));
+      draggedPanel = null;
+      resizeCanvases();
+      savePanelOrder();
+    });
+
+    panel.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (!draggedPanel || draggedPanel === panel) return;
+
+      const rect = panel.getBoundingClientRect();
+      const midX = rect.left + rect.width / 2;
+      panel.classList.add('panel-drag-over');
+
+      if (e.clientX < midX) {
+        chartsLayout.insertBefore(draggedPanel, panel);
+      } else {
+        chartsLayout.insertBefore(draggedPanel, panel.nextSibling);
+      }
+    });
+
+    panel.addEventListener('dragleave', () => {
+      panel.classList.remove('panel-drag-over');
+    });
+
+    panel.addEventListener('drop', (e) => {
+      e.preventDefault();
+      panel.classList.remove('panel-drag-over');
+    });
+  });
+
+  function savePanelOrder() {
+    const currentOrder = Array.from(chartsLayout.querySelectorAll('.chart-panel'))
+      .map(p => p.getAttribute('data-panel-id'))
+      .filter(Boolean);
+    try {
+      localStorage.setItem(STORAGE_PANEL_ORDER_KEY, JSON.stringify(currentOrder));
+    } catch (err) {
+      console.warn("Could not save panel order:", err);
+    }
+  }
+}
+
+initDraggablePanels();
 populateDevices();

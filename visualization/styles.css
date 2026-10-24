@@ -314,8 +314,26 @@ select {
   color: var(--accent-cyan);
 }
 
-.level-meter-card {
-  padding: 0.75rem;
+.level-meter-row {
+  width: 100%;
+}
+
+.level-meter-full {
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+}
+
+.level-meter-full .meter-bar-container {
+  height: 22px;
+  min-height: 22px;
+  background: #090d15;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
 }
 
 .meter-bar-container {
@@ -426,6 +444,19 @@ select {
   flex-direction: column;
   overflow: hidden;
   min-height: 300px;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.chart-panel.panel-dragging {
+  opacity: 0.45;
+  transform: scale(0.98);
+  border: 1px dashed var(--accent-cyan);
+}
+
+.chart-panel.panel-drag-over {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+  transform: translateY(-2px);
 }
 
 .panel-header {
@@ -436,6 +467,7 @@ select {
   background: rgba(10, 14, 22, 0.7);
   border-bottom: 1px solid var(--border-color);
   gap: 0.45rem;
+  user-select: none;
 }
 
 .panel-title {
@@ -443,6 +475,24 @@ select {
   align-items: center;
   gap: 0.5rem;
   width: 100%;
+  cursor: grab;
+}
+
+.panel-title:active {
+  cursor: grabbing;
+}
+
+.drag-grip {
+  font-size: 1rem;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.28);
+  margin-right: 0.15rem;
+  letter-spacing: -0.1em;
+  transition: color 0.15s ease;
+}
+
+.panel-title:hover .drag-grip {
+  color: var(--accent-cyan);
 }
 
 .panel-title h2 {

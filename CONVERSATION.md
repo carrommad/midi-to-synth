@@ -1,5 +1,6 @@
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-24 17:31: Made all 6 graph panels draggable & reorderable with localStorage persistence; moved dB broadcast meter into dedicated full-width row. [Done]
 - 2026-10-24 17:19: Replaced cycle crest search with pure hardware-grade Schmitt trigger (hysteresis arming + zero crossing) for rock-solid lock during PWM and LFO modulation. [Done]
 - 2026-10-24 17:07: Fixed pitch detector octave-jumping and upgraded oscilloscope to peak-anchored crest trigger (locks unambiguously to tallest plateau on composite waveforms). [Done]
 - 2026-10-24 17:04: Upgraded oscilloscope to cross-correlation template trigger, locking firmly to multi-step square + sub waveforms without phase jumping. [Done]
