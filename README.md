@@ -6,7 +6,7 @@ Convierte tu **Raspberry Pi 3 Model B (v1.2)** en una estación de sonido y ritm
 
 ---
 
-## 🖥️ Especificaciones del Hardware & Sistema
+## Especificaciones del Hardware & Sistema
 
 | Componente | Detalle Verificado |
 |---|---|
@@ -20,7 +20,7 @@ Convierte tu **Raspberry Pi 3 Model B (v1.2)** en una estación de sonido y ritm
 
 ---
 
-## 🎹 Arquitectura del Sistema
+## Arquitectura del Sistema
 
 ```mermaid
 graph TD
@@ -44,7 +44,7 @@ graph TD
 
 ---
 
-## 📑 Manual de Instrucciones en PDF (2 Páginas A4)
+## Manual de Instrucciones en PDF (2 Páginas A4)
 
 Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales de las teclas y atajos:
 * 📄 **[Manual de Instrucciones Akai MPK Mini (PDF)](docs/Manual_Instrucciones_Akai_MPK_Mini.pdf)**
@@ -58,7 +58,7 @@ Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales 
 
 ---
 
-## ⚡ Guía Rápida de Operación en Vivo
+## Guía Rápida de Operación en Vivo
 
 ### 1. Los 4 Modificadores Sin Pantalla (Extremo Izquierdo)
 Las 4 primeras teclas del extremo izquierdo del teclado actúan como selectores ergonómicos:
@@ -109,7 +109,7 @@ Las 4 primeras teclas del extremo izquierdo del teclado actúan como selectores 
 
 ---
 
-## 🌊 Roland S-1 Waveform Lab (Analizador Web de Audio en Tiempo Real)
+## Roland S-1 Waveform Lab (Analizador Web de Audio en Tiempo Real)
 
 El repositorio incluye un laboratorio visualizador de audio en tiempo real diseñado específicamente para sintetizadores analógicos/virtuales como el **Roland S-1 Tweak Synth** (compatible con audio USB-C class-compliant o entrada de línea/jack).
 
@@ -133,7 +133,7 @@ El repositorio incluye un laboratorio visualizador de audio en tiempo real dise�
 
 ---
 
-## 📁 Estructura del Repositorio
+## Estructura del Repositorio
 
 ```text
 midi-to-synth/
