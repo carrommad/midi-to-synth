@@ -215,6 +215,12 @@ Si no quieres grabar y prefieres una base profesional lista para improvisar enci
 ```
 - **Toca cualquier Pad del 1 al 8** para arrancar el ritmo correspondiente.
 - **Vuelve a tocar el mismo Pad** para detener la base (*Toggle* encendido/apagado).
+- **⏱ Auto-Sincronización Inteligente de BPM con el Arpegiador (¡Novedad!):**
+  - **Cómo usarlo:**
+    1. Ajusta en la pantalla OLED del Akai el tempo deseado (o el tempo exacto de tu sintetizador Roland S-1) manteniendo pulsado **`Arp On/Off`** y girando **`K7`**.
+    2. Mantén pulsada cualquier nota o acorde con el arpegiador activo durante 1–2 segundos.
+    3. Pulsa **`D#1` + Pad (1..8)**: el ritmo pregrabado **arrancará bloqueado de forma instantánea al BPM exacto de tu arpegiador** en lugar del tempo por defecto.
+  - **Ajuste manual posterior:** En cualquier momento durante la reproducción, puedes seguir acelerando o frenando el ritmo libremente girando el knob **`K3`** (30 a 210 BPM).
 
 ---
 

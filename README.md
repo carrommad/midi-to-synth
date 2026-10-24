@@ -71,6 +71,7 @@ Las 4 primeras teclas del extremo izquierdo del teclado actúan como selectores 
   - `Pad 4`: Borrar todas las pistas (Reset).
   - `Pads 5, 6, 7 y 8`: **Control de Capas 1 a 4** (Toque corto: Silenciar/Mute toggle con chime grave/agudo; Sostener > 1.0s: Borrado individual de esa capa).
 * **`D#1` (2ª Negra) + Pads (1 a 8)**: **8 Ritmos Pregrabados** listos para improvisar (1: Lo-Fi 76 BPM, 2: Boom-Bap 88 BPM, 3: Trap 808 138 BPM, 4: Deep House 124 BPM, 5: Rock 104 BPM, 6: Funk 94 BPM, 7: Jazz 118 BPM, 8: Afrobeat 108 BPM).
+  - **Auto-Sync BPM con Arpegiador**: Si tocas notas con el arpegiador activo antes de pulsar el pad, el ritmo arranca de inmediato sincronizado al tempo exacto mostrado en la pantalla OLED del Akai (o el fijado para tu Roland S-1). Gira **`K3`** para afinar o alterar la velocidad en directo.
 
 ---
 
