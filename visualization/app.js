@@ -208,7 +208,6 @@ async function startAudio() {
       }
     };
     stream = await navigator.mediaDevices.getUserMedia(constraints);
-    await populateDevices();
 
     sourceNode = audioCtx.createMediaStreamSource(stream);
 
@@ -1050,28 +1049,25 @@ function initDraggablePanels() {
   let draggedPanel = null;
 
   chartsLayout.querySelectorAll('.chart-panel').forEach(panel => {
-    const handle = panel.querySelector('.panel-title') || panel.querySelector('.panel-header');
-    
-    // Set draggable directly on the panel element
     panel.setAttribute('draggable', 'true');
 
     panel.addEventListener('dragstart', (e) => {
-      // Allow drag ONLY if initiated from header/title, NOT from inputs, selects, or canvases
-      const target = e.target;
-      const isHeader = target.closest('.panel-title') || target.classList.contains('panel-header') || target.classList.contains('drag-grip');
-      if (!isHeader || target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'CANVAS') {
+      // Don't drag when interacting with controls or canvas
+      if (['INPUT', 'SELECT', 'CANVAS', 'BUTTON', 'LABEL', 'OPTION'].includes(e.target.tagName)) {
         e.preventDefault();
         return;
       }
       draggedPanel = panel;
       panel.classList.add('panel-dragging');
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', panel.getAttribute('data-panel-id') || '');
+      e.dataTransfer.setData('text/plain', panel.getAttribute('data-panel-id') || 'panel');
     });
 
     panel.addEventListener('dragend', () => {
-      if (draggedPanel) draggedPanel.classList.remove('panel-dragging');
-      chartsLayout.querySelectorAll('.chart-panel').forEach(p => p.classList.remove('panel-drag-over'));
+      chartsLayout.querySelectorAll('.chart-panel').forEach(p => {
+        p.classList.remove('panel-dragging');
+        p.classList.remove('panel-drag-over');
+      });
       draggedPanel = null;
       resizeCanvases();
     });
