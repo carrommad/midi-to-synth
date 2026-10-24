@@ -336,14 +336,36 @@ function renderOscilloscope(dataTimeL, w, h) {
     vertScale = parseFloat(vGain.value);
   }
 
-  // Robust Trigger search: find upward zero-crossing
+  // Robust Trigger search: hysteresis-based edge sync (locks on rising or sharp falling sawtooth)
   let startIdx = 0;
-  if (triggerSync.checked) {
-    const threshold = maxAmp * 0.1;
-    for (let i = 0; i < dataTimeL.length - sampleCount - 1; i++) {
-      if (dataTimeL[i] < -threshold && dataTimeL[i + 1] >= 0) {
+  if (triggerSync.checked && maxAmp > 0.005) {
+    const hysteresis = maxAmp * 0.15;
+    const searchLimit = Math.max(0, dataTimeL.length - sampleCount - 1);
+    let armed = false;
+    let found = false;
+
+    // Pass 1: standard rising-edge trigger with arming hysteresis
+    for (let i = 0; i < searchLimit; i++) {
+      if (!armed) {
+        if (dataTimeL[i] < -hysteresis) armed = true;
+      } else if (dataTimeL[i] >= 0) {
         startIdx = i;
+        found = true;
         break;
+      }
+    }
+
+    // Pass 2: fallback for inverted/steep falling sawtooth (armed high, triggers on negative transition)
+    if (!found) {
+      armed = false;
+      for (let i = 0; i < searchLimit; i++) {
+        if (!armed) {
+          if (dataTimeL[i] > hysteresis) armed = true;
+        } else if (dataTimeL[i] <= 0) {
+          startIdx = i;
+          found = true;
+          break;
+        }
       }
     }
   }

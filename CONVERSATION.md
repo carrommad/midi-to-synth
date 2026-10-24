@@ -1,5 +1,7 @@
 # Roland S-1 Audio Visualizer
-> **Target:** `visualization/`- 2026-10-24 12:47: Substituted docs/assets/waveform_lab_preview.png with latest screenshot showing active Chromagram and Stereo Goniometer. [Done]
+> **Target:** `visualization/`
+- 2026-10-24 16:57: Upgraded oscilloscope trigger to dual-pass hysteresis edge sync (locks reliably to both rising ramps and falling sawtooth waves). [Done]
+- 2026-10-24 12:47: Substituted docs/assets/waveform_lab_preview.png with latest screenshot showing active Chromagram and Stereo Goniometer. [Done]
 - 2026-10-24 12:44: Added dynamic auto-gain expansion and multi-ring reticle to Stereo Goniometer to scale quiet mono/stereo signals. [Done]
 - 2026-10-24 12:35: Added visual screenshots of Akai MIDI manual PDF and Roland S-1 Waveform Lab to README.md. [Done]
 - 2026-10-24 12:33: Updated README.md with comprehensive Waveform Lab documentation and live web links. [Done]
