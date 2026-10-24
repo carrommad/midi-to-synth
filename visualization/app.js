@@ -1050,9 +1050,16 @@ function initDraggablePanels() {
   let draggedPanel = null;
 
   chartsLayout.querySelectorAll('.chart-panel').forEach(panel => {
+    const handle = panel.querySelector('.panel-title') || panel.querySelector('.panel-header');
+    
+    // Set draggable directly on the panel element
+    panel.setAttribute('draggable', 'true');
+
     panel.addEventListener('dragstart', (e) => {
+      // Allow drag ONLY if initiated from header/title, NOT from inputs, selects, or canvases
       const target = e.target;
-      if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'CANVAS' || target.tagName === 'BUTTON') {
+      const isHeader = target.closest('.panel-title') || target.classList.contains('panel-header') || target.classList.contains('drag-grip');
+      if (!isHeader || target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'CANVAS') {
         e.preventDefault();
         return;
       }
@@ -1077,7 +1084,6 @@ function initDraggablePanels() {
     });
 
     panel.addEventListener('dragleave', (e) => {
-      // Only remove if leaving the panel itself, not hovering over children
       if (!panel.contains(e.relatedTarget)) {
         panel.classList.remove('panel-drag-over');
       }
@@ -1092,7 +1098,7 @@ function initDraggablePanels() {
       const midX = rect.left + rect.width / 2;
       const midY = rect.top + rect.height / 2;
 
-      // Determine whether to place before or after target based on cursor position
+      // Determine before vs after insertion
       const isBefore = (e.clientY < midY - 20) || (Math.abs(e.clientY - midY) <= 40 && e.clientX < midX);
 
       if (isBefore) {
