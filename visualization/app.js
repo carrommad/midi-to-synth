@@ -221,20 +221,6 @@ async function startAudio() {
     inputGainNode.gain.value = parseFloat(inputGain.value);
     sourceNode.connect(inputGainNode);
 
-    // Steep Notch Filters for Ground Loop Whine (~6.4 kHz fundamental & ~12.8 kHz harmonic)
-    notchFilter1 = audioCtx.createBiquadFilter();
-    notchFilter1.type = 'notch';
-    notchFilter1.frequency.value = 6450;
-    notchFilter1.Q.value = 12.0;
-
-    notchFilter2 = audioCtx.createBiquadFilter();
-    notchFilter2.type = 'notch';
-    notchFilter2.frequency.value = 12900;
-    notchFilter2.Q.value = 12.0;
-
-    // Apply or bypass whine filter
-    updateWhineFilterRouting();
-
     // Stereo split
     splitterNode = audioCtx.createChannelSplitter(2);
     analyserLeft = audioCtx.createAnalyser();
@@ -259,6 +245,20 @@ async function startAudio() {
     monitorGainNode = audioCtx.createGain();
     monitorGainNode.gain.value = monitorOn ? 1.0 : 0;
     monitorGainNode.connect(audioCtx.destination);
+
+    // Steep Notch Filters for Ground Loop Whine (~6.4 kHz fundamental & ~12.8 kHz harmonic)
+    notchFilter1 = audioCtx.createBiquadFilter();
+    notchFilter1.type = 'notch';
+    notchFilter1.frequency.value = 6450;
+    notchFilter1.Q.value = 12.0;
+
+    notchFilter2 = audioCtx.createBiquadFilter();
+    notchFilter2.type = 'notch';
+    notchFilter2.frequency.value = 12900;
+    notchFilter2.Q.value = 12.0;
+
+    // Apply or bypass whine filter (all destination nodes are now ready)
+    updateWhineFilterRouting();
 
     toggleAudioBtn.textContent = 'Stop Audio';
     toggleAudioBtn.classList.add('active-stop');
