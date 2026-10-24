@@ -1,5 +1,6 @@
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-24 17:55: Enforced strict `grid-template-rows: repeat(2, 1fr)` so row 1 and row 2 remain exactly equal 50/50 height under all panel arrangements. [Done]
 - 2026-10-24 17:50: Simplified dragstart event filtering to ensure panels drag smoothly across all browsers without accidental cancellation. [Done]
 - 2026-10-24 17:48: Restored natural ergonomic widths to header control cards (audio input ~220px, input gain ~125px, speaker ~95px) at unified 48px height. [Done]
 - 2026-10-24 17:46: Unified grid with `grid-auto-rows: 1fr` and `flex: 1 1 0` so both rows remain exactly equal; prevented audio stream restarts during panel drags. [Done]
