@@ -139,6 +139,9 @@ class LiveMidiLooper:
         self.metro_thread: Optional[threading.Thread] = None
         self.lock = threading.Lock()
         self.last_tap_times: list = []
+        self.last_key_note_times: list = []
+        self.detected_arp_bpm: Optional[int] = None
+        self.last_arp_detected_time: float = 0.0
 
         # 7 Preset groove templates for instant jamming (Pads 1 to 7)
         self.preset_idx: Optional[int] = None
@@ -466,6 +469,46 @@ class LiveMidiLooper:
                 pass
         threading.Thread(target=_worker, daemon=True).start()
 
+    def register_key_note(self, note: int):
+        """Measures incoming note intervals from keyboard/arpeggiator.
+        When steady arpeggiated repetition is detected, calculates the matching BPM.
+        """
+        now = time.time()
+        self.last_key_note_times.append(now)
+        # Keep only the last 8 note timestamps
+        if len(self.last_key_note_times) > 8:
+            self.last_key_note_times.pop(0)
+
+        if len(self.last_key_note_times) >= 4:
+            # Check intervals between consecutive notes
+            intervals = [
+                self.last_key_note_times[i] - self.last_key_note_times[i - 1]
+                for i in range(1, len(self.last_key_note_times))
+            ]
+            avg_interval = sum(intervals) / len(intervals)
+            # Arpeggiator note repetition should be consistent (deviation < 25%)
+            is_steady = all(abs(dt - avg_interval) < (avg_interval * 0.28) for dt in intervals)
+
+            if is_steady and avg_interval > 0.05:
+                # Default Akai MPK arpeggiator step is typically 1/16th or 1/8th note.
+                # For 1/16th note: beat (1/4) = 4 * interval -> BPM = 60 / (4 * interval) = 15 / interval
+                # For 1/8th note:  beat (1/4) = 2 * interval -> BPM = 60 / (2 * interval) = 30 / interval
+                # If interval is between 0.075s and 0.35s, it is usually 1/16th note arpeggio:
+                cand_16th = 15.0 / avg_interval
+                cand_8th = 30.0 / avg_interval
+
+                # Pick the division that produces a standard musical BPM between 45 and 210:
+                if 45 <= cand_16th <= 210:
+                    detected = int(round(cand_16th))
+                elif 45 <= cand_8th <= 210:
+                    detected = int(round(cand_8th))
+                else:
+                    detected = None
+
+                if detected is not None:
+                    self.detected_arp_bpm = detected
+                    self.last_arp_detected_time = now
+
     def play_preset(self, idx: int):
         if idx >= len(self.preset_patterns):
             return
@@ -474,13 +517,22 @@ class LiveMidiLooper:
             return
         self.stop_all()
         self.preset_idx = idx
-        self.bpm = self.preset_patterns[idx]["bpm"]
+
+        # If arpeggiator notes were actively detected within the last 5 seconds, use that exact BPM
+        now = time.time()
+        if self.detected_arp_bpm is not None and (now - self.last_arp_detected_time) < 5.0:
+            self.bpm = self.detected_arp_bpm
+            bpm_source = f"Auto-Sync Arpegiador ({self.detected_arp_bpm} BPM)"
+        else:
+            self.bpm = self.preset_patterns[idx]["bpm"]
+            bpm_source = f"Preset Default ({self.bpm} BPM)"
+
         self.state = "PRESET"
         self.stop_event.clear()
         self.play_thread = threading.Thread(target=self._run_preset_loop, daemon=True)
         self.play_thread.start()
         name = self.preset_patterns[idx]["name"]
-        print(f"\n[PRESET BEAT ▶] '{name}' a {self.bpm} BPM", flush=True)
+        print(f"\n[PRESET BEAT ▶] '{name}' a {self.bpm} BPM [{bpm_source}]", flush=True)
 
     def stop_all(self):
         self.stop_internal()
@@ -921,6 +973,9 @@ class AdvancedAkaiController:
                         print(f"\n[DRUM KIT SELECT] -> Tecla {idx + 1}: {name} (Kit {kit_num})")
                         play_preview(chan=9, note=36, vel=120, duration=0.35)
                         return
+
+            # Registrar la nota para auto-detección de tempo del arpegiador
+            self.looper.register_key_note(note)
 
             # Grabar notas de teclado en el Looper (incluso si está en ARMED para disparar la grabación):
             if self.looper.state in ["ARMED", "RECORDING", "OVERDUBBING"]:

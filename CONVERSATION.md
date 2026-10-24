@@ -1,3 +1,7 @@
+# Akai MPK Mini & Roland S-1 Synth Controller
+> **Target:** `scripts/akai_controller.py`
+- 2026-10-24 19:23: Added real-time arpeggiator note interval tempo detector so preset patterns automatically launch at the exact BPM shown on the Akai OLED screen. [Done]
+
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
 - 2026-10-24 17:55: Enforced strict `grid-template-rows: repeat(2, 1fr)` so row 1 and row 2 remain exactly equal 50/50 height under all panel arrangements. [Done]

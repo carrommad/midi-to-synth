@@ -451,7 +451,7 @@ function renderFFT(dataFreqL, w, h, sampleRate) {
     fftCtx.moveTo(fx, 0);
     fftCtx.lineTo(fx, h - 14);
     fftCtx.stroke();
-    
+
     if (fx <= 2) {
       drawAxisLabel(fftCtx, formatHz(f), 6, h - 3, 'left');
     } else {
@@ -584,7 +584,7 @@ function render3DWaterfall(dataFreqL, w, h, sampleRate) {
     // Smooth spectral color progression: electric cyan -> vibrant cobalt -> deep violet
     const colorProgress = Math.pow(progress, 0.7);
     const hue = 175 + colorProgress * 100;
-    
+
     // High persistence across all 180 background lines (minimum 42% opacity)
     const alpha = Math.max(0.42, 1 - progress * 0.45);
 
@@ -694,8 +694,8 @@ function renderHarmonics(dataFreqL, fundFreq, sampleRate, w, h) {
       }
     }
 
-    const targetNorm = activeFund > 20 
-      ? Math.max(0, Math.min(1, (ampDb - dynamicFloorDb) / (dynamicPeakDb - dynamicFloorDb))) 
+    const targetNorm = activeFund > 20
+      ? Math.max(0, Math.min(1, (ampDb - dynamicFloorDb) / (dynamicPeakDb - dynamicFloorDb)))
       : 0;
 
     // Smooth decay to prevent flicker (instant attack, gentle decay)
@@ -806,7 +806,7 @@ function renderChromagram(dataFreqL, sampleRate, w, h) {
     chromaCtx.arc(cx, cy, rInner, angleEnd, angleStart, true);
     chromaCtx.closePath();
 
-    chromaCtx.fillStyle = hasSignal 
+    chromaCtx.fillStyle = hasSignal
       ? `hsla(${i * 30}, 85%, 55%, ${0.20 + val * 0.80})`
       : 'rgba(255, 255, 255, 0.03)';
     chromaCtx.fill();
