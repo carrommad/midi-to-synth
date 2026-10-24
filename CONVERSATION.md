@@ -1,5 +1,6 @@
 # Akai MPK Mini & Roland S-1 Synth Controller
 > **Target:** `scripts/akai_controller.py`
+- 2026-10-24 21:10: Configured `audio_pwm_mode=2` and `disable_audio_dither=1` in Raspberry Pi `/boot/firmware/config.txt` to suppress analog audio output high-pitch PWM whine, and rebooted board. [Done]
 - 2026-10-24 21:07: Connected to Raspberry Pi at `192.168.1.29`, configured alias `ssh pi` in `~/.ssh/config`, copied updated `akai_controller.py`, and restarted `synth.service` successfully. [Done]
 - 2026-10-24 19:23: Added real-time arpeggiator note interval tempo detector so preset patterns automatically launch at the exact BPM shown on the Akai OLED screen. [Done]
 
