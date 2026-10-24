@@ -5,6 +5,7 @@ let inputGainNode = null;
 let splitterNode = null;
 let analyserLeft = null;
 let analyserRight = null;
+let analyserFine = null;
 let monitorGainNode = null;
 let stream = null;
 let animationId = null;
@@ -15,7 +16,8 @@ const toggleAudioBtn = document.getElementById('toggleAudioBtn');
 const freezeBtn = document.getElementById('freezeBtn');
 const deviceSelect = document.getElementById('deviceSelect');
 const monitorToggle = document.getElementById('monitorToggle');
-const monitorVol = document.getElementById('monitorVol');
+const monitorState = document.getElementById('monitorState');
+let monitorOn = false;
 const inputGain = document.getElementById('inputGain');
 const gainVal = document.getElementById('gainVal');
 
@@ -24,6 +26,8 @@ const freqReadout = document.getElementById('freqReadout');
 const vcfReadout = document.getElementById('vcfReadout');
 const rmsReadout = document.getElementById('rmsReadout');
 const meterLevel = document.getElementById('meterLevel');
+const clipIndicator = document.getElementById('clipIndicator');
+let clipHoldFrames = 0;
 
 // Canvases
 const oscCanvas = document.getElementById('oscCanvas');
@@ -47,9 +51,19 @@ const triggerSync = document.getElementById('triggerSync');
 const autoScaleOsc = document.getElementById('autoScaleOsc');
 const oscZoom = document.getElementById('oscZoom');
 const vGain = document.getElementById('vGain');
+let oscPeakSmooth = 0;
+
+// V-Gain only applies when Auto Gain is off
+function syncVGainState() {
+  if (!vGain || !autoScaleOsc) return;
+  vGain.disabled = autoScaleOsc.checked;
+  vGain.title = autoScaleOsc.checked ? 'Disable Auto Gain to use V-Gain' : 'Vertical Scale';
+}
+if (autoScaleOsc) autoScaleOsc.addEventListener('change', syncVGainState);
+syncVGainState();
 const logScale = document.getElementById('logScale');
 const showHarmonics = document.getElementById('showHarmonics');
-const waterfallPreset = document.getElementById('waterfallPreset');
+const waterfallLog = document.getElementById('waterfallLog');
 const specScale = document.getElementById('specScale');
 
 // Mel scale conversion formulas (O'Shaughnessy / HTK)
@@ -60,13 +74,13 @@ function melToHz(mel) {
   return 700 * (Math.pow(10, mel / 2595) - 1);
 }
 
-// 3D Waterfall Camera State (Default set to Front-High with wider angle & deep background)
+// 3D Waterfall Camera State (Default set to Isometric perspective)
 const camera3D = {
-  yaw: 0.08,      // slight angle offset for dimensional depth
-  pitch: 0.38,    // increased view angle (higher elevation looking across cascade)
-  zoom: 1.18,     // expanded viewport zoom
-  panX: 0,        // centered horizon
-  panY: 30,       // balanced vertical baseline
+  yaw: 0.52,      // isometric yaw angle
+  pitch: 0.62,    // isometric elevation
+  zoom: 1.05,     // viewport zoom
+  panX: -25,      // centered composition
+  panY: 8,        // baseline offset
   isDragging: false,
   lastMouseX: 0,
   lastMouseY: 0
@@ -84,47 +98,59 @@ function noteFromPitch(frequency) {
   return Math.round(noteNum) + 69;
 }
 
-function autoCorrelate(buf, sampleRate) {
+// Pitch detection: normalized autocorrelation with confidence gating.
+// Returns -1 when the signal is too quiet or not clearly periodic (e.g. noise).
+const PITCH_WINDOW = 4096;     // samples analysed (enough for ~30 Hz periods)
+const PITCH_MIN_RMS = 0.003;   // ~ -50 dBFS
+const PITCH_MIN_CLARITY = 0.9; // 0..1, periodicity confidence
+const PITCH_MIN_HZ = 30;
+const PITCH_MAX_HZ = 4000;
+
+function autoCorrelate(fullBuf, sampleRate) {
+  const buf = fullBuf.length > PITCH_WINDOW ? fullBuf.subarray(fullBuf.length - PITCH_WINDOW) : fullBuf;
   const SIZE = buf.length;
-  let rms = 0;
-  for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
-  rms = Math.sqrt(rms / SIZE);
-  if (rms < 0.005) return -1;
 
-  let r1 = 0, r2 = SIZE - 1, thres = 0.15;
-  for (let i = 0; i < SIZE / 2; i++) {
-    if (Math.abs(buf[i]) < thres) { r1 = i; break; }
-  }
-  for (let i = 1; i < SIZE / 2; i++) {
-    if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
+  let energy = 0;
+  for (let i = 0; i < SIZE; i++) energy += buf[i] * buf[i];
+  if (Math.sqrt(energy / SIZE) < PITCH_MIN_RMS) return -1;
+
+  const minLag = Math.max(2, Math.floor(sampleRate / PITCH_MAX_HZ));
+  const maxLag = Math.min(SIZE - 2, Math.ceil(sampleRate / PITCH_MIN_HZ));
+  const nsdf = new Float32Array(maxLag + 2);
+
+  // Normalized square difference function (McLeod): 1 = perfectly periodic
+  for (let lag = minLag; lag <= maxLag + 1; lag++) {
+    let acf = 0, m = 0;
+    for (let j = 0; j < SIZE - lag; j++) {
+      const a = buf[j], b = buf[j + lag];
+      acf += a * b;
+      m += a * a + b * b;
+    }
+    nsdf[lag] = m > 0 ? (2 * acf) / m : 0;
   }
 
-  const buf2 = buf.slice(r1, r2);
-  const c = new Array(buf2.length).fill(0);
-  for (let i = 0; i < buf2.length; i++) {
-    for (let j = 0; j < buf2.length - i; j++) {
-      c[i] = c[i] + buf2[j] * buf2[j + i];
+  // Global max, then pick the first peak within 90% of it (avoids octave errors)
+  let globalMax = 0;
+  for (let lag = minLag; lag <= maxLag; lag++) if (nsdf[lag] > globalMax) globalMax = nsdf[lag];
+  if (globalMax < PITCH_MIN_CLARITY) return -1;
+
+  let T0 = -1;
+  for (let lag = minLag + 1; lag <= maxLag; lag++) {
+    if (nsdf[lag] >= 0.9 * globalMax && nsdf[lag] >= nsdf[lag - 1] && nsdf[lag] >= nsdf[lag + 1]) {
+      T0 = lag;
+      break;
     }
   }
-
-  let d = 0;
-  while (c[d] > c[d + 1]) d++;
-  let maxval = -1, maxpos = -1;
-  for (let i = d; i < buf2.length; i++) {
-    if (c[i] > maxval) {
-      maxval = c[i];
-      maxpos = i;
-    }
-  }
-  let T0 = maxpos;
   if (T0 <= 0) return -1;
 
-  const x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+  // Parabolic interpolation for sub-sample accuracy
+  const x1 = nsdf[T0 - 1], x2 = nsdf[T0], x3 = nsdf[T0 + 1];
   const a = (x1 + x3 - 2 * x2) / 2;
   const b = (x3 - x1) / 2;
-  if (a) T0 = T0 - b / (2 * a);
+  let period = T0;
+  if (a) period = T0 - b / (2 * a);
 
-  return sampleRate / T0;
+  return sampleRate / period;
 }
 
 async function populateDevices() {
@@ -193,18 +219,25 @@ async function startAudio() {
     analyserLeft = audioCtx.createAnalyser();
     analyserRight = audioCtx.createAnalyser();
 
+    // Fast analysers (2048 ≈ 43 ms at 48 kHz): scope, FFT, waterfall, spectrogram, goniometer
     analyserLeft.fftSize = 2048;
-    analyserLeft.smoothingTimeConstant = 0.75;
+    analyserLeft.smoothingTimeConstant = 0.5;
     analyserRight.fftSize = 2048;
-    analyserRight.smoothingTimeConstant = 0.75;
+    analyserRight.smoothingTimeConstant = 0.5;
+
+    // Fine analyser (8192 ≈ 5.9 Hz/bin): pitch, harmonics, chromagram
+    analyserFine = audioCtx.createAnalyser();
+    analyserFine.fftSize = 8192;
+    analyserFine.smoothingTimeConstant = 0.5;
 
     inputGainNode.connect(splitterNode);
     splitterNode.connect(analyserLeft, 0);
     splitterNode.connect(analyserRight, 1);
+    splitterNode.connect(analyserFine, 0);
 
     // Monitoring pass-through to speakers/headphones
     monitorGainNode = audioCtx.createGain();
-    monitorGainNode.gain.value = monitorToggle.checked ? parseFloat(monitorVol.value) : 0;
+    monitorGainNode.gain.value = monitorOn ? 1.0 : 0;
     sourceNode.connect(monitorGainNode);
     monitorGainNode.connect(audioCtx.destination);
 
@@ -233,6 +266,19 @@ function stopAudio() {
   vcfReadout.textContent = '-- Hz';
   rmsReadout.innerHTML = '-&infin; / -&infin; dB';
   meterLevel.style.width = '0%';
+}
+
+// Frequency axis helpers
+const AXIS_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
+function formatHz(hz) {
+  return hz >= 1000 ? `${hz / 1000}k` : `${hz}`;
+}
+function drawAxisLabel(ctx, text, x, y, align = 'center') {
+  ctx.fillStyle = 'rgba(139, 155, 180, 0.85)';
+  ctx.font = '10px JetBrains Mono';
+  ctx.textAlign = align;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y);
 }
 
 // Drawing routines
@@ -277,13 +323,15 @@ function renderOscilloscope(dataTimeL, w, h) {
 
   // Calculate vertical scaling multiplier
   let vertScale = 1.0;
-  const userMultiplier = vGain ? (parseFloat(vGain.value) / 5.0) : 1.0;
 
   if (autoScaleOsc && autoScaleOsc.checked) {
-    // Fill 88% of vertical viewport, multiplied by user V-Gain slider
-    if (maxAmp > 0.001) {
-      vertScale = Math.min(300.0, (0.88 / maxAmp) * userMultiplier);
-    }
+    // Smoothed peak: fast attack, slow release; fill 88% of viewport
+    oscPeakSmooth = maxAmp > oscPeakSmooth
+      ? maxAmp
+      : oscPeakSmooth * 0.97 + maxAmp * 0.03;
+    // Floor (~-34 dBFS peak) so background noise is not blown up to full screen
+    const OSC_AUTO_FLOOR = 0.02;
+    vertScale = Math.min(300.0, 0.88 / Math.max(OSC_AUTO_FLOOR, oscPeakSmooth));
   } else if (vGain) {
     vertScale = parseFloat(vGain.value);
   }
@@ -363,9 +411,43 @@ function renderFFT(dataFreqL, w, h, sampleRate) {
   fftCtx.stroke();
   fftCtx.shadowBlur = 0;
 
-  // Estimate VCF Cutoff / Resonant peak (highest high-freq prominence)
-  if (maxVal > -65 && maxBin > 1) {
-    const peakFreq = (maxBin * nyquist) / binCount;
+  // Frequency axis (Hz)
+  const fftLabels = isLog ? AXIS_FREQS : [2000, 5000, 10000, 15000, 20000].filter(f => f < nyquist);
+  fftCtx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  fftCtx.lineWidth = 1;
+  for (const f of fftLabels) {
+    if (f >= nyquist) continue;
+    if (isLog && f === 50) continue; // prevent 50 and 100 collision
+    const fx = isLog
+      ? ((Math.log10(f) - Math.log10(20)) / (Math.log10(nyquist) - Math.log10(20))) * w
+      : (f / nyquist) * w;
+    fftCtx.beginPath();
+    fftCtx.moveTo(fx, 0);
+    fftCtx.lineTo(fx, h - 14);
+    fftCtx.stroke();
+    
+    if (fx <= 2) {
+      drawAxisLabel(fftCtx, formatHz(f), 6, h - 3, 'left');
+    } else {
+      drawAxisLabel(fftCtx, formatHz(f), fx, h - 3, 'center');
+    }
+  }
+
+  // Estimate VCF Cutoff / Resonant peak (prominent peak above 80 Hz to reject AC line hum)
+  const minVcfBin = Math.max(2, Math.round((80 / nyquist) * binCount));
+  let peakVal = -Infinity;
+  let peakBin = 0;
+
+  for (let i = minVcfBin; i < binCount; i++) {
+    if (dataFreqL[i] > peakVal) {
+      peakVal = dataFreqL[i];
+      peakBin = i;
+    }
+  }
+
+  // Only display cutoff if peak is legitimately prominent and above noise threshold (-60 dB)
+  if (peakVal > -60 && peakBin >= minVcfBin) {
+    const peakFreq = (peakBin * nyquist) / binCount;
     vcfReadout.textContent = `${Math.round(peakFreq)} Hz`;
 
     let peakX = 0;
@@ -374,14 +456,14 @@ function renderFFT(dataFreqL, w, h, sampleRate) {
       const maxLog = Math.log10(nyquist);
       peakX = ((Math.log10(peakFreq) - minLog) / (maxLog - minLog)) * w;
     } else {
-      peakX = (maxBin / binCount) * w;
+      peakX = (peakBin / binCount) * w;
     }
-    const peakY = Math.max(0, Math.min(h, h - ((maxVal + 100) / 100) * h));
+    const peakY = Math.max(0, Math.min(h, h - ((peakVal + 100) / 100) * h));
 
     if (showHarmonics.checked) {
       fftCtx.fillStyle = '#ffaa00';
       fftCtx.font = '11px JetBrains Mono';
-      fftCtx.fillText(`${Math.round(peakFreq)} Hz (${Math.round(maxVal)} dB)`, Math.min(w - 110, peakX + 6), Math.max(16, peakY - 8));
+      fftCtx.fillText(`${Math.round(peakFreq)} Hz (${Math.round(peakVal)} dB)`, Math.min(w - 110, peakX + 6), Math.max(16, peakY - 8));
       fftCtx.beginPath();
       fftCtx.arc(peakX, peakY, 4, 0, Math.PI * 2);
       fftCtx.fill();
@@ -413,8 +495,8 @@ function updateDynamicRange(dataFreqL, nyquist) {
     dynamicPeakDb = dynamicPeakDb * 0.98 + localPeak * 0.02; // slow release
   }
 
-  // Keep sensible bounds
-  dynamicPeakDb = Math.max(-65.0, Math.min(-5.0, dynamicPeakDb));
+  // Keep sensible bounds (upper floor -40 dB keeps silence flat instead of amplifying noise)
+  dynamicPeakDb = Math.max(-40.0, Math.min(-5.0, dynamicPeakDb));
   // Noise floor is placed ~50 dB below peak
   dynamicFloorDb = dynamicPeakDb - 48.0;
 }
@@ -428,16 +510,26 @@ function render3DWaterfall(dataFreqL, w, h, sampleRate) {
   const slice = new Float32Array(reducedBins);
   const nyquist = (sampleRate || 48000) / 2;
   const binCount = dataFreqL.length;
+  const isLog = !waterfallLog || waterfallLog.checked;
 
+  const minHz = 20;
+  const maxHz = Math.min(nyquist, 12000);
+  const minLog = Math.log10(minHz);
+  const maxLog = Math.log10(maxHz);
   const minMel = hzToMel(30);
-  const maxMel = hzToMel(Math.min(nyquist, 12000));
+  const maxMel = hzToMel(maxHz);
 
   // Push new slice every 2 animation frames for smooth cascading flow
   waterfallFrameCount++;
   if (waterfallFrameCount % 2 === 0) {
     for (let i = 0; i < reducedBins; i++) {
-      const curMel = minMel + (i / (reducedBins - 1)) * (maxMel - minMel);
-      const hz = melToHz(curMel);
+      const frac = i / (reducedBins - 1);
+      let hz = 0;
+      if (isLog) {
+        hz = Math.pow(10, minLog + frac * (maxLog - minLog));
+      } else {
+        hz = melToHz(minMel + frac * (maxMel - minMel));
+      }
       const bin = Math.min(binCount - 1, Math.max(0, Math.round((hz / nyquist) * binCount)));
       slice[i] = dataFreqL[bin];
     }
@@ -486,6 +578,27 @@ function render3DWaterfall(dataFreqL, w, h, sampleRate) {
       else waterfallCtx.lineTo(px, py);
     }
     waterfallCtx.stroke();
+  }
+
+  // Frequency labels under the front (newest) slice (skip 50 Hz on log scale to prevent 50/100 overlap)
+  const frontStartX = (w * 0.08) + camera3D.panX;
+  const frontBaseY = (h * 0.85) + camera3D.panY;
+  const frontW = (w * 0.76) * zoom;
+  let lastLabelX = -999;
+  for (const f of AXIS_FREQS) {
+    if (f < minHz || f > maxHz) continue;
+    if (isLog && f === 50) continue; // prevent 50 and 100 collision
+    let frac = 0;
+    if (isLog) {
+      frac = (Math.log10(f) - minLog) / (maxLog - minLog);
+    } else {
+      frac = (hzToMel(f) - minMel) / (maxMel - minMel);
+    }
+    const lx = frontStartX + frac * frontW;
+    if (lx < 0 || lx > w - 10) continue;
+    if (Math.abs(lx - lastLabelX) < 20) continue; // guarantee minimum label spacing
+    lastLabelX = lx;
+    drawAxisLabel(waterfallCtx, formatHz(f), Math.max(12, lx), Math.min(h - 3, frontBaseY + 14));
   }
 }
 
@@ -654,24 +767,29 @@ function renderChromagram(dataFreqL, sampleRate, w, h) {
   const rOuter = Math.min(w, h) * 0.38;
   const rInner = rOuter * 0.45;
 
+  // Gate chromagram: if signal is below noise threshold, dim sectors completely
+  const isSilent = maxChroma < 0.05 || (lastValidFundFreq <= 20 && pitchHoldCounter === 0);
+
   for (let i = 0; i < 12; i++) {
     const angleStart = (i * Math.PI * 2) / 12 - Math.PI / 2;
     const angleEnd = ((i + 1) * Math.PI * 2) / 12 - Math.PI / 2;
-    const val = chroma[i] / maxChroma;
+    const val = isSilent ? 0 : (chroma[i] / maxChroma);
 
     chromaCtx.beginPath();
     chromaCtx.arc(cx, cy, rInner + val * (rOuter - rInner), angleStart, angleEnd);
     chromaCtx.arc(cx, cy, rInner, angleEnd, angleStart, true);
     chromaCtx.closePath();
 
-    chromaCtx.fillStyle = `hsla(${i * 30}, 85%, 55%, ${0.2 + val * 0.8})`;
+    chromaCtx.fillStyle = isSilent 
+      ? 'rgba(255, 255, 255, 0.03)' 
+      : `hsla(${i * 30}, 85%, 55%, ${0.2 + val * 0.8})`;
     chromaCtx.fill();
 
     // Label
     const midAngle = (angleStart + angleEnd) / 2;
     const lx = cx + Math.cos(midAngle) * (rOuter + 14);
     const ly = cy + Math.sin(midAngle) * (rOuter + 14);
-    chromaCtx.fillStyle = val > 0.6 ? '#00f0ff' : '#8b9bb4';
+    chromaCtx.fillStyle = (!isSilent && val > 0.6) ? '#00f0ff' : '#8b9bb4';
     chromaCtx.font = '10px JetBrains Mono';
     chromaCtx.textAlign = 'center';
     chromaCtx.textBaseline = 'middle';
@@ -730,6 +848,12 @@ function renderLoop() {
   analyserRight.getFloatTimeDomainData(dataTimeR);
   analyserLeft.getFloatFrequencyData(dataFreqL);
 
+  // High-resolution data for pitch / harmonics / chroma
+  const fineTime = new Float32Array(analyserFine.fftSize);
+  const fineFreq = new Float32Array(analyserFine.frequencyBinCount);
+  analyserFine.getFloatTimeDomainData(fineTime);
+  analyserFine.getFloatFrequencyData(fineFreq);
+
   // Meter & Pitch computation
   let sumSquares = 0;
   let peak = 0;
@@ -746,16 +870,22 @@ function renderLoop() {
   const meterPct = Math.max(0, Math.min(100, (peakDb + 60) * (100 / 60)));
   meterLevel.style.width = `${meterPct}%`;
 
-  const freq = autoCorrelate(dataTimeL, audioCtx.sampleRate);
+  // Clip detection on raw input (pre digital gain); hold ~1 s
+  const gainNow = inputGainNode ? inputGainNode.gain.value : 1;
+  if (gainNow > 0 && peak / gainNow >= 0.98) clipHoldFrames = 60;
+  else if (clipHoldFrames > 0) clipHoldFrames--;
+  if (clipIndicator) clipIndicator.classList.toggle('active', clipHoldFrames > 0);
+
+  const freq = autoCorrelate(fineTime, audioCtx.sampleRate);
   if (freq !== -1 && freq > 20 && freq < 4000) {
     const midi = noteFromPitch(freq);
     const note = NOTE_STRINGS[midi % 12];
     const octave = Math.floor(midi / 12) - 1;
     pitchReadout.textContent = `${note}${octave}`;
     freqReadout.textContent = `${freq.toFixed(1)} Hz`;
-  } else if (rms < 0.008) {
+  } else {
     pitchReadout.textContent = '--';
-    freqReadout.textContent = '0.0 Hz';
+    freqReadout.textContent = '-- Hz';
   }
 
   // Update dynamic range AGC for spectrogram auto-scaling
@@ -765,9 +895,9 @@ function renderLoop() {
   renderOscilloscope(dataTimeL, oscCanvas.width, oscCanvas.height);
   renderFFT(dataFreqL, fftCanvas.width, fftCanvas.height, audioCtx.sampleRate);
   render3DWaterfall(dataFreqL, waterfallCanvas.width, waterfallCanvas.height, audioCtx.sampleRate);
-  renderHarmonics(dataFreqL, freq > 20 ? freq : 0, audioCtx.sampleRate, harmonicsCanvas.width, harmonicsCanvas.height);
+  renderHarmonics(fineFreq, freq > 20 ? freq : 0, audioCtx.sampleRate, harmonicsCanvas.width, harmonicsCanvas.height);
   renderSpectrogram(dataFreqL, spectrogramCanvas.width, spectrogramCanvas.height, audioCtx.sampleRate);
-  renderChromagram(dataFreqL, audioCtx.sampleRate, chromaCanvas.width, chromaCanvas.height);
+  renderChromagram(fineFreq, audioCtx.sampleRate, chromaCanvas.width, chromaCanvas.height);
   renderPhaseScope(dataTimeL, dataTimeR, phaseCanvas.width, phaseCanvas.height);
 }
 
@@ -776,6 +906,7 @@ toggleAudioBtn.addEventListener('click', startAudio);
 freezeBtn.addEventListener('click', () => {
   isFrozen = !isFrozen;
   freezeBtn.textContent = isFrozen ? 'Resume' : 'Freeze View';
+  freezeBtn.classList.toggle('frozen', isFrozen);
 });
 
 // 3D Waterfall Camera Interaction (Drag: Rotate/Orbit, Ctrl+Drag: Pan/Move Inside, Scroll: Zoom)
@@ -816,40 +947,6 @@ waterfallCanvas.addEventListener('wheel', (e) => {
   camera3D.zoom = Math.max(0.4, Math.min(3.0, camera3D.zoom * zoomFactor));
 }, { passive: false });
 
-// Camera POV Presets
-waterfallPreset.addEventListener('change', () => {
-  switch (waterfallPreset.value) {
-    case 'iso':
-      camera3D.yaw = 0.52;
-      camera3D.pitch = 0.62;
-      camera3D.zoom = 1.05;
-      camera3D.panX = -25;
-      camera3D.panY = 8;
-      break;
-    case 'front':
-      camera3D.yaw = 0.08;
-      camera3D.pitch = 0.38;
-      camera3D.zoom = 1.18;
-      camera3D.panX = 0;
-      camera3D.panY = 30;
-      break;
-    case 'side':
-      camera3D.yaw = 0.75;
-      camera3D.pitch = 0.45;
-      camera3D.zoom = 1.0;
-      camera3D.panX = -30;
-      camera3D.panY = 0;
-      break;
-    case 'top':
-      camera3D.yaw = 0.0;
-      camera3D.pitch = 0.95;
-      camera3D.zoom = 1.1;
-      camera3D.panX = 0;
-      camera3D.panY = -25;
-      break;
-  }
-});
-
 inputGain.addEventListener('input', () => {
   const g = parseFloat(inputGain.value);
   gainVal.textContent = `${g.toFixed(1)}x`;
@@ -859,17 +956,12 @@ inputGain.addEventListener('input', () => {
 });
 
 monitorToggle.addEventListener('change', () => {
-  const span = monitorToggle.parentElement.querySelector('span');
-  if (span) span.textContent = monitorToggle.checked ? 'Mute' : 'Unmute';
-  if (monitorGainNode && audioCtx) {
-    const targetGain = monitorToggle.checked ? parseFloat(monitorVol.value) : 0;
-    monitorGainNode.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.02);
+  monitorOn = monitorToggle.checked;
+  if (monitorState) {
+    monitorState.textContent = monitorOn ? 'On' : 'Off';
   }
-});
-
-monitorVol.addEventListener('input', () => {
-  if (monitorGainNode && audioCtx && monitorToggle.checked) {
-    monitorGainNode.gain.setTargetAtTime(parseFloat(monitorVol.value), audioCtx.currentTime, 0.02);
+  if (monitorGainNode && audioCtx) {
+    monitorGainNode.gain.setTargetAtTime(monitorOn ? 1.0 : 0, audioCtx.currentTime, 0.02);
   }
 });
 

@@ -104,6 +104,24 @@ Las 4 primeras teclas del extremo izquierdo del teclado actúan como selectores 
 
 ---
 
+## 🌊 Roland S-1 Waveform Lab (Analizador Web de Audio en Tiempo Real)
+
+El repositorio incluye un laboratorio visualizador de audio en tiempo real diseñado específicamente para sintetizadores analógicos/virtuales como el **Roland S-1 Tweak Synth** (compatible con audio USB-C class-compliant o entrada de línea/jack).
+
+* 🌐 **Acceso Web en Vivo (GitHub Pages):** [https://carrommad.github.io/midi-to-synth/](https://carrommad.github.io/midi-to-synth/)
+* 🚀 **Ejecución local rápida:** `./visualization/run.sh`
+
+### Características de Gráficos e Instrumentación
+1. **Osciloscopio (Dominio Temporal):** Sincronización robusta por cruce por cero (*Sync Lock*), auto-ganancia suave con umbral antirruido y control manual de V-Gain / Zoom.
+2. **Espectro FFT & Tracker de Resonancia:** Escala logarítmica (20 Hz a Nyquist), detección automática de frecuencia de corte VCF / pico armónico con rechazo de zumbido eléctrico (< 80 Hz).
+3. **Cascada 3D Waterfall (Tiempo × Frecuencia):** Proyección isométrica tridimensional con 180 líneas de persistencia, escala logarítmica y navegación interactiva (Órbita, Desplazamiento y Zoom).
+4. **Serie Armónica Discreta (1f₀ - 16f₀):** Desglose individual de sobretonos pares e impares con memoria de tono y decaimiento visual suave.
+5. **Espectrograma Continuo de Calor:** Cascada temporal vertical con auto-escalado AGC dinámico.
+6. **Dial de Cromagrama & Goniómetro Estéreo:** Rueda de clases de tono de 12 semitonos con umbral de silencio y osciloscopio de fase estéreo.
+7. **Monitor de Altavoces & Medidor Broadcast:** Conmutador directo de altavoz portátil y vúmetro calibrado con indicador persistente de saturación (**CLIP**).
+
+---
+
 ## 📁 Estructura del Repositorio
 
 ```text
@@ -113,12 +131,19 @@ midi-to-synth/
 │   ├── Manual_Instrucciones_Akai_MPK_Mini.pdf  # Manual imprimible de 2 páginas A4
 │   ├── manual_akai_mpk.html                    # Fuente HTML del manual visual
 │   ├── MIDI_MAPPING_AKAI.md                    # Mapeo y arquitectura técnica de notas
+│   ├── ROLAND_S1_INTEGRATION.md                # Guía de integración con Roland S-1
 │   ├── FASE_A_FLUIDSYNTH.md                    # Documentación de instalación base
 │   └── OPTIMIZACION_LATENCIA.md                # Parámetros ALSA y buffers de baja latencia
-└── scripts/
-    ├── akai_controller.py         # Daemon principal (Looper, modificadores, routing, apagado)
-    ├── start-synth.sh             # Script de arranque del servicio FluidSynth
-    ├── synth.service              # Unidad de servicio Systemd para boot headless
-    ├── install_fluidsynth.sh      # Script de aprovisionamiento de dependencias
-    └── select_sound.sh            # Utilidad CLI para selección por terminal
+├── scripts/
+│   ├── akai_controller.py         # Daemon principal (Looper, modificadores, routing, apagado)
+│   ├── start-synth.sh             # Script de arranque del servicio FluidSynth
+│   ├── synth.service              # Unidad de servicio Systemd para boot headless
+│   ├── install_fluidsynth.sh      # Script de aprovisionamiento de dependencias
+│   └── select_sound.sh            # Utilidad CLI para selección por terminal
+└── visualization/
+    ├── index.html                 # Interfaz visual del Waveform Lab
+    ├── styles.css                 # Sistema de diseño, temas dark y layout responsive
+    ├── app.js                     # Motor Web Audio API (doble analizador FFT, algoritmos DSP)
+    ├── favicon.svg                # Favicon estilizado Roland S-1
+    └── run.sh                     # Lanzador de servidor local
 ```

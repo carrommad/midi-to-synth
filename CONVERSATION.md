@@ -1,6 +1,12 @@
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
 
+- 2026-10-24 12:33: Updated README.md with comprehensive Waveform Lab documentation and live web links. [Done]
+- 2026-10-24 12:31: Aligned 20 Hz origin label cleanly to the left margin on FFT spectrum. [Done]
+- 2026-10-24 12:30: Added 20 Hz low-end baseline origin marker to FFT and 3D Waterfall frequency scales. [Done]
+- 2026-10-24 12:26: Fixed 50/100 overlap on 3D waterfall, rejected AC hum in VCF cutoff, gated chromagram against line noise, added broadcast dB ticks to meter. [Done]
+- 2026-10-24 12:21: 3D Waterfall: added Log Scale toggle, set Isometric as default view, removed preset dropdown, retained orbit/pan/zoom hint. [Done]
+- 2026-10-24 12:18: Restored upgraded app.js (gated pitch, dual analysers, noise floor clamp, axis labels, speaker monitor fix) and styled Freeze button cyan while disabled. [Done]
 - 2026-10-23 20:57: Faster response: fast 2048 analysers for scope/FFT/waterfall/spectrogram + separate 8192 analyser for pitch/harmonics/chroma; smoothing 0.5. Freeze button cyan (amber when frozen). [Done]
 - 2026-10-23 20:55: visualization/ is now single source (removed docs/ copies; Pages via Actions). Added gated McLeod pitch detection, fftSize 8192, CLIP indicator. [Done]
 - 2026-10-23 20:48: Fixed oscilloscope Auto Gain (no longer multiplied by V-Gain -> no off-screen clipping), added fast-attack/slow-release smoothing, V-Gain disabled while Auto Gain on. docs/ + visualization/. [Done]
