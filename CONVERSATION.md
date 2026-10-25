@@ -1,6 +1,6 @@
 # Akai MPK Mini & Roland S-1 Synth Controller
 > **Target:** `scripts/akai_controller.py`
-- 2026-10-25 14:14: Fixed FluidSynth SoundFont note termination by decoupling noteoff and CC 64 0 commands into discrete sequential socket packets with an 80ms audio buffer cycle before restoring CC 64, ensuring continuous instruments (Trumpet, Organs) terminate exactly at the set decay duration (3s min to 30s max, default 5s). [Done]
+- 2026-10-25 14:20: Added Synth Bass 1 (808 Sub) and Synth Bass 2 (Acid 303) to the continuous instruments list, ensuring all 24 instruments either naturally fade out or are bounded by Knob 7's 3s-30s auto-decay timer without infinite droning. [Done]
 - 2026-10-25 14:02: Unified keyboard hold timers at 2.0s (C1 melodic select, C#1 drum select, C1+C#1 full level, C1+C3 shutdown) with confirmation chime, fixed missing `cancel_full_level_timer` method, and added momentary CC 64 0->127 cycle on decay timeout so SoundFont trumpets/organs terminate cleanly without infinite ringing. [Done]
 - 2026-10-25 13:56: Mapped Knob 7 to dynamic Sustain Note Decay Duration (1.0s to 12.0s, default 5.0s) for continuous instruments (Trumpet, Organ, Strings, Synth Leads) with re-trigger note cut and timer cancellations on sustain release/panic. Deployed to Pi and documented in docs/MIDI_MAPPING_AKAI.md. [Done]
 - 2026-10-25 13:37: Updated Panic Pad 8 in CC mode to silence all active notes and stop loops without resetting the user's active sustain or FX configuration. [Done]

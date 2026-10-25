@@ -1026,8 +1026,8 @@ class AdvancedAkaiController:
                         return
 
             # Continuous Instruments Drone Prevention & Re-trigger cut:
-            # (Trumpet, Organs, Strings, Synth Leads, Warm Pad)
-            continuous_progs = {16, 19, 48, 50, 56, 65, 80, 81, 88}
+            # (Trumpet, Organs, Strings, Synth Basses, Synth Leads, Warm Pad)
+            continuous_progs = {16, 19, 38, 39, 48, 50, 56, 65, 80, 81, 88}
             curr_prog = MELODIC_INSTRUMENTS[self.current_melodic_idx][0]
             is_continuous = (curr_prog in continuous_progs)
 
@@ -1191,7 +1191,7 @@ class AdvancedAkaiController:
                 print(f"[KNOB 6 - TECLADO] Chorus Grosor & Lush: {int(cho_lvl*100)}%", flush=True)
 
             elif knob_idx == 6:  # K7: Adaptive Decay Envelope (Continuous) / Cathedral Reverb Bloom (Pianos)
-                continuous_progs = {16, 19, 48, 50, 56, 65, 80, 81, 88}
+                continuous_progs = {16, 19, 38, 39, 48, 50, 56, 65, 80, 81, 88}
                 curr_prog = MELODIC_INSTRUMENTS[self.current_melodic_idx][0]
                 is_continuous = (curr_prog in continuous_progs)
 
