@@ -710,46 +710,44 @@ function renderHarmonics(dataFreqL, fundFreq, sampleRate, w, h) {
   const nyquist = sampleRate / 2;
   const binCount = dataFreqL.length;
 
-  // Latch pitch so bars don't vanish intermittently on minor cycle inconsistencies
-  if (fundFreq > 20) {
-    lastValidFundFreq = fundFreq;
-    pitchHoldCounter = 30; // Hold for ~0.5s of audio dropouts
+  // Require legitimate musical fundamental frequency from autocorrelation or strong spectral peak
+  const activeFund = fundFreq > 20 ? fundFreq : (dynamicPeakDb > -60.0 ? getSpectralFundamental(dataFreqL, nyquist) : 0);
+  if (activeFund > 20) {
+    lastValidFundFreq = activeFund;
+    pitchHoldCounter = 12; // Short latch for note articulation
   } else if (pitchHoldCounter > 0) {
     pitchHoldCounter--;
   } else {
-    // If autocorrelation missed, fallback to FFT spectral peak
-    const specFund = getSpectralFundamental(dataFreqL, nyquist);
-    if (specFund > 20) {
-      lastValidFundFreq = specFund;
-      pitchHoldCounter = 15;
-    } else {
-      lastValidFundFreq = 0;
-    }
+    lastValidFundFreq = 0;
   }
 
-  const activeFund = lastValidFundFreq;
+  const validPitch = lastValidFundFreq;
+  const hasFundamental = validPitch > 20 && dynamicPeakDb > -65.0;
 
   for (let p = 1; p <= partialCount; p++) {
-    const pFreq = activeFund * p;
+    const pFreq = validPitch * p;
     let ampDb = -120;
 
-    if (activeFund > 20 && pFreq < nyquist) {
+    if (hasFundamental && pFreq < 12000) {
       const centerBin = Math.round((pFreq / nyquist) * binCount);
-      const searchRadius = Math.max(2, Math.round(binCount * (12 / nyquist)));
+      const searchRadius = Math.max(2, Math.round(binCount * (10 / nyquist)));
       for (let b = Math.max(0, centerBin - searchRadius); b <= Math.min(binCount - 1, centerBin + searchRadius); b++) {
         if (dataFreqL[b] > ampDb) ampDb = dataFreqL[b];
       }
     }
 
-    const targetNorm = activeFund > 20
+    const targetNorm = hasFundamental
       ? Math.max(0, Math.min(1, (ampDb - dynamicFloorDb) / (dynamicPeakDb - dynamicFloorDb)))
       : 0;
 
-    // Smooth decay to prevent flicker (instant attack, gentle decay)
+    // Decay smoothly towards zero when silence occurs
     if (targetNorm > smoothedHarmonicNorms[p - 1]) {
       smoothedHarmonicNorms[p - 1] = targetNorm;
     } else {
-      smoothedHarmonicNorms[p - 1] = smoothedHarmonicNorms[p - 1] * 0.82 + targetNorm * 0.18;
+      smoothedHarmonicNorms[p - 1] = smoothedHarmonicNorms[p - 1] * 0.75 + targetNorm * 0.25;
+      if (!hasFundamental && smoothedHarmonicNorms[p - 1] < 0.04) {
+        smoothedHarmonicNorms[p - 1] = 0;
+      }
     }
 
     const norm = smoothedHarmonicNorms[p - 1];
