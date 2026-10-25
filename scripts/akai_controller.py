@@ -1244,12 +1244,16 @@ class AdvancedAkaiController:
                     fluid.send(f"prog 0 {prog_num}")
                     print(f"\n[PAD CC A-7] Instrumento Siguiente -> ({self.current_melodic_idx + 1}/{len(MELODIC_INSTRUMENTS)}): {name} (Prog {prog_num})", flush=True)
                     play_preview(chan=0, note=72, vel=110, duration=0.35)
-            elif pad_idx == 7:  # Pad 8: Pánico / All Notes Off
+            elif pad_idx == 7:  # Pad 8: Pánico / All Notes Off (Silencia sonidos sin alterar la configuración de efectos)
                 if value > 0:
-                    fluid.send("cc 0 123 0\ncc 9 123 0\ncc 0 120 0\ncc 9 120 0\ncc 0 64 0")
+                    prev_sustain = self.sustain_active
+                    # Silenciar notas activas de inmediato sin desconfigurar CC 64
+                    fluid.send("cc 0 123 0\ncc 9 123 0\ncc 0 120 0\ncc 9 120 0")
                     self.looper.stop_all()
-                    self.sustain_active = False
-                    print("\n[PAD CC A-8] ¡PÁNICO! Silenciadas todas las notas y detenido el Looper", flush=True)
+                    if prev_sustain:
+                        # Re-asegurar estado de sustain activo para las siguientes notas
+                        fluid.send("cc 0 64 127")
+                    print("\n[PAD CC A-8] ¡PÁNICO! Silenciadas todas las notas y detenido el Looper (Configuración de efectos preservada)", flush=True)
 
         # PADS BANCO B (LIVE LOOPER & GROOVE ENGINE)
         elif is_pad_bank_b:
