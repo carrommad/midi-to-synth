@@ -1,5 +1,6 @@
 # Akai MPK Mini & Roland S-1 Synth Controller
 > **Target:** `scripts/akai_controller.py`
+- 2026-10-25 14:02: Unified keyboard hold timers at 2.0s (C1 melodic select, C#1 drum select, C1+C#1 full level, C1+C3 shutdown) with confirmation chime, fixed missing `cancel_full_level_timer` method, and added momentary CC 64 0->127 cycle on decay timeout so SoundFont trumpets/organs terminate cleanly without infinite ringing. [Done]
 - 2026-10-25 13:56: Mapped Knob 7 to dynamic Sustain Note Decay Duration (1.0s to 12.0s, default 5.0s) for continuous instruments (Trumpet, Organ, Strings, Synth Leads) with re-trigger note cut and timer cancellations on sustain release/panic. Deployed to Pi and documented in docs/MIDI_MAPPING_AKAI.md. [Done]
 - 2026-10-25 13:37: Updated Panic Pad 8 in CC mode to silence all active notes and stop loops without resetting the user's active sustain or FX configuration. [Done]
 - 2026-10-25 13:34: Added confirmation chime alert upon holding C1/C#1 for 3.0s to signal Selection Mode, and fixed CC Pad 1 / instrument switching so disabling sustain and switching presets immediately cuts off continuous instruments (Trumpet, Organ, Strings). [Done]

@@ -850,6 +850,11 @@ class AdvancedAkaiController:
             self.full_level_timer.daemon = True
             self.full_level_timer.start()
 
+    def cancel_full_level_timer(self):
+        if self.full_level_timer is not None:
+            self.full_level_timer.cancel()
+            self.full_level_timer = None
+
     def start_modifier_timer(self, key_type: str, note: int):
         if self.modifier_timer is None:
             def _on_selection_ready():
@@ -868,7 +873,7 @@ class AdvancedAkaiController:
                     self.play_chime(active=True)
                 self.modifier_timer = None
 
-            self.modifier_timer = threading.Timer(3.0, _on_selection_ready)
+            self.modifier_timer = threading.Timer(2.0, _on_selection_ready)
             self.modifier_timer.daemon = True
             self.modifier_timer.start()
 
@@ -987,14 +992,14 @@ class AdvancedAkaiController:
                     if (lowest_note + 1) in self.held_keyboard_notes:
                         self.start_full_level_timer(lowest_note)
 
-            # SELECCIÓN DE INSTRUMENTO / KIT (Modo Selección confirmado tras 3s de hold):
+            # SELECCIÓN DE INSTRUMENTO / KIT (Modo Selección confirmado tras 2s de hold):
             if self.looper.state not in ["RECORDING", "OVERDUBBING"] and len(active_notes) >= 2:
                 lowest_note = active_notes[0]
                 modifier_hold_time = now - self.held_keyboard_notes.get(lowest_note, now)
 
-                # Solo actúa como modificador si es la tecla física C1 o C#1 del extremo izquierdo y pasaron >= 3.0s
+                # Solo actúa como modificador si es la tecla física C1 o C#1 del extremo izquierdo y pasaron >= 2.0s
                 is_physical_modifier = (self.lowest_base_c is not None and lowest_note in [self.lowest_base_c, self.lowest_base_c + 1])
-                is_mode_ready = (self.modifier_active_mode is not None or modifier_hold_time >= 3.0)
+                is_mode_ready = (self.modifier_active_mode is not None or modifier_hold_time >= 2.0)
                 if is_physical_modifier and is_mode_ready and note >= (lowest_note + 2):
                     base_c = self.lowest_base_c
 
@@ -1026,14 +1031,19 @@ class AdvancedAkaiController:
             curr_prog = MELODIC_INSTRUMENTS[self.current_melodic_idx][0]
             is_continuous = (curr_prog in continuous_progs)
 
-            # Cancelar temporizador previo de la nota si ya estaba sonando
+            # Re-trigger cut: silenciar de inmediato si se vuelve a tocar la misma nota
             old_timer = self.active_note_timers.pop(note, None)
             if old_timer:
                 old_timer.cancel()
+                fluid.send(f"noteoff 0 {note}")
 
             if is_continuous and self.sustain_active:
                 def _decay_noteoff(target_note: int):
+                    # Enviar noteoff y conmutar CC 64 brevemente para forzar la liberación
+                    # de SoundFonts que ignoran el noteoff mientras el pedal de sustain está a 127
                     fluid.send(f"noteoff 0 {target_note}")
+                    if self.sustain_active:
+                        fluid.send("cc 0 64 0\ncc 0 64 127")
                     self.active_note_timers.pop(target_note, None)
 
                 decay_timer = threading.Timer(self.sustain_decay_seconds, _decay_noteoff, args=[note])
