@@ -1,5 +1,6 @@
 # Akai MPK Mini & Roland S-1 Synth Controller
 > **Target:** `scripts/akai_controller.py`
+- 2026-10-25 13:56: Mapped Knob 7 to dynamic Sustain Note Decay Duration (1.0s to 12.0s, default 5.0s) for continuous instruments (Trumpet, Organ, Strings, Synth Leads) with re-trigger note cut and timer cancellations on sustain release/panic. Deployed to Pi and documented in docs/MIDI_MAPPING_AKAI.md. [Done]
 - 2026-10-25 13:37: Updated Panic Pad 8 in CC mode to silence all active notes and stop loops without resetting the user's active sustain or FX configuration. [Done]
 - 2026-10-25 13:34: Added confirmation chime alert upon holding C1/C#1 for 3.0s to signal Selection Mode, and fixed CC Pad 1 / instrument switching so disabling sustain and switching presets immediately cuts off continuous instruments (Trumpet, Organ, Strings). [Done]
 - 2026-10-25 13:30: Increased hold threshold to 2.0 seconds for C1 melodic instrument select, C#1 drum kit select, C1+C#1 Full Level velocity toggle, and C1+C3 safe shutdown to prevent accidental triggers during normal piano performance. [Done]
@@ -10,6 +11,7 @@
 
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-25 13:56: Fixed panel dragging by disabling pointer events on child elements during drag, setting ghost render delay, maintaining dropTarget order, and bumping cache buster to v20 (and styles.css to v5). [Done]
 - 2026-10-25 13:43: Gated the Harmonic Series panel with fundamental signal presence and dynamic peak validation so idle line noise and high-pitch needles cannot trigger isolated fake bars like 6f (v19). [Done]
 - 2026-10-25 13:42: Fixed panel dragstart filtering so clicking the header bar, title, grip icon, or panel frame initiates reordering smoothly while keeping canvas interactions and action controls functional (v18). [Done]
 - 2026-10-25 13:40: Lowered high-frequency electrical ground noise floor clamp threshold to 11.5 kHz (covering the 12 kHz sideband and 15.6 kHz clock needle) so the upper spectrum renders completely flat (v17). [Done]
