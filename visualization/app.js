@@ -1136,8 +1136,8 @@ function initDraggablePanels() {
     panel.setAttribute('draggable', 'true');
 
     panel.addEventListener('dragstart', (e) => {
-      // Don't drag when interacting with controls or canvas
-      if (['INPUT', 'SELECT', 'CANVAS', 'BUTTON', 'LABEL', 'OPTION'].includes(e.target.tagName)) {
+      // Don't drag when clicking inputs, sliders, or canvas (e.g. 3D orbit)
+      if (['INPUT', 'SELECT', 'CANVAS', 'BUTTON'].includes(e.target.tagName)) {
         e.preventDefault();
         return;
       }
