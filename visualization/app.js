@@ -786,6 +786,38 @@ function renderSpectrogram(dataFreqL, w, h, sampleRate) {
     specCtx.fillStyle = `rgb(${r},${g},${b})`;
     specCtx.fillRect(i * sliceW, 0, Math.ceil(sliceW) + 1, 2);
   }
+
+  // Frequency axis overlay (bottom strip with subtle grid & labels)
+  const specFreqs = [100, 250, 500, 1000, 2000, 4000, 6000, 7000, 8000, 10000];
+  specCtx.fillStyle = 'rgba(10, 14, 22, 0.78)';
+  specCtx.fillRect(0, h - 18, w, 18);
+  specCtx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+  specCtx.lineWidth = 1;
+
+  for (const f of specFreqs) {
+    if (f < minHz || f > maxHz) continue;
+    let fraction = 0;
+    if (mode === 'mel') {
+      fraction = (hzToMel(f) - minMel) / (maxMel - minMel);
+    } else if (mode === 'log') {
+      fraction = (Math.log10(f) - minLog) / (maxLog - minLog);
+    } else {
+      fraction = (f - minHz) / (maxHz - minHz);
+    }
+    const x = fraction * w;
+
+    // Small tick
+    specCtx.beginPath();
+    specCtx.moveTo(x, h - 18);
+    specCtx.lineTo(x, h - 12);
+    specCtx.stroke();
+
+    // Text label
+    specCtx.fillStyle = 'rgba(139, 155, 180, 0.88)';
+    specCtx.font = '9px JetBrains Mono';
+    specCtx.textAlign = 'center';
+    specCtx.fillText(formatHz(f), x, h - 4);
+  }
 }
 
 // 6. Chromagram Pitch-Class Dial

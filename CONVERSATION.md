@@ -7,6 +7,7 @@
 
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-25 13:14: Added calibrated frequency axis baseline and ticks (100, 250, 500, 1k, 2k, 4k, 6k, 7k, 8k, 10k) to the Rolling Spectrogram across Mel, Log, and Linear modes. [Done]
 - 2026-10-25 13:04: Added 'Pi Freq Kill' button with real-time fine-tuning slider (6.2k-6.7k Hz) and FFT visual bin clamp to completely extinguish the 6.47 kHz switching noise and line from spectrogram/waterfall. [Done]
 - 2026-10-24 21:13: Added dual high-Q notch filters (6.45 kHz and 12.9 kHz) and 'Filter Whine' header toggle in Waveform Lab to eliminate USB power switching noise spikes from the waterfall, FFT, and speaker monitor. [Done]
 - 2026-10-24 17:55: Enforced strict `grid-template-rows: repeat(2, 1fr)` so row 1 and row 2 remain exactly equal 50/50 height under all panel arrangements. [Done]
