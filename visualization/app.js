@@ -1239,15 +1239,17 @@ function initDraggablePanels() {
     panel.setAttribute('draggable', 'true');
 
     panel.addEventListener('dragstart', (e) => {
-      // Don't drag when clicking inputs, sliders, or canvas (e.g. 3D orbit)
-      if (['INPUT', 'SELECT', 'CANVAS', 'BUTTON'].includes(e.target.tagName)) {
+      // Do not initiate drag from interactive controls in panel-actions or canvases (e.g. 3D orbit)
+      if (e.target.closest('.panel-actions') || e.target.closest('canvas') || ['INPUT', 'SELECT', 'CANVAS', 'BUTTON'].includes(e.target.tagName)) {
         e.preventDefault();
         return;
       }
       draggedPanel = panel;
       panel.classList.add('panel-dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', panel.getAttribute('data-panel-id') || 'panel');
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', panel.getAttribute('data-panel-id') || 'panel');
+      }
     });
 
     panel.addEventListener('dragend', () => {
