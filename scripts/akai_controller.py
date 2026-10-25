@@ -704,6 +704,8 @@ class AdvancedAkaiController:
         self.last_keys_mute_press: float = 0.0
         self.shutdown_timer: Optional[threading.Timer] = None
         self.full_level_timer: Optional[threading.Timer] = None
+        self.modifier_timer: Optional[threading.Timer] = None
+        self.modifier_active_mode: Optional[str] = None
         self.startup_sound_played: bool = False
         self.running = True
         self.keys_full_level: bool = False
@@ -846,10 +848,33 @@ class AdvancedAkaiController:
             self.full_level_timer.daemon = True
             self.full_level_timer.start()
 
-    def cancel_full_level_timer(self):
-        if self.full_level_timer is not None:
-            self.full_level_timer.cancel()
-            self.full_level_timer = None
+    def start_modifier_timer(self, key_type: str, note: int):
+        if self.modifier_timer is None:
+            def _on_selection_ready():
+                self.modifier_active_mode = key_type
+                # Silenciar la nota grave que se estaba manteniendo
+                try:
+                    fluid.send(f"noteoff 0 {note}")
+                except Exception:
+                    pass
+                # Sonido de confirmación: chime cristalino notificando que está en Modo Selección
+                if key_type == "melodic":
+                    print("\n[MODO SELECCIÓN ACTIVADO] Teclado -> Toca cualquier tecla para elegir Instrumento Melódico", flush=True)
+                    self.play_chime(active=True)
+                else:
+                    print("\n[MODO SELECCIÓN ACTIVADO] Batería -> Toca cualquier tecla para elegir Kit de Batería", flush=True)
+                    self.play_chime(active=True)
+                self.modifier_timer = None
+
+            self.modifier_timer = threading.Timer(3.0, _on_selection_ready)
+            self.modifier_timer.daemon = True
+            self.modifier_timer.start()
+
+    def cancel_modifier_timer(self):
+        if self.modifier_timer is not None:
+            self.modifier_timer.cancel()
+            self.modifier_timer = None
+        self.modifier_active_mode = None
 
     def execute_safe_shutdown(self):
         print("\n" + "="*65, flush=True)
@@ -945,6 +970,13 @@ class AdvancedAkaiController:
                 if (highest_k - lowest_k == 24) and (lowest_k % 12 == 0) and (highest_k % 12 == 0):
                     self.start_shutdown_timer()
 
+            # Iniciar temporizador de 3.0s si se pulsa C1 o C#1 físico
+            if self.lowest_base_c is not None:
+                if note == self.lowest_base_c:
+                    self.start_modifier_timer("melodic", note)
+                elif note == (self.lowest_base_c + 1):
+                    self.start_modifier_timer("drum", note)
+
             # SHORTCUT: Mantener C1 + C#1 a la vez durante 2.0 segundos para Full Level
             if self.looper.state not in ["RECORDING", "OVERDUBBING"] and len(active_notes) >= 2:
                 lowest_note = active_notes[0]
@@ -953,20 +985,18 @@ class AdvancedAkaiController:
                     if (lowest_note + 1) in self.held_keyboard_notes:
                         self.start_full_level_timer(lowest_note)
 
-            # Check if any held note is an intentional modifier key (ONLY when not actively recording music)
-            # REGLA DE ORO:
-            # 1. El modificador C1/C#1 DEBE ser exclusivamente la tecla 1 o 2 del extremo izquierdo (self.lowest_base_c).
-            # 2. La tecla modificadora DEBE haber estado sostenida deliberadamente durante al menos 2.0s ANTES de pulsar la otra tecla.
+            # SELECCIÓN DE INSTRUMENTO / KIT (Modo Selección confirmado tras 3s de hold):
             if self.looper.state not in ["RECORDING", "OVERDUBBING"] and len(active_notes) >= 2:
                 lowest_note = active_notes[0]
                 modifier_hold_time = now - self.held_keyboard_notes.get(lowest_note, now)
 
-                # Solo actúa como modificador si es la tecla física C1 o C#1 del extremo izquierdo
+                # Solo actúa como modificador si es la tecla física C1 o C#1 del extremo izquierdo y pasaron >= 3.0s
                 is_physical_modifier = (self.lowest_base_c is not None and lowest_note in [self.lowest_base_c, self.lowest_base_c + 1])
-                if is_physical_modifier and modifier_hold_time >= 2.0 and note >= (lowest_note + 2):
+                is_mode_ready = (self.modifier_active_mode is not None or modifier_hold_time >= 3.0)
+                if is_physical_modifier and is_mode_ready and note >= (lowest_note + 2):
                     base_c = self.lowest_base_c
 
-                    # MODIFIER 1: Tecla C1 (Blanca, más grave) sostenida >= 2.0s -> CAMBIO DE PIANO / MELÓDICO
+                    # MODIFIER 1: Tecla C1 (Blanca, más grave) sostenida >= 3.0s -> CAMBIO DE PIANO / MELÓDICO
                     if lowest_note == base_c:
                         fluid.send(f"noteoff 0 {note}\nnoteoff 0 {base_c}")
                         idx = (note - (base_c + 2)) % len(MELODIC_INSTRUMENTS)
@@ -977,7 +1007,7 @@ class AdvancedAkaiController:
                         play_preview(chan=0, note=72, vel=110, duration=0.35)
                         return
 
-                    # MODIFIER 2: Tecla C#1 (Negra contigua) sostenida >= 2.0s -> CAMBIO DE BATERÍAS (DRUM KITS)
+                    # MODIFIER 2: Tecla C#1 (Negra contigua) sostenida >= 3.0s -> CAMBIO DE BATERÍAS (DRUM KITS)
                     if lowest_note == (base_c + 1):
                         fluid.send(f"noteoff 0 {note}\nnoteoff 0 {base_c + 1}")
                         idx = (note - (base_c + 2)) % len(DRUM_KITS)
@@ -1048,6 +1078,8 @@ class AdvancedAkaiController:
             self.held_keyboard_notes.pop(note, None)
             self.cancel_shutdown_timer()
             self.cancel_full_level_timer()
+            if self.lowest_base_c is not None and note in [self.lowest_base_c, self.lowest_base_c + 1]:
+                self.cancel_modifier_timer()
             # Grabar liberación de tecla para mantener duración exacta de notas
             if self.looper.state in ["RECORDING", "OVERDUBBING"]:
                 self.looper.record_event(0, note, 0, False)
@@ -1156,13 +1188,17 @@ class AdvancedAkaiController:
                 if value > 0:
                     self.last_sustain_press = now
                     self.sustain_active = not self.sustain_active
-                    fluid.send(f"cc 0 64 {127 if self.sustain_active else 0}")
-                    status = "ACTIVADO (Notas sostenidas libres)" if self.sustain_active else "DESACTIVADO (Notas secas)"
+                    if self.sustain_active:
+                        fluid.send("cc 0 64 127")
+                        status = "ACTIVADO (Notas sostenidas libres)"
+                    else:
+                        fluid.send("cc 0 64 0\ncc 0 123 0")
+                        status = "DESACTIVADO (Silenciadas notas sostenidas)"
                     print(f"\n[PAD CC A-1] SUSTAIN PEDAL -> {status}", flush=True)
                 else:
                     if (now - self.last_sustain_press) > 0.4:
                         self.sustain_active = False
-                        fluid.send("cc 0 64 0")
+                        fluid.send("cc 0 64 0\ncc 0 123 0")
                         print("\n[PAD CC A-1] SUSTAIN PEDAL -> DESACTIVADO (Hardware Toggle)", flush=True)
             elif pad_idx == 1:  # Pad 2: Portamento / Glide Toggle (CC 65 + CC 5)
                 if value > 0:
@@ -1194,6 +1230,7 @@ class AdvancedAkaiController:
                     print("[PAD CC A-5] Chorus Boost: Normal", flush=True)
             elif pad_idx == 5:  # Pad 6: Instrumento Anterior (Teclado)
                 if value > 0:
+                    fluid.send("cc 0 123 0")
                     self.current_melodic_idx = (self.current_melodic_idx - 1) % len(MELODIC_INSTRUMENTS)
                     prog_num, name = MELODIC_INSTRUMENTS[self.current_melodic_idx]
                     fluid.send(f"prog 0 {prog_num}")
@@ -1201,6 +1238,7 @@ class AdvancedAkaiController:
                     play_preview(chan=0, note=72, vel=110, duration=0.35)
             elif pad_idx == 6:  # Pad 7: Instrumento Siguiente (Teclado)
                 if value > 0:
+                    fluid.send("cc 0 123 0")
                     self.current_melodic_idx = (self.current_melodic_idx + 1) % len(MELODIC_INSTRUMENTS)
                     prog_num, name = MELODIC_INSTRUMENTS[self.current_melodic_idx]
                     fluid.send(f"prog 0 {prog_num}")
