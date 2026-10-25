@@ -9,6 +9,7 @@
 
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-25 13:35: Suppressed visual high-pitch needle spikes (1.5k, 6.47k, 7.85k, 12.9k, 15.6k, 18.7k) and flat-clamped non-musical frequencies above 13.8 kHz to baseline (-100 dB) across FFT, 3D Waterfall, and Spectrogram buffers (v16). [Done]
 - 2026-10-25 13:24: Added steep 24 dB/oct lowpass at 14.2 kHz and precision high-Q notches for 15.6 kHz (packet clock) and 1.5 kHz (sub-harmonic) in Pi Freq Kill pipeline; bumped to v15. [Done]
 - 2026-10-25 13:20: Removed Pi Freq Kill manual slider, upgraded to 4-stage cascading notch filter bank (tracking ~7.8 kHz frame clock + 2f and 6.47 kHz switching whistle + 2f), suppressed noise spikes in fine analysis buffers (Harmonic Series & Chromagram), and increased oscilloscope floor to prevent noise floor amplification. [Done]
 - 2026-10-25 13:14: Added calibrated frequency axis baseline and ticks (100, 250, 500, 1k, 2k, 4k, 6k, 7k, 8k, 10k) to the Rolling Spectrogram across Mel, Log, and Linear modes. [Done]
