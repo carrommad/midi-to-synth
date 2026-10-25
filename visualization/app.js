@@ -226,7 +226,7 @@ async function startAudio() {
     inputGainNode.gain.value = parseFloat(inputGain.value);
     sourceNode.connect(inputGainNode);
 
-    // Stereo split
+    // Stereo split & analysers (will be fed post-filter by updateWhineFilterRouting)
     splitterNode = audioCtx.createChannelSplitter(2);
     analyserLeft = audioCtx.createAnalyser();
     analyserRight = audioCtx.createAnalyser();
@@ -1040,13 +1040,13 @@ function renderLoop() {
       }
     });
 
-    // Synthesizers (Roland S-1) do not produce musical fundamentals or partials above 13.8 kHz.
-    // Clamp the entire high-frequency electrical ground noise floor (> 13.8 kHz) flat to the canvas baseline (-100 dB):
-    const highCutBin = Math.floor((13800 / nyq) * binCount);
+    // Synthesizers (Roland S-1) do not produce musical fundamentals or partials above 11.5 kHz.
+    // Clamp the entire high-frequency electrical ground noise floor (> 11.5 kHz) flat to the canvas baseline (-100 dB):
+    const highCutBin = Math.floor((11500 / nyq) * binCount);
     for (let b = highCutBin; b < binCount; b++) {
       dataFreqL[b] = Math.min(dataFreqL[b], -100);
     }
-    const fineHighCutBin = Math.floor((13800 / nyq) * fineFreq.length);
+    const fineHighCutBin = Math.floor((11500 / nyq) * fineFreq.length);
     for (let b = fineHighCutBin; b < fineFreq.length; b++) {
       fineFreq[b] = Math.min(fineFreq[b], -100);
     }
