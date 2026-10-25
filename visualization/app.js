@@ -925,13 +925,41 @@ function renderLoop() {
   analyserFine.getFloatTimeDomainData(fineTime);
   analyserFine.getFloatFrequencyData(fineFreq);
 
-  // If Pi Whine Kill is active, suppress the narrow carrier spike in visual FFT data
+  // If Pi Whine Kill is active, find the exact prominent static needle in the 5.5k-8.5k range and extinguish it
   if (filterWhineOn && audioCtx) {
     const nyq = audioCtx.sampleRate / 2;
     const binCount = dataFreqL.length;
-    const centerBin1 = Math.round((currentWhineFreq / nyq) * binCount);
+
+    // Scan for the exact peak bin around 5.5 kHz - 8.5 kHz
+    const scanMin = Math.round((5500 / nyq) * binCount);
+    const scanMax = Math.round((8500 / nyq) * binCount);
+    let maxSpike = -100;
+    let maxSpikeBin = Math.round((currentWhineFreq / nyq) * binCount);
+
+    for (let b = scanMin; b <= scanMax; b++) {
+      if (dataFreqL[b] > maxSpike) {
+        maxSpike = dataFreqL[b];
+        maxSpikeBin = b;
+      }
+    }
+
+    // Auto-tune the notch filters to lock onto the needle if found
+    if (maxSpike > -65) {
+      const detectedHz = (maxSpikeBin * nyq) / binCount;
+      if (Math.abs(detectedHz - currentWhineFreq) > 25) {
+        currentWhineFreq = detectedHz;
+        if (whineFreqVal) whineFreqVal.textContent = `${(currentWhineFreq / 1000).toFixed(2)}k`;
+        if (whineFreqSlider) whineFreqSlider.value = Math.round(currentWhineFreq);
+        if (notchFilter1 && notchFilter2) {
+          notchFilter1.frequency.setTargetAtTime(currentWhineFreq, audioCtx.currentTime, 0.05);
+          notchFilter2.frequency.setTargetAtTime(currentWhineFreq * 2, audioCtx.currentTime, 0.05);
+        }
+      }
+    }
+
+    const centerBin1 = maxSpikeBin;
     const centerBin2 = Math.round(((currentWhineFreq * 2) / nyq) * binCount);
-    const notchWidthBins = 3;
+    const notchWidthBins = 5;
 
     for (let b = Math.max(0, centerBin1 - notchWidthBins); b <= Math.min(binCount - 1, centerBin1 + notchWidthBins); b++) {
       const leftRef = dataFreqL[Math.max(0, centerBin1 - notchWidthBins - 1)] || -95;
