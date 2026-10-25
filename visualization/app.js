@@ -7,10 +7,12 @@ let analyserLeft = null;
 let analyserRight = null;
 let analyserFine = null;
 let monitorGainNode = null;
-let notchFilter1 = null; // Ground whine primary notch (~6.47 kHz / 7.8 kHz)
-let notchFilter2 = null; // Ground whine 2nd harmonic notch (~12.9 kHz / 15.6 kHz)
-let notchFilter3 = null; // Ground whine secondary needle notch (~7.8 kHz)
-let notchFilter4 = null; // Ground whine secondary 2nd harmonic notch (~15.6 kHz)
+let lowpassFilter1 = null; // 14.5 kHz steep hardware cutoff
+let lowpassFilter2 = null; // 14.5 kHz 2nd pole
+let notchFilter1 = null;   // 15.6 kHz / carrier needle notch
+let notchFilter2 = null;   // 1.5 kHz sub-harmonic beat notch
+let notchFilter3 = null;   // 6.47 kHz switching whistle notch
+let notchFilter4 = null;   // 12.8 kHz 2nd harmonic notch
 let stream = null;
 let animationId = null;
 let isFrozen = false;
@@ -249,28 +251,41 @@ async function startAudio() {
     monitorGainNode.gain.value = monitorOn ? 1.0 : 0;
     monitorGainNode.connect(audioCtx.destination);
 
-    // Multi-stage steep Notch Filters for Ground Loop Whine
-    // Notch 1 & 2: Main USB packet frame clock needle (~7.8 kHz - 8.0 kHz) + 2nd harmonic (~15.6 kHz)
+    // Cascaded Audio Filter Bank to completely silence Pi ground loop and USB whine
+    // 1. Dual 2nd-order lowpass (24 dB/oct) at 14.2 kHz (well above synth audio, kills 15.6k, 16k, 19k needles)
+    lowpassFilter1 = audioCtx.createBiquadFilter();
+    lowpassFilter1.type = 'lowpass';
+    lowpassFilter1.frequency.value = 14200;
+    lowpassFilter1.Q.value = 0.707;
+
+    lowpassFilter2 = audioCtx.createBiquadFilter();
+    lowpassFilter2.type = 'lowpass';
+    lowpassFilter2.frequency.value = 14200;
+    lowpassFilter2.Q.value = 0.707;
+
+    // 2. High-Q Notch at ~15.6 kHz (packet clock)
     notchFilter1 = audioCtx.createBiquadFilter();
     notchFilter1.type = 'notch';
-    notchFilter1.frequency.value = currentWhineFreq;
-    notchFilter1.Q.value = 10.0;
+    notchFilter1.frequency.value = 15625;
+    notchFilter1.Q.value = 12.0;
 
+    // 3. High-Q Notch at ~1.5 kHz (sub-harmonic packet beat)
     notchFilter2 = audioCtx.createBiquadFilter();
     notchFilter2.type = 'notch';
-    notchFilter2.frequency.value = Math.min(22000, currentWhineFreq * 2);
-    notchFilter2.Q.value = 8.0;
+    notchFilter2.frequency.value = 1500;
+    notchFilter2.Q.value = 12.0;
 
-    // Notch 3 & 4: Secondary switching whistle needle (~6.47 kHz) + harmonic (~12.94 kHz)
+    // 4. High-Q Notch at ~6.47 kHz (switching whistle)
     notchFilter3 = audioCtx.createBiquadFilter();
     notchFilter3.type = 'notch';
     notchFilter3.frequency.value = 6470;
     notchFilter3.Q.value = 10.0;
 
+    // 5. High-Q Notch at ~12.94 kHz (switching whistle 2nd harmonic)
     notchFilter4 = audioCtx.createBiquadFilter();
     notchFilter4.type = 'notch';
     notchFilter4.frequency.value = 12940;
-    notchFilter4.Q.value = 8.0;
+    notchFilter4.Q.value = 10.0;
 
     // Apply or bypass whine filter (all destination nodes are now ready)
     updateWhineFilterRouting();
@@ -1000,7 +1015,7 @@ function renderLoop() {
     }
 
     // Suppress visual needle artifacts in FFT and Spectrogram buffers (dataFreqL)
-    const suppressFrequencies = [currentWhineFreq, currentWhineFreq * 2, 6470, 12940];
+    const suppressFrequencies = [15625, 18750, 1500, 6470, 12940, currentWhineFreq, currentWhineFreq * 2];
     suppressFrequencies.forEach(f => {
       if (f >= nyq) return;
       const cBin = Math.round((f / nyq) * binCount);
@@ -1138,9 +1153,11 @@ monitorToggle.addEventListener('change', () => {
 });
 
 function updateWhineFilterRouting() {
-  if (!audioCtx || !inputGainNode || !notchFilter1 || !notchFilter2 || !notchFilter3 || !notchFilter4) return;
+  if (!audioCtx || !inputGainNode || !lowpassFilter1 || !lowpassFilter2 || !notchFilter1 || !notchFilter2 || !notchFilter3 || !notchFilter4) return;
   try {
     inputGainNode.disconnect();
+    lowpassFilter1.disconnect();
+    lowpassFilter2.disconnect();
     notchFilter1.disconnect();
     notchFilter2.disconnect();
     notchFilter3.disconnect();
@@ -1150,9 +1167,11 @@ function updateWhineFilterRouting() {
   }
 
   if (filterWhineOn) {
-    // Cascade 4-stage steep notch filter:
-    // inputGain -> Notch1 (whine peak) -> Notch2 (whine 2f) -> Notch3 (6.47k) -> Notch4 (12.94k) -> Splitter / Monitor
-    inputGainNode.connect(notchFilter1);
+    // Cascade 6-stage anti-whine filter:
+    // inputGain -> Lowpass1 (14.2k) -> Lowpass2 (14.2k) -> Notch1 (15.6k) -> Notch2 (1.5k) -> Notch3 (6.47k) -> Notch4 (12.94k) -> Splitter / Monitor
+    inputGainNode.connect(lowpassFilter1);
+    lowpassFilter1.connect(lowpassFilter2);
+    lowpassFilter2.connect(notchFilter1);
     notchFilter1.connect(notchFilter2);
     notchFilter2.connect(notchFilter3);
     notchFilter3.connect(notchFilter4);
