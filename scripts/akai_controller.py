@@ -1039,12 +1039,13 @@ class AdvancedAkaiController:
 
             if is_continuous and self.sustain_active:
                 def _decay_noteoff(target_note: int):
-                    # Enviar noteoff y bajar CC 64 a 0 para que FluidSynth mate la voz sostenida
-                    fluid.send(f"noteoff 0 {target_note}\ncc 0 64 0")
+                    # FluidSynth SoundFont voices require explicit noteoff + CC 64 drop to release sustained loop
+                    fluid.send(f"noteoff 0 {target_note}")
+                    fluid.send("cc 0 64 0")
                     self.active_note_timers.pop(target_note, None)
-                    # Restaurar CC 64 a 127 tras 50ms (permite al motor de audio procesar el fin de nota)
+                    # Restaurar CC 64 a 127 tras 80ms para que el motor de audio procese el fin de ciclo
                     if self.sustain_active:
-                        threading.Timer(0.05, lambda: fluid.send("cc 0 64 127") if self.sustain_active else None).start()
+                        threading.Timer(0.08, lambda: fluid.send("cc 0 64 127") if self.sustain_active else None).start()
 
                 decay_timer = threading.Timer(self.sustain_decay_seconds, _decay_noteoff, args=[note])
                 decay_timer.daemon = True
