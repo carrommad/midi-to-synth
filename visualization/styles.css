@@ -543,6 +543,42 @@ select {
 .dot.amber { background: var(--accent-amber); box-shadow: 0 0 6px var(--accent-amber); }
 .dot.violet { background: var(--accent-violet); box-shadow: 0 0 6px var(--accent-violet); }
 
+.panel-move-controls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.panel-move-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.panel-move-btn:hover {
+  background: rgba(0, 240, 255, 0.2);
+  border-color: var(--accent-cyan);
+  color: #fff;
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.35);
+}
+
+.panel-move-btn:active {
+  transform: scale(0.92);
+}
+
 .panel-actions {
   display: flex !important;
   align-items: center;

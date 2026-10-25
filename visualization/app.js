@@ -1231,19 +1231,79 @@ function initDraggablePanels() {
     }
   }
 
+  function getGridColumnCount() {
+    const w = window.innerWidth;
+    if (w <= 900) return 1;
+    if (w <= 1350) return 2;
+    return 3;
+  }
+
+  function movePanel(panel, direction) {
+    const panels = Array.from(chartsLayout.querySelectorAll('.chart-panel'));
+    const idx = panels.indexOf(panel);
+    if (idx === -1) return;
+
+    const cols = getGridColumnCount();
+    let targetIdx = idx;
+
+    if (direction === 'left') {
+      targetIdx = idx - 1;
+    } else if (direction === 'right') {
+      targetIdx = idx + 1;
+    } else if (direction === 'up') {
+      targetIdx = idx - cols;
+    } else if (direction === 'down') {
+      targetIdx = idx + cols;
+    }
+
+    if (targetIdx < 0 || targetIdx >= panels.length || targetIdx === idx) return;
+
+    const targetPanel = panels[targetIdx];
+    if (targetIdx > idx) {
+      chartsLayout.insertBefore(panel, targetPanel.nextSibling);
+    } else {
+      chartsLayout.insertBefore(panel, targetPanel);
+    }
+
+    savePanelOrder();
+    resizeCanvases();
+  }
+
   let draggedPanel = null;
 
   chartsLayout.querySelectorAll('.chart-panel').forEach(panel => {
+    // Add directional move controls to the panel title header if not present
+    const titleEl = panel.querySelector('.panel-title');
+    if (titleEl && !titleEl.querySelector('.panel-move-controls')) {
+      const controls = document.createElement('div');
+      controls.className = 'panel-move-controls';
+      controls.innerHTML = `
+        <button class="panel-move-btn" data-dir="left" title="Move Left">&larr;</button>
+        <button class="panel-move-btn" data-dir="up" title="Move Up">&uarr;</button>
+        <button class="panel-move-btn" data-dir="down" title="Move Down">&darr;</button>
+        <button class="panel-move-btn" data-dir="right" title="Move Right">&rarr;</button>
+      `;
+
+      controls.querySelectorAll('.panel-move-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          movePanel(panel, btn.getAttribute('data-dir'));
+        });
+      });
+
+      titleEl.appendChild(controls);
+    }
+
     panel.setAttribute('draggable', 'true');
 
     panel.addEventListener('dragstart', (e) => {
-      // Do not initiate drag from interactive controls in panel-actions or canvases (e.g. 3D orbit)
-      if (e.target.closest('.panel-actions') || e.target.closest('canvas') || ['INPUT', 'SELECT', 'CANVAS', 'BUTTON'].includes(e.target.tagName)) {
+      // Do not initiate drag from interactive controls or buttons
+      if (e.target.closest('.panel-actions') || e.target.closest('.panel-move-controls') || e.target.closest('canvas') || ['INPUT', 'SELECT', 'CANVAS', 'BUTTON'].includes(e.target.tagName)) {
         e.preventDefault();
         return;
       }
       draggedPanel = panel;
-      // Use setTimeout so the dragged element ghost is rendered before setting panel-dragging opacity
       setTimeout(() => {
         if (draggedPanel) panel.classList.add('panel-dragging');
       }, 0);

@@ -13,6 +13,7 @@
 
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-25 14:32: Added directional panel reorder buttons (←, ↑, ↓, →) to all chart panel headers with responsive column-aware layout shifts and bumped cache busters to styles.css?v=6 and app.js?v=21. [Done]
 - 2026-10-25 13:56: Fixed panel dragging by disabling pointer events on child elements during drag, setting ghost render delay, maintaining dropTarget order, and bumping cache buster to v20 (and styles.css to v5). [Done]
 - 2026-10-25 13:43: Gated the Harmonic Series panel with fundamental signal presence and dynamic peak validation so idle line noise and high-pitch needles cannot trigger isolated fake bars like 6f (v19). [Done]
 - 2026-10-25 13:42: Fixed panel dragstart filtering so clicking the header bar, title, grip icon, or panel frame initiates reordering smoothly while keeping canvas interactions and action controls functional (v18). [Done]
