@@ -93,7 +93,7 @@ Las 4 primeras teclas del extremo izquierdo del teclado actúan como selectores 
 * **Fila Inferior (Teclado y Master)**:
   - `K5`: **Keys Reverb Eco** (Reverberación catedral en teclado).
   - `K6`: **Keys Chorus Lush** (Grosor vintage Roland Juno).
-  - `K7`: **Chorus Speed / Leslie Rotary Rate** (Modulación lenta a rotación rápida de 0.2 a 5.0 Hz).
+  - `K7`: **Decay Envelope / Reverb Bloom** (Control inteligente dual: 3s a 30s de caída para instrumentos continuos como trompeta, órganos, cuerdas y sintes; o reverb catedral expansiva para pianos y guitarras).
   - `K8`: **Master Volume** (Volumen general de todo el sistema).
 
 ---
