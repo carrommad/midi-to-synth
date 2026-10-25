@@ -1039,12 +1039,12 @@ class AdvancedAkaiController:
 
             if is_continuous and self.sustain_active:
                 def _decay_noteoff(target_note: int):
-                    # Enviar noteoff y conmutar CC 64 brevemente para forzar la liberación
-                    # de SoundFonts que ignoran el noteoff mientras el pedal de sustain está a 127
-                    fluid.send(f"noteoff 0 {target_note}")
-                    if self.sustain_active:
-                        fluid.send("cc 0 64 0\ncc 0 64 127")
+                    # Enviar noteoff y bajar CC 64 a 0 para que FluidSynth mate la voz sostenida
+                    fluid.send(f"noteoff 0 {target_note}\ncc 0 64 0")
                     self.active_note_timers.pop(target_note, None)
+                    # Restaurar CC 64 a 127 tras 50ms (permite al motor de audio procesar el fin de nota)
+                    if self.sustain_active:
+                        threading.Timer(0.05, lambda: fluid.send("cc 0 64 127") if self.sustain_active else None).start()
 
                 decay_timer = threading.Timer(self.sustain_decay_seconds, _decay_noteoff, args=[note])
                 decay_timer.daemon = True
@@ -1189,11 +1189,26 @@ class AdvancedAkaiController:
                 fluid.send(f"cc 0 93 {value}")
                 print(f"[KNOB 6 - TECLADO] Chorus Grosor & Lush: {int(cho_lvl*100)}%", flush=True)
 
-            elif knob_idx == 6:  # K7: Sustain Envelope Decay (Duración de envolvente en instrumentos continuos)
-                # Mapeo de 1.0s a 12.0s (a la mitad valor 64 equivale a ~5.0s)
-                decay_sec = 1.0 + (value / 127.0) * 11.0
-                self.sustain_decay_seconds = round(decay_sec, 1)
-                print(f"[KNOB 7 - TECLADO] Caída de Envolvente Sustain: {self.sustain_decay_seconds}s (Rango 1.0s - 12.0s)", flush=True)
+            elif knob_idx == 6:  # K7: Adaptive Decay Envelope (Continuous) / Cathedral Reverb Bloom (Pianos)
+                continuous_progs = {16, 19, 48, 50, 56, 65, 80, 81, 88}
+                curr_prog = MELODIC_INSTRUMENTS[self.current_melodic_idx][0]
+                is_continuous = (curr_prog in continuous_progs)
+
+                if is_continuous:
+                    # Rango: Min 3.0s, Centro ~5.0s, Max 30.0s (Curva cuadrática suave)
+                    norm = value / 127.0
+                    decay_sec = 3.0 + (norm ** 2.2) * 27.0
+                    self.sustain_decay_seconds = round(decay_sec, 1)
+                    print(f"[KNOB 7 - ENVOLVENTE CONTINUA] Caída de Sustain: {self.sustain_decay_seconds}s (Rango 3s - 30s)", flush=True)
+                else:
+                    # Instrumentos de decaimiento natural (Pianos, Guitarras, Bajos):
+                    # Controla expansión profunda de Reverb Catedral y Room Size
+                    rev_lvl = (value / 127.0) * 1.0
+                    room = 0.3 + (value / 127.0) * 0.9
+                    fluid.send(f"rev_setlevel {rev_lvl:.2f}")
+                    fluid.send(f"rev_setroomsize {room:.2f}")
+                    fluid.send(f"cc 0 91 {value}")
+                    print(f"[KNOB 7 - REVERB PIANO] Profundidad Reverb: {int(rev_lvl*100)}% (Room {room:.2f})", flush=True)
 
             elif knob_idx == 7:  # K8: Master Volume (Volumen General)
                 norm = value / 127.0

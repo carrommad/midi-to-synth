@@ -148,7 +148,7 @@ Las 8 perillas están organizadas en una matriz simétrica de 4 columnas perfect
 | **`K4`** | 🥁 **Batería & Beat** | **Drum & Loop Volume Mix (CC 7)** | **Mezcla Batería / Fade In-Out:** Sube o baja el volumen de la batería para hacer parones o intensificar el estribillo. |
 | **`K5`** | 🎹 **Teclado** | **Keys Reverb Eco (CC 91 + DSP)** | Baña el piano/guitarra en una inmensa catedral (de 100% seco a eco infinito). |
 | **`K6`** | 🎹 **Teclado** | **Keys Chorus & Lush (CC 93 + DSP)** | Chorus estéreo exuberante vintage Roland Juno (de 0% limpio a 100% súper ancho). |
-| **`K7`** | 🎹 **Teclado** | **Sustain Envelope Decay Duration** | **Control de caída/duración de envolvente de sustain (1.0s a 12.0s, centro ~5.0s):** Ajusta el tiempo de sustain para instrumentos continuos (Trompeta, Órganos, Cuerdas, Sintes) cuando el pedal de sustain está activo. Evita notas infinitas y permite que las notas se extingan musicalmente. Re-tocar una misma nota la silencia de inmediato. |
+| **`K7`** | 🎹 **Teclado** | **Adaptive Envelope / Reverb Bloom** | **Control inteligente dual según el instrumento:**<br>• **En instrumentos continuos (Trompeta, Órganos, Cuerdas, Sintes):** Controla el decaimiento de sustain de **3.0s (mínimo) a 30.0s (máximo)**, con **5.0s por defecto a la mitad**. Evita que las notas queden sonando infinitamente con el pedal/pad de sustain.<br>• **En pianos, guitarras y bajos:** Controla la profundidad y tamaño de la **Reverb Catedral** (de seca a un eco expansivo envolvente). |
 | **`K8`** | 🔊 **Master** | **Master Volume (Volumen Maestro)** | **Volumen general de todo el sistema** (0% a 100%, con curva logarítmica natural). |
 
 ---
