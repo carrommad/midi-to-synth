@@ -1015,11 +1015,11 @@ function renderLoop() {
     }
 
     // Suppress visual needle artifacts in FFT and Spectrogram buffers (dataFreqL)
-    const suppressFrequencies = [15625, 18750, 1500, 6470, 12940, currentWhineFreq, currentWhineFreq * 2];
+    const suppressFrequencies = [1500, 3000, 6470, 7850, 12940, 15625, 18750, currentWhineFreq, currentWhineFreq * 2];
     suppressFrequencies.forEach(f => {
       if (f >= nyq) return;
       const cBin = Math.round((f / nyq) * binCount);
-      const wBins = 4;
+      const wBins = 6;
       const leftRef = dataFreqL[Math.max(0, cBin - wBins - 1)] || -95;
       const rightRef = dataFreqL[Math.min(binCount - 1, cBin + wBins + 1)] || -95;
       const baseline = (leftRef + rightRef) / 2;
@@ -1031,7 +1031,7 @@ function renderLoop() {
       const fineNyq = nyq;
       const fineBinCount = fineFreq.length;
       const fineCenter = Math.round((f / fineNyq) * fineBinCount);
-      const fineWBins = 12;
+      const fineWBins = 16;
       const fLeft = fineFreq[Math.max(0, fineCenter - fineWBins - 1)] || -95;
       const fRight = fineFreq[Math.min(fineBinCount - 1, fineCenter + fineWBins + 1)] || -95;
       const fBaseline = (fLeft + fRight) / 2;
@@ -1039,6 +1039,17 @@ function renderLoop() {
         fineFreq[b] = Math.min(fineFreq[b], fBaseline);
       }
     });
+
+    // Synthesizers (Roland S-1) do not produce musical fundamentals or partials above 13.8 kHz.
+    // Clamp the entire high-frequency electrical ground noise floor (> 13.8 kHz) flat to the canvas baseline (-100 dB):
+    const highCutBin = Math.floor((13800 / nyq) * binCount);
+    for (let b = highCutBin; b < binCount; b++) {
+      dataFreqL[b] = Math.min(dataFreqL[b], -100);
+    }
+    const fineHighCutBin = Math.floor((13800 / nyq) * fineFreq.length);
+    for (let b = fineHighCutBin; b < fineFreq.length; b++) {
+      fineFreq[b] = Math.min(fineFreq[b], -100);
+    }
   }
 
   // Meter & Pitch computation
