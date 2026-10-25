@@ -148,7 +148,7 @@ Las 8 perillas están organizadas en una matriz simétrica de 4 columnas perfect
 | **`K4`** | 🥁 **Batería & Beat** | **Drum & Loop Volume Mix (CC 7)** | **Mezcla Batería / Fade In-Out:** Sube o baja el volumen de la batería para hacer parones o intensificar el estribillo. |
 | **`K5`** | 🎹 **Teclado** | **Keys Reverb Eco (CC 91 + DSP)** | Baña el piano/guitarra en una inmensa catedral (de 100% seco a eco infinito). |
 | **`K6`** | 🎹 **Teclado** | **Keys Chorus & Lush (CC 93 + DSP)** | Chorus estéreo exuberante vintage Roland Juno (de 0% limpio a 100% súper ancho). |
-| **`K7`** | 🎹 **Teclado** | **Chorus Speed / Leslie Rotary Rate** | **Control de velocidad de modulación (0.2 a 5.0 Hz):** Gira a la izquierda para un vaivén lento, profundo y ambiental (tipo Rhodes o sintetizador vintage); gira a la derecha para una rotación rápida y vibrante tipo **altavoz giratorio Leslie de órgano Hammond** o trémolo. |
+| **`K7`** | 🎹 **Teclado** | **Sustain Envelope Decay Duration** | **Control de caída/duración de envolvente de sustain (1.0s a 12.0s, centro ~5.0s):** Ajusta el tiempo de sustain para instrumentos continuos (Trompeta, Órganos, Cuerdas, Sintes) cuando el pedal de sustain está activo. Evita notas infinitas y permite que las notas se extingan musicalmente. Re-tocar una misma nota la silencia de inmediato. |
 | **`K8`** | 🔊 **Master** | **Master Volume (Volumen Maestro)** | **Volumen general de todo el sistema** (0% a 100%, con curva logarítmica natural). |
 
 ---

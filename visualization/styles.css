@@ -472,6 +472,10 @@ select {
   border: 1px dashed var(--accent-cyan);
 }
 
+.chart-panel.panel-dragging * {
+  pointer-events: none;
+}
+
 .chart-panel.panel-drag-over {
   border-color: var(--accent-cyan);
   box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);

@@ -710,6 +710,8 @@ class AdvancedAkaiController:
         self.running = True
         self.keys_full_level: bool = False
         self.current_drum_volume: int = 100
+        self.sustain_decay_seconds: float = 5.0
+        self.active_note_timers: Dict[int, threading.Timer] = {}
         self.lowest_base_c: Optional[int] = 48  # C1 físico por defecto en MPK Mini
         self.looper_pad_press_times: Dict[int, float] = {}
         self.looper_pad_hold_timers: Dict[int, threading.Timer] = {}
@@ -1018,6 +1020,27 @@ class AdvancedAkaiController:
                         play_preview(chan=9, note=36, vel=120, duration=0.35)
                         return
 
+            # Continuous Instruments Drone Prevention & Re-trigger cut:
+            # (Trumpet, Organs, Strings, Synth Leads, Warm Pad)
+            continuous_progs = {16, 19, 48, 50, 56, 65, 80, 81, 88}
+            curr_prog = MELODIC_INSTRUMENTS[self.current_melodic_idx][0]
+            is_continuous = (curr_prog in continuous_progs)
+
+            # Cancelar temporizador previo de la nota si ya estaba sonando
+            old_timer = self.active_note_timers.pop(note, None)
+            if old_timer:
+                old_timer.cancel()
+
+            if is_continuous and self.sustain_active:
+                def _decay_noteoff(target_note: int):
+                    fluid.send(f"noteoff 0 {target_note}")
+                    self.active_note_timers.pop(target_note, None)
+
+                decay_timer = threading.Timer(self.sustain_decay_seconds, _decay_noteoff, args=[note])
+                decay_timer.daemon = True
+                self.active_note_timers[note] = decay_timer
+                decay_timer.start()
+
             # Registrar la nota para auto-detección de tempo del arpegiador
             self.looper.register_key_note(note)
 
@@ -1080,6 +1103,10 @@ class AdvancedAkaiController:
             self.cancel_full_level_timer()
             if self.lowest_base_c is not None and note in [self.lowest_base_c, self.lowest_base_c + 1]:
                 self.cancel_modifier_timer()
+            if not self.sustain_active:
+                timer = self.active_note_timers.pop(note, None)
+                if timer:
+                    timer.cancel()
             # Grabar liberación de tecla para mantener duración exacta de notas
             if self.looper.state in ["RECORDING", "OVERDUBBING"]:
                 self.looper.record_event(0, note, 0, False)
@@ -1152,11 +1179,11 @@ class AdvancedAkaiController:
                 fluid.send(f"cc 0 93 {value}")
                 print(f"[KNOB 6 - TECLADO] Chorus Grosor & Lush: {int(cho_lvl*100)}%", flush=True)
 
-            elif knob_idx == 6:  # K7: Chorus Speed / Leslie Rotary Rate (Velocidad de Modulación del Teclado)
-                # De 0.2 Hz (vaivén lento y espacial tipo Rhodes/Pad) a 5.0 Hz (Leslie Rotary Speaker / Trémolo rápido)
-                speed = 0.2 + (value / 127.0) * 4.8
-                fluid.send(f"cho_set_speed {speed:.2f}")
-                print(f"[KNOB 7 - TECLADO] Modulación / Leslie Rotary Speed: {speed:.2f} Hz", flush=True)
+            elif knob_idx == 6:  # K7: Sustain Envelope Decay (Duración de envolvente en instrumentos continuos)
+                # Mapeo de 1.0s a 12.0s (a la mitad valor 64 equivale a ~5.0s)
+                decay_sec = 1.0 + (value / 127.0) * 11.0
+                self.sustain_decay_seconds = round(decay_sec, 1)
+                print(f"[KNOB 7 - TECLADO] Caída de Envolvente Sustain: {self.sustain_decay_seconds}s (Rango 1.0s - 12.0s)", flush=True)
 
             elif knob_idx == 7:  # K8: Master Volume (Volumen General)
                 norm = value / 127.0
@@ -1192,12 +1219,18 @@ class AdvancedAkaiController:
                         fluid.send("cc 0 64 127")
                         status = "ACTIVADO (Notas sostenidas libres)"
                     else:
+                        for t in self.active_note_timers.values():
+                            t.cancel()
+                        self.active_note_timers.clear()
                         fluid.send("cc 0 64 0\ncc 0 123 0")
                         status = "DESACTIVADO (Silenciadas notas sostenidas)"
                     print(f"\n[PAD CC A-1] SUSTAIN PEDAL -> {status}", flush=True)
                 else:
                     if (now - self.last_sustain_press) > 0.4:
                         self.sustain_active = False
+                        for t in self.active_note_timers.values():
+                            t.cancel()
+                        self.active_note_timers.clear()
                         fluid.send("cc 0 64 0\ncc 0 123 0")
                         print("\n[PAD CC A-1] SUSTAIN PEDAL -> DESACTIVADO (Hardware Toggle)", flush=True)
             elif pad_idx == 1:  # Pad 2: Portamento / Glide Toggle (CC 65 + CC 5)
@@ -1247,6 +1280,9 @@ class AdvancedAkaiController:
             elif pad_idx == 7:  # Pad 8: Pánico / All Notes Off (Silencia sonidos sin alterar la configuración de efectos)
                 if value > 0:
                     prev_sustain = self.sustain_active
+                    for t in self.active_note_timers.values():
+                        t.cancel()
+                    self.active_note_timers.clear()
                     # Silenciar notas activas de inmediato sin desconfigurar CC 64
                     fluid.send("cc 0 123 0\ncc 9 123 0\ncc 0 120 0\ncc 9 120 0")
                     self.looper.stop_all()

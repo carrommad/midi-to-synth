@@ -1243,7 +1243,10 @@ function initDraggablePanels() {
         return;
       }
       draggedPanel = panel;
-      panel.classList.add('panel-dragging');
+      // Use setTimeout so the dragged element ghost is rendered before setting panel-dragging opacity
+      setTimeout(() => {
+        if (draggedPanel) panel.classList.add('panel-dragging');
+      }, 0);
       if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', panel.getAttribute('data-panel-id') || 'panel');
@@ -1261,8 +1264,10 @@ function initDraggablePanels() {
 
     panel.addEventListener('dragover', (e) => {
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
       if (!draggedPanel || draggedPanel === panel) return;
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move';
+      }
       panel.classList.add('panel-drag-over');
     });
 
