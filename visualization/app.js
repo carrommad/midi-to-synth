@@ -7,8 +7,10 @@ let analyserLeft = null;
 let analyserRight = null;
 let analyserFine = null;
 let monitorGainNode = null;
-let notchFilter1 = null; // 6.4 kHz USB switching whistle notch
-let notchFilter2 = null; // 12.8 kHz 2nd harmonic notch
+let notchFilter1 = null; // Ground whine primary notch (~6.47 kHz / 7.8 kHz)
+let notchFilter2 = null; // Ground whine 2nd harmonic notch (~12.9 kHz / 15.6 kHz)
+let notchFilter3 = null; // Ground whine secondary needle notch (~7.8 kHz)
+let notchFilter4 = null; // Ground whine secondary 2nd harmonic notch (~15.6 kHz)
 let stream = null;
 let animationId = null;
 let isFrozen = false;
@@ -22,10 +24,8 @@ const monitorState = document.getElementById('monitorState');
 let monitorOn = false;
 const filterWhineToggle = document.getElementById('filterWhineToggle');
 const filterWhineState = document.getElementById('filterWhineState');
-const whineFreqSlider = document.getElementById('whineFreqSlider');
-const whineFreqVal = document.getElementById('whineFreqVal');
 let filterWhineOn = true;
-let currentWhineFreq = 6470;
+let currentWhineFreq = 7850;
 const inputGain = document.getElementById('inputGain');
 const gainVal = document.getElementById('gainVal');
 
@@ -249,16 +249,28 @@ async function startAudio() {
     monitorGainNode.gain.value = monitorOn ? 1.0 : 0;
     monitorGainNode.connect(audioCtx.destination);
 
-    // Steep Dual Notch Filters for Ground Loop Whine
+    // Multi-stage steep Notch Filters for Ground Loop Whine
+    // Notch 1 & 2: Main USB packet frame clock needle (~7.8 kHz - 8.0 kHz) + 2nd harmonic (~15.6 kHz)
     notchFilter1 = audioCtx.createBiquadFilter();
     notchFilter1.type = 'notch';
     notchFilter1.frequency.value = currentWhineFreq;
-    notchFilter1.Q.value = 8.0;
+    notchFilter1.Q.value = 10.0;
 
     notchFilter2 = audioCtx.createBiquadFilter();
     notchFilter2.type = 'notch';
-    notchFilter2.frequency.value = currentWhineFreq * 2;
+    notchFilter2.frequency.value = Math.min(22000, currentWhineFreq * 2);
     notchFilter2.Q.value = 8.0;
+
+    // Notch 3 & 4: Secondary switching whistle needle (~6.47 kHz) + harmonic (~12.94 kHz)
+    notchFilter3 = audioCtx.createBiquadFilter();
+    notchFilter3.type = 'notch';
+    notchFilter3.frequency.value = 6470;
+    notchFilter3.Q.value = 10.0;
+
+    notchFilter4 = audioCtx.createBiquadFilter();
+    notchFilter4.type = 'notch';
+    notchFilter4.frequency.value = 12940;
+    notchFilter4.Q.value = 8.0;
 
     // Apply or bypass whine filter (all destination nodes are now ready)
     updateWhineFilterRouting();
@@ -351,9 +363,9 @@ function renderOscilloscope(dataTimeL, w, h, fundFreq = 0, sampleRate = 48000) {
     oscPeakSmooth = maxAmp > oscPeakSmooth
       ? maxAmp
       : oscPeakSmooth * 0.97 + maxAmp * 0.03;
-    // Floor (~-34 dBFS peak) so background noise is not blown up to full screen
-    const OSC_AUTO_FLOOR = 0.02;
-    vertScale = Math.min(300.0, 0.88 / Math.max(OSC_AUTO_FLOOR, oscPeakSmooth));
+    // Floor (~-22 dBFS peak) so quiet baseline noise is rendered as a clean thin trace instead of blown up to full screen
+    const OSC_AUTO_FLOOR = 0.08;
+    vertScale = Math.min(25.0, 0.88 / Math.max(OSC_AUTO_FLOOR, oscPeakSmooth));
   } else if (vGain) {
     vertScale = parseFloat(vGain.value);
   }
@@ -957,14 +969,14 @@ function renderLoop() {
   analyserFine.getFloatTimeDomainData(fineTime);
   analyserFine.getFloatFrequencyData(fineFreq);
 
-  // If Pi Whine Kill is active, find the exact prominent static needle in the 5.5k-8.5k range and extinguish it
+  // If Pi Whine Kill is active, find and extinguish remaining electrical needles across all analysis buffers
   if (filterWhineOn && audioCtx) {
     const nyq = audioCtx.sampleRate / 2;
     const binCount = dataFreqL.length;
 
-    // Scan for the exact peak bin around 5.5 kHz - 8.5 kHz
+    // Scan for any prominent needle between 5.5 kHz - 9.0 kHz
     const scanMin = Math.round((5500 / nyq) * binCount);
-    const scanMax = Math.round((8500 / nyq) * binCount);
+    const scanMax = Math.round((9000 / nyq) * binCount);
     let maxSpike = -100;
     let maxSpikeBin = Math.round((currentWhineFreq / nyq) * binCount);
 
@@ -975,34 +987,43 @@ function renderLoop() {
       }
     }
 
-    // Auto-tune the notch filters to lock onto the needle if found
+    // Auto-tune notch filters 1 & 2 to lock onto the dominant carrier needle
     if (maxSpike > -65) {
       const detectedHz = (maxSpikeBin * nyq) / binCount;
-      if (Math.abs(detectedHz - currentWhineFreq) > 25) {
+      if (Math.abs(detectedHz - currentWhineFreq) > 20) {
         currentWhineFreq = detectedHz;
-        if (whineFreqVal) whineFreqVal.textContent = `${(currentWhineFreq / 1000).toFixed(2)}k`;
-        if (whineFreqSlider) whineFreqSlider.value = Math.round(currentWhineFreq);
         if (notchFilter1 && notchFilter2) {
           notchFilter1.frequency.setTargetAtTime(currentWhineFreq, audioCtx.currentTime, 0.05);
-          notchFilter2.frequency.setTargetAtTime(currentWhineFreq * 2, audioCtx.currentTime, 0.05);
+          notchFilter2.frequency.setTargetAtTime(Math.min(22000, currentWhineFreq * 2), audioCtx.currentTime, 0.05);
         }
       }
     }
 
-    const centerBin1 = maxSpikeBin;
-    const centerBin2 = Math.round(((currentWhineFreq * 2) / nyq) * binCount);
-    const notchWidthBins = 5;
+    // Suppress visual needle artifacts in FFT and Spectrogram buffers (dataFreqL)
+    const suppressFrequencies = [currentWhineFreq, currentWhineFreq * 2, 6470, 12940];
+    suppressFrequencies.forEach(f => {
+      if (f >= nyq) return;
+      const cBin = Math.round((f / nyq) * binCount);
+      const wBins = 4;
+      const leftRef = dataFreqL[Math.max(0, cBin - wBins - 1)] || -95;
+      const rightRef = dataFreqL[Math.min(binCount - 1, cBin + wBins + 1)] || -95;
+      const baseline = (leftRef + rightRef) / 2;
+      for (let b = Math.max(0, cBin - wBins); b <= Math.min(binCount - 1, cBin + wBins); b++) {
+        dataFreqL[b] = Math.min(dataFreqL[b], baseline);
+      }
 
-    for (let b = Math.max(0, centerBin1 - notchWidthBins); b <= Math.min(binCount - 1, centerBin1 + notchWidthBins); b++) {
-      const leftRef = dataFreqL[Math.max(0, centerBin1 - notchWidthBins - 1)] || -95;
-      const rightRef = dataFreqL[Math.min(binCount - 1, centerBin1 + notchWidthBins + 1)] || -95;
-      dataFreqL[b] = Math.min(dataFreqL[b], (leftRef + rightRef) / 2);
-    }
-    for (let b = Math.max(0, centerBin2 - notchWidthBins); b <= Math.min(binCount - 1, centerBin2 + notchWidthBins); b++) {
-      const leftRef = dataFreqL[Math.max(0, centerBin2 - notchWidthBins - 1)] || -95;
-      const rightRef = dataFreqL[Math.min(binCount - 1, centerBin2 + notchWidthBins + 1)] || -95;
-      dataFreqL[b] = Math.min(dataFreqL[b], (leftRef + rightRef) / 2);
-    }
+      // Also suppress in high-resolution fineFreq (used by Chromagram & Harmonics)
+      const fineNyq = nyq;
+      const fineBinCount = fineFreq.length;
+      const fineCenter = Math.round((f / fineNyq) * fineBinCount);
+      const fineWBins = 12;
+      const fLeft = fineFreq[Math.max(0, fineCenter - fineWBins - 1)] || -95;
+      const fRight = fineFreq[Math.min(fineBinCount - 1, fineCenter + fineWBins + 1)] || -95;
+      const fBaseline = (fLeft + fRight) / 2;
+      for (let b = Math.max(0, fineCenter - fineWBins); b <= Math.min(fineBinCount - 1, fineCenter + fineWBins); b++) {
+        fineFreq[b] = Math.min(fineFreq[b], fBaseline);
+      }
+    });
   }
 
   // Meter & Pitch computation
@@ -1117,21 +1138,26 @@ monitorToggle.addEventListener('change', () => {
 });
 
 function updateWhineFilterRouting() {
-  if (!audioCtx || !inputGainNode || !notchFilter1 || !notchFilter2) return;
+  if (!audioCtx || !inputGainNode || !notchFilter1 || !notchFilter2 || !notchFilter3 || !notchFilter4) return;
   try {
     inputGainNode.disconnect();
     notchFilter1.disconnect();
     notchFilter2.disconnect();
+    notchFilter3.disconnect();
+    notchFilter4.disconnect();
   } catch (e) {
     // ignore disconnect errors during re-route
   }
 
   if (filterWhineOn) {
-    // Route: inputGain -> Notch1 (6.4k) -> Notch2 (12.8k) -> Splitter / Monitor
+    // Cascade 4-stage steep notch filter:
+    // inputGain -> Notch1 (whine peak) -> Notch2 (whine 2f) -> Notch3 (6.47k) -> Notch4 (12.94k) -> Splitter / Monitor
     inputGainNode.connect(notchFilter1);
     notchFilter1.connect(notchFilter2);
-    if (splitterNode) notchFilter2.connect(splitterNode);
-    if (monitorGainNode) notchFilter2.connect(monitorGainNode);
+    notchFilter2.connect(notchFilter3);
+    notchFilter3.connect(notchFilter4);
+    if (splitterNode) notchFilter4.connect(splitterNode);
+    if (monitorGainNode) notchFilter4.connect(monitorGainNode);
   } else {
     // Direct bypass
     if (splitterNode) inputGainNode.connect(splitterNode);
@@ -1146,19 +1172,6 @@ filterWhineToggle.addEventListener('change', () => {
   }
   updateWhineFilterRouting();
 });
-
-if (whineFreqSlider) {
-  whineFreqSlider.addEventListener('input', () => {
-    currentWhineFreq = parseFloat(whineFreqSlider.value);
-    if (whineFreqVal) {
-      whineFreqVal.textContent = `${(currentWhineFreq / 1000).toFixed(2)}k`;
-    }
-    if (notchFilter1 && notchFilter2 && audioCtx) {
-      notchFilter1.frequency.setTargetAtTime(currentWhineFreq, audioCtx.currentTime, 0.02);
-      notchFilter2.frequency.setTargetAtTime(currentWhineFreq * 2, audioCtx.currentTime, 0.02);
-    }
-  });
-}
 
 deviceSelect.addEventListener('change', () => {
   if (audioCtx) startAudio();

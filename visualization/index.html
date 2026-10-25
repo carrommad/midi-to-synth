@@ -61,14 +61,13 @@
       </div>
 
       <div class="control-card">
-        <label for="filterWhineToggle">Pi Freq Kill: <span id="whineFreqVal">6.47k</span></label>
+        <label for="filterWhineToggle">Pi Freq Kill</label>
         <div class="monitor-inner">
-          <label class="switch" title="Silence the Raspberry Pi switching whine (Auto-locks to spike)">
+          <label class="switch" title="Silence Raspberry Pi audio jack / USB electrical whine across audio and all graphs">
             <input type="checkbox" id="filterWhineToggle" role="switch" checked>
             <span class="switch-track"><span class="switch-thumb"></span></span>
             <span id="filterWhineState" class="switch-text">On</span>
           </label>
-          <input type="range" id="whineFreqSlider" min="5500" max="8500" step="20" value="6470" title="Fine-tune Pi whistle frequency (Hz)" style="width: 80px;">
         </div>
       </div>
 
@@ -270,6 +269,6 @@
     <p>Tip: Connect Roland S-1 via USB-C (audio class compliant) or audio line-in. Adjust input level on device to avoid clipping.</p>
   </footer>
 
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>
