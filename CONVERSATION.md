@@ -10,6 +10,7 @@
 
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-25 13:42: Fixed panel dragstart filtering so clicking the header bar, title, grip icon, or panel frame initiates reordering smoothly while keeping canvas interactions and action controls functional (v18). [Done]
 - 2026-10-25 13:40: Lowered high-frequency electrical ground noise floor clamp threshold to 11.5 kHz (covering the 12 kHz sideband and 15.6 kHz clock needle) so the upper spectrum renders completely flat (v17). [Done]
 - 2026-10-25 13:35: Suppressed visual high-pitch needle spikes (1.5k, 6.47k, 7.85k, 12.9k, 15.6k, 18.7k) and flat-clamped non-musical frequencies above 13.8 kHz to baseline (-100 dB) across FFT, 3D Waterfall, and Spectrogram buffers (v16). [Done]
 - 2026-10-25 13:24: Added steep 24 dB/oct lowpass at 14.2 kHz and precision high-Q notches for 15.6 kHz (packet clock) and 1.5 kHz (sub-harmonic) in Pi Freq Kill pipeline; bumped to v15. [Done]
