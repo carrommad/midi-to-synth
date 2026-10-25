@@ -73,7 +73,7 @@ Al activar el botón **`CC`** en el Akai, los 8 pads se convierten en una pedale
 ---
 
 ### A. Para cambiar Instrumentos de Teclado (Pianos, Bajos, Sintes):
-- **Mantén pulsada la Tecla 1 (`C1`, Blanca en el extremo izquierdo)**.
+- **Mantén pulsada la Tecla 1 (`C1`, Blanca en el extremo izquierdo) durante 2 segundos**.
 - Con la mano derecha toca una tecla a partir de **D1 (Tecla 3)**:
   - Tecla 3 (D1): **Yamaha Grand Piano**
   - Tecla 4 (D#1): Bright Acoustic Piano
@@ -93,7 +93,7 @@ Al activar el botón **`CC`** en el Akai, los 8 pads se convierten en una pedale
 ---
 
 ### B. Para cambiar Kits de Batería (808, 909, Rock, Jazz...):
-- **Mantén pulsada la Tecla 2 (`C#1`, Tecla Negra contigua, fácil de sentir al tacto)**.
+- **Mantén pulsada la Tecla 2 (`C#1`, Tecla Negra contigua) durante 2 segundos**.
 - Con la mano derecha toca cualquier tecla a partir de **D1 (Tecla 3)**:
   - Opción 1: **Standard Drum Kit**
   - Opción 6: **Room Rock Kit**
@@ -106,7 +106,7 @@ Al activar el botón **`CC`** en el Akai, los 8 pads se convierten en una pedale
 ---
 
 ### C. Modo FULL LEVEL en las Teclas (Fuerza 100% en el Piano):
-- **Mantén pulsadas a la vez las dos primeras teclas del extremo izquierdo (`C1` + `C#1`)**:
+- **Mantén pulsadas a la vez las dos primeras teclas (`C1` + `C#1`) durante 2 segundos**:
   - Activa / Desactiva el modo **FULL LEVEL para las teclas del piano**.
   - **Activado (Chime agudo 84)**: Todas las teclas suenan al 100% de fuerza (velocidad 127), ideal para tocar con soltura sin fatiga en los dedos.
   - **Desactivado (Chime suave 60)**: Vuelve a la respuesta dinámica táctil (con curva suave optimizada para no perder notas).
@@ -114,7 +114,7 @@ Al activar el botón **`CC`** en el Akai, los 8 pads se convierten en una pedale
 ---
 
 ### D. Apagado Seguro de la Raspberry Pi (Protección de Tarjeta SD):
-- **Mantén pulsadas a la vez las teclas `C1` (más grave) y `C3` (más aguda) durante 3 segundos**:
+- **Mantén pulsadas a la vez las teclas `C1` (más grave) y `C3` (más aguda) durante 2 segundos**:
   - Suena un chime musical descendente de despedida.
   - Ejecuta un apagado ordenado del sistema operativo Linux (`poweroff`) protegiendo la tarjeta micro-SD.
 

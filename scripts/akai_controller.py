@@ -703,6 +703,7 @@ class AdvancedAkaiController:
         self.last_drum_mute_press: float = 0.0
         self.last_keys_mute_press: float = 0.0
         self.shutdown_timer: Optional[threading.Timer] = None
+        self.full_level_timer: Optional[threading.Timer] = None
         self.startup_sound_played: bool = False
         self.running = True
         self.keys_full_level: bool = False
@@ -814,7 +815,7 @@ class AdvancedAkaiController:
             except Exception:
                 pass
 
-            print("\n[AVISO APAGADO] Mantén pulsadas ambas teclas C1 y C3 durante 3 segundos para apagar el sistema...", flush=True)
+            print("\n[AVISO APAGADO] Mantén pulsadas ambas teclas C1 y C3 durante 2 segundos para apagar el sistema...", flush=True)
 
             # Toque sutil de aviso (Do central apagado en canal 15 Celesta)
             def _subtle_warning():
@@ -826,7 +827,7 @@ class AdvancedAkaiController:
                     pass
             threading.Thread(target=_subtle_warning, daemon=True).start()
 
-            self.shutdown_timer = threading.Timer(3.0, self.execute_safe_shutdown)
+            self.shutdown_timer = threading.Timer(2.0, self.execute_safe_shutdown)
             self.shutdown_timer.daemon = True
             self.shutdown_timer.start()
 
@@ -834,6 +835,21 @@ class AdvancedAkaiController:
         if self.shutdown_timer is not None:
             self.shutdown_timer.cancel()
             self.shutdown_timer = None
+
+    def start_full_level_timer(self, base_c: int):
+        if self.full_level_timer is None:
+            def _toggle():
+                self.toggle_keys_full_level(base_c)
+                self.full_level_timer = None
+
+            self.full_level_timer = threading.Timer(2.0, _toggle)
+            self.full_level_timer.daemon = True
+            self.full_level_timer.start()
+
+    def cancel_full_level_timer(self):
+        if self.full_level_timer is not None:
+            self.full_level_timer.cancel()
+            self.full_level_timer = None
 
     def execute_safe_shutdown(self):
         print("\n" + "="*65, flush=True)
@@ -929,30 +945,28 @@ class AdvancedAkaiController:
                 if (highest_k - lowest_k == 24) and (lowest_k % 12 == 0) and (highest_k % 12 == 0):
                     self.start_shutdown_timer()
 
-            # SHORTCUT: Pulsar C1 + C#1 a la vez (EXCLUSIVAMENTE las 2 primeras teclas del extremo izquierdo del teclado)
-            # Para evitar que pulsar la 8ª y 9ª tecla (Do central y Do#) active Full Level por error:
+            # SHORTCUT: Mantener C1 + C#1 a la vez durante 2.0 segundos para Full Level
             if self.looper.state not in ["RECORDING", "OVERDUBBING"] and len(active_notes) >= 2:
                 lowest_note = active_notes[0]
                 # Solo se activa si la nota más grave es EXACTAMENTE la tecla física C1 (la más grave del teclado)
                 if self.lowest_base_c is not None and lowest_note == self.lowest_base_c:
                     if (lowest_note + 1) in self.held_keyboard_notes:
-                        self.toggle_keys_full_level(lowest_note)
-                        return
+                        self.start_full_level_timer(lowest_note)
 
             # Check if any held note is an intentional modifier key (ONLY when not actively recording music)
             # REGLA DE ORO:
             # 1. El modificador C1/C#1 DEBE ser exclusivamente la tecla 1 o 2 del extremo izquierdo (self.lowest_base_c).
-            # 2. La tecla modificadora DEBE haber estado sostenida deliberadamente (mínimo 0.22s) ANTES de pulsar la otra tecla.
+            # 2. La tecla modificadora DEBE haber estado sostenida deliberadamente durante al menos 2.0s ANTES de pulsar la otra tecla.
             if self.looper.state not in ["RECORDING", "OVERDUBBING"] and len(active_notes) >= 2:
                 lowest_note = active_notes[0]
                 modifier_hold_time = now - self.held_keyboard_notes.get(lowest_note, now)
 
                 # Solo actúa como modificador si es la tecla física C1 o C#1 del extremo izquierdo
                 is_physical_modifier = (self.lowest_base_c is not None and lowest_note in [self.lowest_base_c, self.lowest_base_c + 1])
-                if is_physical_modifier and modifier_hold_time >= 0.22 and note >= (lowest_note + 2):
+                if is_physical_modifier and modifier_hold_time >= 2.0 and note >= (lowest_note + 2):
                     base_c = self.lowest_base_c
 
-                    # MODIFIER 1: Tecla C1 (Blanca, más grave) -> CAMBIO DE PIANO / MELÓDICO
+                    # MODIFIER 1: Tecla C1 (Blanca, más grave) sostenida >= 2.0s -> CAMBIO DE PIANO / MELÓDICO
                     if lowest_note == base_c:
                         fluid.send(f"noteoff 0 {note}\nnoteoff 0 {base_c}")
                         idx = (note - (base_c + 2)) % len(MELODIC_INSTRUMENTS)
@@ -963,7 +977,7 @@ class AdvancedAkaiController:
                         play_preview(chan=0, note=72, vel=110, duration=0.35)
                         return
 
-                    # MODIFIER 2: Tecla C#1 (Negra contigua) -> CAMBIO DE BATERÍAS (DRUM KITS)
+                    # MODIFIER 2: Tecla C#1 (Negra contigua) sostenida >= 2.0s -> CAMBIO DE BATERÍAS (DRUM KITS)
                     if lowest_note == (base_c + 1):
                         fluid.send(f"noteoff 0 {note}\nnoteoff 0 {base_c + 1}")
                         idx = (note - (base_c + 2)) % len(DRUM_KITS)
@@ -1033,6 +1047,7 @@ class AdvancedAkaiController:
         if channel == 0:
             self.held_keyboard_notes.pop(note, None)
             self.cancel_shutdown_timer()
+            self.cancel_full_level_timer()
             # Grabar liberación de tecla para mantener duración exacta de notas
             if self.looper.state in ["RECORDING", "OVERDUBBING"]:
                 self.looper.record_event(0, note, 0, False)

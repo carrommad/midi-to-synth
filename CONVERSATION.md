@@ -1,5 +1,6 @@
 # Akai MPK Mini & Roland S-1 Synth Controller
 > **Target:** `scripts/akai_controller.py`
+- 2026-10-25 13:30: Increased hold threshold to 2.0 seconds for C1 melodic instrument select, C#1 drum kit select, C1+C#1 Full Level velocity toggle, and C1+C3 safe shutdown to prevent accidental triggers during normal piano performance. [Done]
 - 2026-10-24 21:19: Documented Arpeggiator Auto-Sync BPM workflow in README.md and docs/MIDI_MAPPING_AKAI.md. [Done]
 - 2026-10-24 21:10: Configured `audio_pwm_mode=2` and `disable_audio_dither=1` in Raspberry Pi `/boot/firmware/config.txt` to suppress analog audio output high-pitch PWM whine, and rebooted board. [Done]
 - 2026-10-24 21:07: Connected to Raspberry Pi at `192.168.1.29`, configured alias `ssh pi` in `~/.ssh/config`, copied updated `akai_controller.py`, and restarted `synth.service` successfully. [Done]
