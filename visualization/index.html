@@ -61,13 +61,14 @@
       </div>
 
       <div class="control-card">
-        <label for="filterWhineToggle">Filter Whine</label>
+        <label for="filterWhineToggle">Pi Freq Kill: <span id="whineFreqVal">6.47k</span></label>
         <div class="monitor-inner">
-          <label class="switch" title="Filter out high-frequency USB ground loop whine (6.4 kHz & 12.8 kHz)">
+          <label class="switch" title="Silence the Raspberry Pi switching whine (6.47 kHz)">
             <input type="checkbox" id="filterWhineToggle" role="switch" checked>
             <span class="switch-track"><span class="switch-thumb"></span></span>
             <span id="filterWhineState" class="switch-text">On</span>
           </label>
+          <input type="range" id="whineFreqSlider" min="6200" max="6700" step="10" value="6470" title="Fine-tune Pi whistle frequency (Hz)" style="width: 80px;">
         </div>
       </div>
 
@@ -269,6 +270,6 @@
     <p>Tip: Connect Roland S-1 via USB-C (audio class compliant) or audio line-in. Adjust input level on device to avoid clipping.</p>
   </footer>
 
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>
