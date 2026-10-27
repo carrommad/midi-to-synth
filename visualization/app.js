@@ -235,6 +235,14 @@ async function startAudio() {
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
+        channelCount: 2,
+        // Chromium & Android voice pipeline bypass flags (disables OS highpass filter)
+        googEchoCancellation: false,
+        googAutoGainControl: false,
+        googNoiseSuppression: false,
+        googHighpassFilter: false,
+        googTypingNoiseDetection: false,
+        googAudioMirroring: false,
         deviceId: deviceSelect.value ? { exact: deviceSelect.value } : undefined
       }
     };
