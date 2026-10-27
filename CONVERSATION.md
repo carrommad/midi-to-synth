@@ -13,6 +13,7 @@
 
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-27 16:41: Added optional 'Tilt Fix' toggle (leaky-integrator high-pass droop compensator) to Oscilloscope header, bumped cache buster to app.js?v=25. [Done]
 - 2026-10-27 16:34: Added stereo channelCount and googHighpassFilter: false / Android WebRTC voice DSP bypass flags to getUserMedia constraints, bumped to app.js?v=24. [Done]
 - 2026-10-27 16:32: Auto-select USB Audio, S-1, Roland devices with high priority over internal headset/earpiece on mobile, and bumped cache buster to app.js?v=23. [Done]
 - 2026-10-27 16:21: Set Pi Freq Kill default state to Off in index.html and app.js, and bumped script cache buster to app.js?v=22. [Done]

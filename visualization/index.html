@@ -146,6 +146,10 @@
               <input type="checkbox" id="triggerSync" checked>
               <span>Sync Lock</span>
             </label>
+            <label class="toggle-control" title="Compensate for mobile / AC-coupling high-pass droop on square waves">
+              <input type="checkbox" id="tiltFix">
+              <span>Tilt Fix</span>
+            </label>
             <div class="timebase-control">
               <span>Zoom</span>
               <input type="range" id="oscZoom" min="1" max="16" value="4" step="1" title="Timebase (Zoom)">
@@ -269,6 +273,6 @@
     <p>Tip: Connect Roland S-1 via USB-C (audio class compliant) or audio line-in. Adjust input level on device to avoid clipping.</p>
   </footer>
 
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>

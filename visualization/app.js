@@ -58,6 +58,7 @@ const phaseCtx = phaseCanvas.getContext('2d');
 
 // UI Controls
 const triggerSync = document.getElementById('triggerSync');
+const tiltFix = document.getElementById('tiltFix');
 const autoScaleOsc = document.getElementById('autoScaleOsc');
 const oscZoom = document.getElementById('oscZoom');
 const vGain = document.getElementById('vGain');
@@ -456,10 +457,21 @@ function renderOscilloscope(dataTimeL, w, h, fundFreq = 0, sampleRate = 48000) {
   oscCtx.shadowBlur = 8;
   oscCtx.beginPath();
 
+  const isTiltFix = tiltFix && tiltFix.checked;
+  // Leaky integrator reconstruction for AC-coupling / high-pass tilt
+  // alpha corresponds to ~25 Hz hardware high-pass compensation
+  const leakAlpha = Math.exp(-2 * Math.PI * 25 / (sampleRate || 48000));
+  let integState = 0;
+
   const sliceWidth = w / sampleCount;
   let x = 0;
   for (let i = 0; i < sampleCount; i++) {
-    const rawVal = dataTimeL[startIdx + i] || 0;
+    let rawVal = dataTimeL[startIdx + i] || 0;
+    if (isTiltFix) {
+      // Reconstruct missing low-frequency / DC plateaus
+      integState = integState * leakAlpha + rawVal * (1 - leakAlpha) * 1.85;
+      rawVal = rawVal + integState;
+    }
     const v = Math.max(-1.1, Math.min(1.1, rawVal * vertScale));
     const y = ((1 - v) / 2) * h;
     if (i === 0) oscCtx.moveTo(x, y);
