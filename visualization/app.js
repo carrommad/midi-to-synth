@@ -169,6 +169,10 @@ async function populateDevices() {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const audioInputs = devices.filter(d => d.kind === 'audioinput');
     deviceSelect.innerHTML = '<option value="">Default Input</option>';
+    // Select best candidate: priority to S-1, Roland, USB Audio, external line
+    let bestMatchIndex = -1;
+    let bestPriority = -1;
+
     audioInputs.forEach((d, i) => {
       const opt = document.createElement('option');
       opt.value = d.deviceId;
@@ -176,11 +180,28 @@ async function populateDevices() {
       lbl = lbl.replace(/^default\s*-\s*/i, '').trim();
       opt.textContent = lbl.length > 20 ? `${lbl.slice(0, 18)}…` : lbl;
       opt.title = d.label || `Input ${i + 1}`;
-      if (d.label.toLowerCase().includes('s-1') || d.label.toLowerCase().includes('roland') || d.label.toLowerCase().includes('headset')) {
-        opt.selected = true;
+      
+      const lower = (d.label || '').toLowerCase();
+      let priority = 0;
+      if (lower.includes('s-1') || lower.includes('roland')) {
+        priority = 3;
+      } else if (lower.includes('usb')) {
+        priority = 2;
+      } else if (lower.includes('external') || lower.includes('line')) {
+        priority = 1;
       }
+
+      if (priority > bestPriority) {
+        bestPriority = priority;
+        bestMatchIndex = i + 1; // +1 because option 0 is Default Input
+      }
+
       deviceSelect.appendChild(opt);
     });
+
+    if (bestMatchIndex > 0) {
+      deviceSelect.selectedIndex = bestMatchIndex;
+    }
   } catch (err) {
     console.warn("Could not list audio devices:", err);
   }

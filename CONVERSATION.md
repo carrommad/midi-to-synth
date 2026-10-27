@@ -13,6 +13,7 @@
 
 # Roland S-1 Audio Visualizer
 > **Target:** `visualization/`
+- 2026-10-27 16:32: Auto-select USB Audio, S-1, Roland devices with high priority over internal headset/earpiece on mobile, and bumped cache buster to app.js?v=23. [Done]
 - 2026-10-27 16:21: Set Pi Freq Kill default state to Off in index.html and app.js, and bumped script cache buster to app.js?v=22. [Done]
 - 2026-10-25 14:32: Added directional panel reorder buttons (←, ↑, ↓, →) to all chart panel headers with responsive column-aware layout shifts and bumped cache busters to styles.css?v=6 and app.js?v=21. [Done]
 - 2026-10-25 13:56: Fixed panel dragging by disabling pointer events on child elements during drag, setting ghost render delay, maintaining dropTarget order, and bumping cache buster to v20 (and styles.css to v5). [Done]
