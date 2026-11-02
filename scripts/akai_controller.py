@@ -1307,11 +1307,19 @@ class AdvancedAkaiController:
                         self.sustain_decay_seconds = round(decay_sec, 1)
                         print(f"[KNOB 7 - SUSTAIN PIANO/KEYS] Caída: {self.sustain_decay_seconds}s (Rango 1s - 60s)", flush=True)
                 else:
-                    speed_hz = 0.3 + (norm ** 1.5) * 7.7
+                    # FluidSynth cho_set_speed rango estricto: [0.10 a 5.00 Hz]
+                    speed_hz = 0.2 + (norm ** 1.3) * 4.8
                     fluid.send(f"cho_set_speed {speed_hz:.2f}")
                     if value > 0:
-                        fluid.send(f"cc 0 93 {max(64, value)}")
-                    print(f"[KNOB 7 - ROTARY VIBRATO] Velocidad Modulación: {speed_hz:.1f} Hz (Giro de Cabina Leslie)", flush=True)
+                        # Asegurar profundidad y nivel audibles de giro Rotary aunque K6 esté bajo
+                        fluid.send(f"cho_set_depth {8.0 + norm * 12.0:.1f}")
+                        fluid.send(f"cho_set_level {0.4 + norm * 0.55:.2f}")
+                        fluid.send(f"cc 0 93 {max(80, value)}")
+                        fluid.send(f"cc 0 1 {int(norm * 90)}")
+                    else:
+                        fluid.send("cc 0 93 0")
+                        fluid.send("cc 0 1 0")
+                    print(f"[KNOB 7 - ROTARY VIBRATO] Velocidad Leslie: {speed_hz:.1f} Hz | Modulación: {int(norm*100)}%", flush=True)
 
             elif knob_idx == 7:  # K8: Master Volume (Volumen General)
                 # Calibración ampliada de ganancia (0.0 a 2.50):
