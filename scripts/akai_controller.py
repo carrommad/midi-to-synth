@@ -1307,10 +1307,10 @@ class AdvancedAkaiController:
                     print(f"[KNOB 7 - REVERB PIANO] Profundidad Reverb: {int(rev_lvl*100)}% (Room {room:.2f})", flush=True)
 
             elif knob_idx == 7:  # K8: Master Volume (Volumen General)
-                # Calibración profesional de ganancia:
-                # 0% = 0.0, 50% = 0.60, 85% = 1.0 (Ganancia Unitaria 0 dBFS), 100% = 1.25 (+2 dB boost con soft-clipping)
+                # Calibración ampliada de ganancia (0.0 a 2.50):
+                # 0% = 0.0, 50% = 1.0, 80% = 1.90, 100% = 2.50
                 norm = value / 127.0
-                gain = (norm ** 1.35) * 1.25
+                gain = (norm ** 1.25) * 2.50
                 fluid.send(f"gain {gain:.2f}")
                 print(f"[KNOB 8 - MASTER] Volumen General: {int(norm * 100)}% (Gain {gain:.2f})", flush=True)
 
@@ -1455,7 +1455,8 @@ class AdvancedAkaiController:
             try:
                 # Asegurar enlace ALSA Sequencer directo con FluidSynth al conectar
                 subprocess.run("aconnect 'MPK mini':0 'FLUID Synth':0 2>/dev/null || true", shell=True)
-                print(f"[+] Conectado a {port_name}. Listo para tocar y cambiar sonidos.", flush=True)
+                fluid.send("gain 2.4")
+                print(f"[+] Conectado a {port_name}. Listo para tocar (Volumen inicial Gain 2.4).", flush=True)
 
                 if not self.startup_sound_played:
                     self.startup_sound_played = True

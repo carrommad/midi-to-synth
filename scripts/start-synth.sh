@@ -15,13 +15,12 @@ fi
 
 echo "Iniciando FluidSynth con SoundFont: $SOUNDFONT"
 
-# Parámetros clave de FluidSynth:
 # -a alsa: Driver de audio nativo Linux ALSA
 # -m alsa_seq: Driver MIDI ALSA Sequencer
-# -g 0.6: Ganancia de volumen general (0.0 a 1.0)
+# -g 2.4: Ganancia de volumen general aumentada (rango 0.0 a 5.0)
 # -o midi.autoconnect=1: Conexión automática inmediata a cualquier teclado MIDI USB conectado
 # -o audio.period-size=128 -o audio.periods=3: Optimización para latencia ultrabaja (<10ms)
-fluidsynth -s -i -a alsa -m alsa_seq -g 1.0 \
+fluidsynth -s -i -a alsa -m alsa_seq -g 2.4 \
     -o midi.autoconnect=1 \
     -o audio.period-size=128 \
     -o audio.periods=3 \
