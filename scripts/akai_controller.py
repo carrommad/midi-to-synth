@@ -1301,10 +1301,15 @@ class AdvancedAkaiController:
                     self.sustain_decay_seconds = round(decay_sec, 1)
                     print(f"[KNOB 7 - ENVOLVENTE CONTINUA] Caída de Sustain: {self.sustain_decay_seconds}s (Rango 3s - 30s)", flush=True)
                 else:
-                    # Instrumentos de decaimiento natural (Pianos, Guitarras, Bajos):
-                    # Control de Brillo y Filtro Low-Pass (Cutoff Frequency CC 74)
-                    fluid.send(f"cc 0 74 {value}")
-                    print(f"[KNOB 7 - BRILLO/FILTRO] Brillo Claves/Pianos (CC 74): {int((value/127.0)*100)}%", flush=True)
+                    # Instrumentos de decaimiento (Pianos, Guitarras, Bajos):
+                    # Control de Velocidad de Modulación Rotary / Vibrato (0.3 Hz a 8.0 Hz)
+                    norm = value / 127.0
+                    speed_hz = 0.3 + (norm ** 1.5) * 7.7
+                    fluid.send(f"cho_set_speed {speed_hz:.2f}")
+                    # Si la velocidad sube por encima de 0, asegurar que el bus de chorus del canal 0 está activo
+                    if value > 0:
+                        fluid.send(f"cc 0 93 {max(64, value)}")
+                    print(f"[KNOB 7 - ROTARY VIBRATO] Velocidad Modulación: {speed_hz:.1f} Hz (Giro de Cabina Leslie)", flush=True)
 
             elif knob_idx == 7:  # K8: Master Volume (Volumen General)
                 # Calibración ampliada de ganancia (0.0 a 2.50):
