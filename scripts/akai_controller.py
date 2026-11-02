@@ -995,6 +995,8 @@ class AdvancedAkaiController:
             dt = now - self.last_undo_tap_time
             self.last_undo_tap_time = now
 
+            print("\n[PAD 4 ↩] Pulsado (Tap: Deshacer / Doble-Tap: Rehacer / Mantén >1.5s: Borrar Todo)", flush=True)
+
             def _clear_all_action():
                 self.looper.clear()
                 self.looper_pad_press_times.pop(pad_num, None)
@@ -1006,6 +1008,8 @@ class AdvancedAkaiController:
 
         elif pad_num in [4, 5, 6, 7]:  # Pads 5..8: Capas 1..4
             trk_idx = pad_num - 4
+            print(f"\n[PAD {pad_num + 1} 🎚] Capa {trk_idx + 1} seleccionada (Tap: Silenciar / Mantén >1.0s: Borrar capa)", flush=True)
+
             # Programar temporizador de pulsación larga (> 1.0s) para borrado de capa
             def _delete_action():
                 self.looper.delete_track(trk_idx)
