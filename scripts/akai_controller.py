@@ -1302,13 +1302,9 @@ class AdvancedAkaiController:
                     print(f"[KNOB 7 - ENVOLVENTE CONTINUA] Caída de Sustain: {self.sustain_decay_seconds}s (Rango 3s - 30s)", flush=True)
                 else:
                     # Instrumentos de decaimiento natural (Pianos, Guitarras, Bajos):
-                    # Controla expansión profunda de Reverb Catedral y Room Size
-                    rev_lvl = (value / 127.0) * 1.0
-                    room = 0.3 + (value / 127.0) * 0.9
-                    fluid.send(f"rev_setlevel {rev_lvl:.2f}")
-                    fluid.send(f"rev_setroomsize {room:.2f}")
-                    fluid.send(f"cc 0 91 {value}")
-                    print(f"[KNOB 7 - REVERB PIANO] Profundidad Reverb: {int(rev_lvl*100)}% (Room {room:.2f})", flush=True)
+                    # Control de Brillo y Filtro Low-Pass (Cutoff Frequency CC 74)
+                    fluid.send(f"cc 0 74 {value}")
+                    print(f"[KNOB 7 - BRILLO/FILTRO] Brillo Claves/Pianos (CC 74): {int((value/127.0)*100)}%", flush=True)
 
             elif knob_idx == 7:  # K8: Master Volume (Volumen General)
                 # Calibración ampliada de ganancia (0.0 a 2.50):
