@@ -93,7 +93,9 @@ Las 4 primeras teclas del extremo izquierdo del teclado actúan como selectores 
 * **Fila Inferior (Teclado y Master)**:
   - `K5`: **Keys Reverb Eco** (Reverberación catedral en teclado).
   - `K6`: **Keys Chorus Lush** (Grosor vintage Roland Juno).
-  - `K7`: **Decay Envelope / Reverb Bloom** (Control inteligente dual: 3s a 30s de caída para instrumentos continuos como trompeta, órganos, cuerdas y sintes; o reverb catedral expansiva para pianos y guitarras).
+  - `K7`: **Dual Mode: Sustain Decay / Rotary Vibrato**:
+    - *Con Sustain ON* (`Pad CC 1` o pedal activo): Control de **Tiempo de Caída/Sustain** (1s a 60s en pianos y acústicos para resonancia natural completa; 1s a 35s en órganos y sintes continuos para evitar drones colgados).
+    - *Con Sustain OFF*: **Velocidad de Giro Rotary / Vibrato Leslie** (0.2 Hz a 5.0 Hz con enganche automático de profundidad y modulación).
   - `K8`: **Master Volume** (Volumen general de todo el sistema).
 
 ---
@@ -171,3 +173,17 @@ FluidSynth abre un shell interactivo de control en el puerto TCP `9800`. Para ev
 - **Tráfico local (Loopback / `127.0.0.1`):** `ACCEPT` (usado por `start-synth.sh` y scripts internos de control).
 - **Tráfico externo (Wi-Fi / LAN):** `DROP` (bloquea cualquier sondeo o comando entrante desde la red doméstica).
 - **Persistencia:** Gestionado por `netfilter-persistent` (`/etc/iptables/rules.v4`).
+
+---
+
+## 🛠️ Directivas y Lecciones Aprendidas de FluidSynth & Audio
+
+1. **Rango Estricto de Velocidad de Chorus/Vibrato**:
+   - El comando de FluidSynth `cho_set_speed` **sólo admite valores entre 0.10 y 5.00 Hz**. Enviar valores superiores (e.g., 6.0 Hz u 8.0 Hz) provoca el rechazo del comando por el motor de audio y deja la modulación congelada o inaudible.
+2. **Dependencia de Cadena de Efectos (FX Bus Sends)**:
+   - Los parámetros de modulación dinámica (como velocidad o profundidad) requieren que el canal de mezcla húmeda (`cc 0 93`), el nivel general (`cho_set_level`) y la profundidad (`cho_set_depth`) estén activos (>0). No asumir que otra perilla estará subida.
+3. **Envolventes de Caída: Instrumentos Acústicos vs Continuos**:
+   - **Pianos y cuerdas percutidas**: La resonancia natural de las muestras acústicas puede durar 30s a 45s. Limitar el temporizador de sustain a valores inferiores corta la cola de forma no musical. El techo debe ser amplio (hasta 60s).
+   - **Órganos, pads y sintes sostenidos**: Como las muestras son bucles infinitos, requieren un temporizador estricto (techo de 35s) para silenciar la voz y evitar la saturación de polifonía de la CPU.
+4. **Permisos de Ejecución (`+x`)**:
+   - Los scripts del servicio (`scripts/start-synth.sh`) deben conservar siempre el bit ejecutable rastreado en Git (`git update-index --chmod=+x scripts/start-synth.sh`) para evitar errores `203/EXEC` en systemd tras un pull.
