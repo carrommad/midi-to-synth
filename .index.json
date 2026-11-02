@@ -1,0 +1,18 @@
+{
+  "name": "midi-to-synth",
+  "purpose": "Autonomous headless FluidSynth synthesizer & Akai MPK Mini beat station",
+  "service": "synth.service",
+  "start_script": "scripts/start-synth.sh",
+  "key_files": {
+    "scripts/akai_controller.py": "Main daemon for looper, pads, knobs, shortcuts, and safe shutdown",
+    "docs/MIDI_MAPPING_AKAI.md": "Complete physical mapping of 25 keys, 8 pads, 8 knobs, and CC mode",
+    "docs/Manual_Instrucciones_Akai_MPK_Mini.pdf": "User manual",
+    "visualization/": "Roland S-1 Web Audio real-time waveform visualizer (port 8000)"
+  },
+  "quick_reference": {
+    "knobs": "K1:Drum Reverb | K2:Drum Tuning | K3:Looper Tempo (30-210 BPM) | K4:Drum/Loop Vol | K5:Keys Reverb | K6:Keys Chorus | K7:Keys Filter/Cutoff | K8:Master Vol",
+    "pads_bank_a": "Ch 10 General MIDI Drums (P1:Kick, P2:SideStick, P3:Snare, P4:Clap, P5:ElecSnare, P6:FloorTom, P7:ClosedHat, P8:MidTom)",
+    "cc_mode": "P1:Sustain | P2:Portamento | P3:Cutoff Boost | P4:Reverb Kill | P5:Chorus Splash | P6:Prev Sound | P7:Next Sound | P8:Panic/Stop",
+    "safe_shutdown": "Hold C1 + C3 for 3 seconds"
+  }
+}
