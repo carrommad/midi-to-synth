@@ -13,6 +13,7 @@
     "knobs": "K1:Drum Reverb | K2:Drum Tuning | K3:Looper Tempo (30-210 BPM) | K4:Drum/Loop Vol | K5:Keys Reverb | K6:Keys Chorus | K7:Keys Filter/Cutoff | K8:Master Vol",
     "pads_bank_a": "Ch 10 General MIDI Drums (P1:Kick, P2:SideStick, P3:Snare, P4:Clap, P5:ElecSnare, P6:FloorTom, P7:ClosedHat, P8:MidTom)",
     "cc_mode": "P1:Sustain | P2:Portamento | P3:Cutoff Boost | P4:Reverb Kill | P5:Chorus Splash | P6:Prev Sound | P7:Next Sound | P8:Panic/Stop",
+    "instrument_keys_hold_C1": "D1:Yamaha Grand Piano | D#1:Bright Piano | E1:Rhodes | F1:FM DX7 Electric Piano | F#1:Clavinet | G1:Hammond B3 | B1:Clean Guitar | C#2:Finger Bass | E2:Synth Bass (808 Sub) | F2:Acid 303 Bass | F#2:Strings | A#2:Square Lead | B2:Saw Lead | C3:Warm Pad",
     "safe_shutdown": "Hold C1 + C3 for 3 seconds"
   }
 }
