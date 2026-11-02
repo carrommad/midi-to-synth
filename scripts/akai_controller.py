@@ -120,8 +120,9 @@ def play_preview(chan: int, note: int, vel: int = 105, duration: float = 0.3):
     threading.Thread(target=_worker, daemon=True).start()
 
 class LiveMidiLooper:
-    def __init__(self, fluid_client: FluidClient):
+    def __init__(self, fluid_client: FluidClient, controller: Optional[Any] = None):
         self.fluid = fluid_client
+        self.controller = controller
         self.state: str = "IDLE"  # "IDLE", "RECORDING", "PLAYING", "OVERDUBBING", "PAUSED", "PRESET"
         self.bpm: int = 90
         self.metronome_active: bool = True
@@ -646,12 +647,18 @@ class LiveMidiLooper:
                     break
 
                 scale = (self.base_bpm / float(self.bpm)) if (self.base_bpm > 0 and self.bpm > 0) else 1.0
+                is_full = bool(self.controller and getattr(self.controller, "keys_full_level", False))
                 while idx < n_evs:
                     scaled_t = evs[idx][0] * scale
                     if scaled_t <= elapsed:
                         _, ch, n, v, is_on = evs[idx]
                         if is_on:
-                            self.fluid.send(f"noteon {ch} {n} {v}")
+                            # Dynamic volume boost: full level forces 127; standard mode applies punchy gain curve
+                            if is_full and ch == 0:
+                                play_v = 127
+                            else:
+                                play_v = min(127, max(45, int(v * 1.30 + 15)))
+                            self.fluid.send(f"noteon {ch} {n} {play_v}")
                         else:
                             self.fluid.send(f"noteoff {ch} {n}")
                         idx += 1
@@ -782,7 +789,7 @@ class AdvancedAkaiController:
         self.looper_pad_press_times: Dict[int, float] = {}
         self.looper_pad_hold_timers: Dict[int, threading.Timer] = {}
         self.last_undo_tap_time: float = 0.0
-        self.looper = LiveMidiLooper(fluid)
+        self.looper = LiveMidiLooper(fluid, controller=self)
         # Enable FluidSynth effects engines & set responsive velocity curve
         fluid.send("reverb on\nchorus on\n")
         self.apply_key_velocity_router()
@@ -1323,10 +1330,10 @@ class AdvancedAkaiController:
                     print(f"[KNOB 7 - ROTARY VIBRATO] Velocidad Leslie: {speed_hz:.1f} Hz | Modulación: {int(norm*100)}%", flush=True)
 
             elif knob_idx == 7:  # K8: Master Volume (Volumen General)
-                # Calibración ampliada de ganancia (0.0 a 2.50):
-                # 0% = 0.0, 50% = 1.0, 80% = 1.90, 100% = 2.50
+                # Calibración de alta ganancia (0.0 a 4.00):
+                # 0% = 0.0, 50% = 1.70, 80% = 3.00, 100% = 4.00
                 norm = value / 127.0
-                gain = (norm ** 1.25) * 2.50
+                gain = (norm ** 1.20) * 4.00
                 fluid.send(f"gain {gain:.2f}")
                 print(f"[KNOB 8 - MASTER] Volumen General: {int(norm * 100)}% (Gain {gain:.2f})", flush=True)
 
@@ -1471,8 +1478,8 @@ class AdvancedAkaiController:
             try:
                 # Asegurar enlace ALSA Sequencer directo con FluidSynth al conectar
                 subprocess.run("aconnect 'MPK mini':0 'FLUID Synth':0 2>/dev/null || true", shell=True)
-                fluid.send("gain 1.25")
-                print(f"[+] Conectado a {port_name}. Listo para tocar (Volumen inicial punto medio Gain 1.25).", flush=True)
+                fluid.send("gain 1.80\ncc 0 7 127\ncc 9 7 127\n")
+                print(f"[+] Conectado a {port_name}. Listo para tocar (Volumen inicial Gain 1.80, CC 7: 127).", flush=True)
 
                 if not self.startup_sound_played:
                     self.startup_sound_played = True
