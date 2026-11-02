@@ -1292,9 +1292,20 @@ class AdvancedAkaiController:
             elif knob_idx == 6:  # K7: Dual Mode - Sustain Decay (when Sustain ON) / Rotary Speed (when Sustain OFF)
                 norm = value / 127.0
                 if self.sustain_active:
-                    decay_sec = 1.0 + (norm ** 1.8) * 24.0
-                    self.sustain_decay_seconds = round(decay_sec, 1)
-                    print(f"[KNOB 7 - SUSTAIN DECAY] Tiempo de Caída: {self.sustain_decay_seconds}s (Rango 1s - 25s)", flush=True)
+                    continuous_progs = {16, 19, 38, 39, 48, 50, 56, 65, 80, 81, 88}
+                    curr_prog = MELODIC_INSTRUMENTS[self.current_melodic_idx][0]
+                    is_continuous = (curr_prog in continuous_progs)
+
+                    if is_continuous:
+                        # Órganos y pads continuos: 1.0s a 35.0s
+                        decay_sec = 1.0 + (norm ** 2.0) * 34.0
+                        self.sustain_decay_seconds = round(decay_sec, 1)
+                        print(f"[KNOB 7 - SUSTAIN ÓRGANO/PAD] Caída: {self.sustain_decay_seconds}s (Rango 1s - 35s)", flush=True)
+                    else:
+                        # Pianos, guitarras y percusión tonal: 1.0s a 60.0s (cola natural de cuerda)
+                        decay_sec = 1.0 + (norm ** 2.2) * 59.0
+                        self.sustain_decay_seconds = round(decay_sec, 1)
+                        print(f"[KNOB 7 - SUSTAIN PIANO/KEYS] Caída: {self.sustain_decay_seconds}s (Rango 1s - 60s)", flush=True)
                 else:
                     speed_hz = 0.3 + (norm ** 1.5) * 7.7
                     fluid.send(f"cho_set_speed {speed_hz:.2f}")
