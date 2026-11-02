@@ -1131,7 +1131,7 @@ class AdvancedAkaiController:
                 old_timer.cancel()
                 fluid.send(f"noteoff 0 {note}")
 
-            if is_continuous and self.sustain_active:
+            if self.sustain_active:
                 def _decay_noteoff(target_note: int):
                     # FluidSynth SoundFont voices require explicit noteoff + CC 64 drop to release sustained loop
                     fluid.send(f"noteoff 0 {target_note}")
@@ -1289,24 +1289,15 @@ class AdvancedAkaiController:
                 fluid.send(f"cc 0 93 {value}")
                 print(f"[KNOB 6 - TECLADO] Chorus Grosor & Lush: {int(cho_lvl*100)}%", flush=True)
 
-            elif knob_idx == 6:  # K7: Adaptive Decay Envelope (Continuous) / Cathedral Reverb Bloom (Pianos)
-                continuous_progs = {16, 19, 38, 39, 48, 50, 56, 65, 80, 81, 88}
-                curr_prog = MELODIC_INSTRUMENTS[self.current_melodic_idx][0]
-                is_continuous = (curr_prog in continuous_progs)
-
-                if is_continuous:
-                    # Rango: Min 3.0s, Centro ~5.0s, Max 30.0s (Curva cuadrática suave)
-                    norm = value / 127.0
-                    decay_sec = 3.0 + (norm ** 2.2) * 27.0
+            elif knob_idx == 6:  # K7: Dual Mode - Sustain Decay (when Sustain ON) / Rotary Speed (when Sustain OFF)
+                norm = value / 127.0
+                if self.sustain_active:
+                    decay_sec = 1.0 + (norm ** 1.8) * 24.0
                     self.sustain_decay_seconds = round(decay_sec, 1)
-                    print(f"[KNOB 7 - ENVOLVENTE CONTINUA] Caída de Sustain: {self.sustain_decay_seconds}s (Rango 3s - 30s)", flush=True)
+                    print(f"[KNOB 7 - SUSTAIN DECAY] Tiempo de Caída: {self.sustain_decay_seconds}s (Rango 1s - 25s)", flush=True)
                 else:
-                    # Instrumentos de decaimiento (Pianos, Guitarras, Bajos):
-                    # Control de Velocidad de Modulación Rotary / Vibrato (0.3 Hz a 8.0 Hz)
-                    norm = value / 127.0
                     speed_hz = 0.3 + (norm ** 1.5) * 7.7
                     fluid.send(f"cho_set_speed {speed_hz:.2f}")
-                    # Si la velocidad sube por encima de 0, asegurar que el bus de chorus del canal 0 está activo
                     if value > 0:
                         fluid.send(f"cc 0 93 {max(64, value)}")
                     print(f"[KNOB 7 - ROTARY VIBRATO] Velocidad Modulación: {speed_hz:.1f} Hz (Giro de Cabina Leslie)", flush=True)
