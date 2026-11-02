@@ -866,7 +866,7 @@ class AdvancedAkaiController:
                 time.sleep(0.5)
                 chime_notes = [60, 64, 67, 72, 76, 84]
                 for n in chime_notes:
-                    fluid.send(f"noteon 0 {n} 115")
+                    fluid.send(f"noteon 0 {n} 70")
                     time.sleep(0.12)
                 time.sleep(1.0)
                 for n in chime_notes:
@@ -1459,8 +1459,8 @@ class AdvancedAkaiController:
             try:
                 # Asegurar enlace ALSA Sequencer directo con FluidSynth al conectar
                 subprocess.run("aconnect 'MPK mini':0 'FLUID Synth':0 2>/dev/null || true", shell=True)
-                fluid.send("gain 2.4")
-                print(f"[+] Conectado a {port_name}. Listo para tocar (Volumen inicial Gain 2.4).", flush=True)
+                fluid.send("gain 1.25")
+                print(f"[+] Conectado a {port_name}. Listo para tocar (Volumen inicial punto medio Gain 1.25).", flush=True)
 
                 if not self.startup_sound_played:
                     self.startup_sound_played = True
