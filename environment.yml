@@ -1,0 +1,10 @@
+name: midi-to-synth
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - mido>=1.2.10
+      - python-rtmidi>=1.5.0

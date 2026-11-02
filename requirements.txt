@@ -1,0 +1,3 @@
+# Dependencies for midi-to-synth (FluidSynth & Akai MPK Mini Controller)
+mido>=1.2.10
+python-rtmidi>=1.5.0
