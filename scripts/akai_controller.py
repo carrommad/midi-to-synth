@@ -1154,7 +1154,8 @@ class AdvancedAkaiController:
             # NUNCA deben grabarse en el loop ni disparar la grabación durante modo ARMED.
             is_modifier_key = ((note % 12) == 2) or ((note % 12) == 3)
             if not is_modifier_key and self.looper.state in ["ARMED", "RECORDING", "OVERDUBBING"]:
-                self.looper.record_event(0, note, velocity, True)
+                rec_vel = 127 if self.keys_full_level else velocity
+                self.looper.record_event(0, note, rec_vel, True)
 
         # Si se tocan los pads (Canal 10 / index 9 en FluidSynth):
         elif channel == 9:
@@ -1266,11 +1267,11 @@ class AdvancedAkaiController:
                 self.looper.set_bpm(bpm)
                 print(f"[KNOB 3 - TEMPO LOOPER] BPM: {bpm} (Rango 30-210 BPM)", flush=True)
 
-            elif knob_idx == 3:  # K4: Drum & Looper Volume Balance (Volumen Mezcla Batería)
+            elif knob_idx == 3:  # K4: Drum & Looper Volume Balance (Volumen Mezcla Batería / Looper)
                 self.current_drum_volume = value
-                # Paridad total de volumen: Canal 10 (batería) escala directamente a CC 7 en paridad con el teclado
-                fluid.send(f"cc 9 7 {value}")
-                print(f"[KNOB 4 - BATERÍA] Volumen Mezcla Batería/Loop: {int((value/127)*100)}%", flush=True)
+                # Paridad total de volumen: Canal 10 (batería) y Canal 1 (teclado / looper)
+                fluid.send(f"cc 9 7 {value}\ncc 0 7 {value}")
+                print(f"[KNOB 4 - BATERÍA/LOOP] Volumen Mezcla Batería/Loop: {int((value/127)*100)}%", flush=True)
 
             # --- FILA INFERIOR: TECLADO & MASTER (KEYS & OUTPUT) ---
             elif knob_idx == 4:  # K5: Keyboard Reverb Echo (Reverb en Teclado)
