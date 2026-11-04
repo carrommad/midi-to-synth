@@ -1070,14 +1070,25 @@ class AdvancedAkaiController:
 
             # Actualizar la tecla base Do (C) del extremo izquierdo físico adaptándose
             # a cualquier transposición por OCT- / OCT+ (teclado de 25 teclas: base_c .. base_c + 24)
+            valid_bases = [24, 36, 48, 60, 72]
             if self.lowest_base_c is None:
                 self.lowest_base_c = (note // 12) * 12
-            elif note < self.lowest_base_c:
-                shift = ((self.lowest_base_c - note + 11) // 12) * 12
-                self.lowest_base_c -= shift
-            elif note > (self.lowest_base_c + 24):
-                shift = ((note - (self.lowest_base_c + 24) + 11) // 12) * 12
-                self.lowest_base_c += shift
+            else:
+                # Si una nota sobrepasa los límites del teclado actual (25 teclas), ajustar base inmediatamente
+                if note < self.lowest_base_c:
+                    shift = ((self.lowest_base_c - note + 11) // 12) * 12
+                    self.lowest_base_c = max(24, self.lowest_base_c - shift)
+                elif note > (self.lowest_base_c + 24):
+                    shift = ((note - (self.lowest_base_c + 24) + 11) // 12) * 12
+                    self.lowest_base_c = min(72, self.lowest_base_c + shift)
+
+            # Si se pulsa SOLA una tecla candidata a Do base (24, 36, 48, 60, 72) o Do# (25, 37, 49, 61, 73),
+            # alinear dinámicamente lowest_base_c con esa octava para permitir transposición hacia arriba y hacia abajo
+            if len(self.held_keyboard_notes) == 1:
+                if note in valid_bases:
+                    self.lowest_base_c = note
+                elif (note - 1) in valid_bases:
+                    self.lowest_base_c = note - 1
 
             base_c = self.lowest_base_c
 
@@ -1433,8 +1444,7 @@ class AdvancedAkaiController:
                     play_preview(chan=0, note=72, vel=110, duration=0.35)
             elif pad_idx == 7:  # Pad 8: Pánico / Hard-Cut (Silencia todo sonido inmediatamente)
                 if value > 0:
-                    # 1. Desactivar y cancelar pedal de sustain
-                    self.sustain_active = False
+                    # 1. Silenciar temporizadores de decaimiento activos
                     for t in self.active_note_timers.values():
                         t.cancel()
                     self.active_note_timers.clear()
@@ -1442,18 +1452,24 @@ class AdvancedAkaiController:
                     # 2. Detener looper y metrónomo
                     self.looper.stop_all()
 
-                    # 3. Corte total en FluidSynth: soltar sustain en todos los canales y enviar corte
+                    # 3. Corte total en FluidSynth: silenciar notas y todos los sonidos en todos los canales
                     kill_cmds = []
                     for c in range(16):
-                        kill_cmds.append(f"cc {c} 64 0\ncc {c} 120 0\ncc {c} 123 0")
+                        kill_cmds.append(f"cc {c} 120 0\ncc {c} 123 0")
                     fluid.send("\n".join(kill_cmds))
 
-                    # 4. Enviar noteoff explícito a cualquier tecla física que siga sostenida
+                    # 4. Mantener el estado de sustain (Pad 1): si estaba activo, restablecer CC 64 para notas siguientes
+                    if self.sustain_active:
+                        fluid.send("cc 0 64 127")
+                    else:
+                        fluid.send("cc 0 64 0")
+
+                    # 5. Enviar noteoff explícito a cualquier tecla física que siga sostenida
                     if self.held_keyboard_notes:
                         offs = "\n".join(f"noteoff 0 {k}" for k in list(self.held_keyboard_notes.keys()))
                         fluid.send(offs)
 
-                    print("\n[PAD CC A-8] ¡PÁNICO TOTAL! Silenciadas todas las notas, sustain desactivado y looper detenido.", flush=True)
+                    print(f"\n[PAD CC A-8] ¡PÁNICO TOTAL! Silenciadas todas las notas y looper detenido (Sustain activo: {self.sustain_active}).", flush=True)
 
         # PADS BANCO B (LIVE LOOPER & GROOVE ENGINE)
         elif is_pad_bank_b:
