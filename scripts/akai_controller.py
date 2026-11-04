@@ -831,18 +831,19 @@ class AdvancedAkaiController:
         """Play elegant, soft musical chime on isolated Channel 15 (Celesta) for system feedback."""
         def _worker():
             try:
-                fluid.send("prog 15 8")     # Celesta / Campanas suaves
-                fluid.send("cc 15 91 85")   # Reverb cálida
+                fluid.send("prog 15 8")       # Celesta / Campanas suaves
+                fluid.send("cc 15 7 127")     # Volumen al máximo en canal 15
+                fluid.send("cc 15 91 85")     # Reverb cálida
                 if active:
                     # Chime ascendente cristalino y suave (Do-Mi-Sol-Do)
                     for n in [72, 76, 79, 84]:
-                        fluid.send(f"noteon 15 {n} 78")
+                        fluid.send(f"noteon 15 {n} 95")
                         time.sleep(0.055)
                         fluid.send(f"noteoff 15 {n}")
                 else:
                     # Chime descendente tenue y relajante (Sol-Mi-Do)
                     for n in [79, 76, 72]:
-                        fluid.send(f"noteon 15 {n} 65")
+                        fluid.send(f"noteon 15 {n} 80")
                         time.sleep(0.075)
                         fluid.send(f"noteoff 15 {n}")
             except Exception:
@@ -933,9 +934,13 @@ class AdvancedAkaiController:
         if self.modifier_timer is None:
             def _on_selection_ready():
                 self.modifier_active_mode = key_type
-                # Silenciar la nota grave que se estaba manteniendo
+                # Fijar explícitamente el Do base activo de esta octava
+                base = note if (key_type == "melodic") else (note - 1)
+                self.lowest_base_c = base
+
+                # Silenciar de inmediato en FluidSynth la nota que se estaba manteniendo para dejar paso limpio al chime
                 try:
-                    fluid.send(f"noteoff 0 {note}")
+                    fluid.send(f"noteoff 0 {note}\ncc 0 120 0\ncc 0 123 0")
                 except Exception:
                     pass
                 # Sonido de confirmación: chime cristalino notificando que está en Modo Selección
@@ -1080,33 +1085,43 @@ class AdvancedAkaiController:
             # Hold Lowest C (C1) and Highest C (C3) together for 3.0 seconds (extremos físicos)
             active_notes = sorted(list(self.held_keyboard_notes.keys()))
             if len(active_notes) >= 2:
-                if (base_c in self.held_keyboard_notes) and ((base_c + 24) in self.held_keyboard_notes):
+                if (active_notes[-1] - active_notes[0] == 24) and (active_notes[0] % 12 == 0):
                     self.start_shutdown_timer()
 
-            # Iniciar temporizador si se pulsa la tecla Do o Do# del extremo izquierdo físico
-            if note == base_c:
+            # Iniciar temporizador si se pulsa la tecla Do o Do# (si es la única tecla sostenida)
+            if len(self.held_keyboard_notes) == 1:
+                if (note % 12) == 0:
+                    self.start_modifier_timer("melodic", note)
+                elif (note % 12) == 1:
+                    self.start_modifier_timer("drum", note)
+            elif note == base_c:
                 self.start_modifier_timer("melodic", note)
             elif note == (base_c + 1):
                 self.start_modifier_timer("drum", note)
 
             # SHORTCUT: Mantener C + C# a la vez durante 2.0 segundos para Full Level (extremo izquierdo)
             if self.looper.state not in ["RECORDING", "OVERDUBBING"] and len(active_notes) >= 2:
-                if (base_c in self.held_keyboard_notes) and ((base_c + 1) in self.held_keyboard_notes):
-                    self.start_full_level_timer(base_c)
+                lowest_note = active_notes[0]
+                if (lowest_note % 12 == 0) and ((lowest_note + 1) in self.held_keyboard_notes):
+                    self.start_full_level_timer(lowest_note)
 
             # SELECCIÓN DE INSTRUMENTO / KIT (Modo Selección confirmado tras 2s de hold):
             if self.looper.state not in ["RECORDING", "OVERDUBBING"] and len(active_notes) >= 2:
                 lowest_note = active_notes[0]
                 modifier_hold_time = now - self.held_keyboard_notes.get(lowest_note, now)
 
-                # Actúa como modificador ÚNICAMENTE si la nota más grave sostenida es C o C# del extremo izquierdo
-                is_physical_modifier = (lowest_note in [base_c, base_c + 1])
+                # Actúa como modificador si la nota más grave sostenida es C o C# y pasaron >= 2.0s (o chime listo)
+                is_physical_modifier = (lowest_note in [base_c, base_c + 1]) or (self.modifier_active_mode is not None and lowest_note % 12 in [0, 1])
                 is_mode_ready = (self.modifier_active_mode is not None or modifier_hold_time >= 2.0)
-                if is_physical_modifier and is_mode_ready and note >= (base_c + 2):
+                if is_physical_modifier and is_mode_ready and note >= (lowest_note + 2):
+                    # Usar la nota modificadora sostenida para calcular el Do base real de la selección
+                    cur_base = lowest_note if (lowest_note % 12 == 0) else (lowest_note - 1)
+                    self.lowest_base_c = cur_base
+
                     # MODIFIER 1: Tecla C (Blanca del extremo izquierdo) sostenida >= 2.0s -> CAMBIO MELÓDICO
-                    if lowest_note == base_c:
-                        fluid.send(f"noteoff 0 {note}\nnoteoff 0 {base_c}")
-                        idx = (note - (base_c + 2)) % len(MELODIC_INSTRUMENTS)
+                    if (lowest_note % 12) == 0:
+                        fluid.send(f"noteoff 0 {note}\nnoteoff 0 {lowest_note}")
+                        idx = (note - (cur_base + 2)) % len(MELODIC_INSTRUMENTS)
                         self.current_melodic_idx = idx
                         prog_num, name = MELODIC_INSTRUMENTS[idx]
                         fluid.send(f"prog 0 {prog_num}")
@@ -1115,9 +1130,9 @@ class AdvancedAkaiController:
                         return
 
                     # MODIFIER 2: Tecla C# (Negra contigua al extremo izquierdo) sostenida >= 2.0s -> CAMBIO BATERÍAS
-                    if lowest_note == (base_c + 1):
-                        fluid.send(f"noteoff 0 {note}\nnoteoff 0 {base_c + 1}")
-                        idx = (note - (base_c + 2)) % len(DRUM_KITS)
+                    if (lowest_note % 12) == 1:
+                        fluid.send(f"noteoff 0 {note}\nnoteoff 0 {lowest_note}")
+                        idx = (note - (cur_base + 2)) % len(DRUM_KITS)
                         self.current_drum_idx = idx
                         kit_num, name = DRUM_KITS[idx]
                         fluid.send(f"prog 9 {kit_num}")
@@ -1490,7 +1505,7 @@ class AdvancedAkaiController:
             try:
                 # Asegurar enlace ALSA Sequencer directo con FluidSynth al conectar
                 subprocess.run("aconnect 'MPK mini':0 'FLUID Synth':0 2>/dev/null || true", shell=True)
-                fluid.send("gain 1.80\ncc 0 7 127\ncc 9 7 127\n")
+                fluid.send("gain 1.80\ncc 0 7 127\ncc 9 7 127\ncc 15 7 127\n")
                 print(f"[+] Conectado a {port_name}. Listo para tocar (Volumen inicial Gain 1.80, CC 7: 127).", flush=True)
 
                 if not self.startup_sound_played:
