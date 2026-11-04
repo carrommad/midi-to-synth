@@ -1069,21 +1069,21 @@ class AdvancedAkaiController:
             self.held_keyboard_notes[note] = now
 
             # Actualizar la tecla base Do (C) del extremo izquierdo físico adaptándose
-            # a cualquier transposición por OCT- / OCT+ (teclado de 25 teclas: base_c .. base_c + 24)
-            valid_bases = [24, 36, 48, 60, 72]
+            # a cualquier transposición por OCT- / OCT+ (teclado de 25 teclas: base_c .. base_c + 24, rango -4 .. +4 octavas)
+            valid_bases = [0, 12, 24, 36, 48, 60, 72, 84, 96]
             if self.lowest_base_c is None:
                 self.lowest_base_c = (note // 12) * 12
             else:
                 # Si una nota sobrepasa los límites del teclado actual (25 teclas), ajustar base inmediatamente
                 if note < self.lowest_base_c:
                     shift = ((self.lowest_base_c - note + 11) // 12) * 12
-                    self.lowest_base_c = max(24, self.lowest_base_c - shift)
+                    self.lowest_base_c = max(0, self.lowest_base_c - shift)
                 elif note > (self.lowest_base_c + 24):
                     shift = ((note - (self.lowest_base_c + 24) + 11) // 12) * 12
-                    self.lowest_base_c = min(72, self.lowest_base_c + shift)
+                    self.lowest_base_c = min(96, self.lowest_base_c + shift)
 
-            # Si se pulsa SOLA una tecla candidata a Do base (24, 36, 48, 60, 72) o Do# (25, 37, 49, 61, 73),
-            # alinear dinámicamente lowest_base_c con esa octava para permitir transposición hacia arriba y hacia abajo
+            # Si se pulsa SOLA una tecla candidata a Do base (0..96) o Do# (1..97),
+            # alinear dinámicamente lowest_base_c con esa octava para permitir transposición hacia arriba y hacia abajo (-4 .. +4)
             if len(self.held_keyboard_notes) == 1:
                 if note in valid_bases:
                     self.lowest_base_c = note
