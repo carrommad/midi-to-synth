@@ -1063,11 +1063,11 @@ class AdvancedAkaiController:
             now = time.time()
             self.held_keyboard_notes[note] = now
 
-            # Actualizar la tecla base más grave física (C1) de forma adaptativa
-            if self.lowest_base_c is None or note < self.lowest_base_c:
-                # La tecla más grave del Akai es siempre una nota Do (múltiplo de 12)
-                if (note % 12) == 0:
-                    self.lowest_base_c = note
+            # Actualizar la tecla base Do (C) de forma adaptativa a cualquier octava activa
+            if (note % 12) == 0:
+                self.lowest_base_c = note
+            elif (note % 12) == 1:
+                self.lowest_base_c = note - 1
 
             # Check for Safe Shutdown Key Combo:
             # Hold Lowest C (C1) and Highest C (C3) together for 3.0 seconds
@@ -1078,35 +1078,33 @@ class AdvancedAkaiController:
                 if (highest_k - lowest_k == 24) and (lowest_k % 12 == 0) and (highest_k % 12 == 0):
                     self.start_shutdown_timer()
 
-            # Iniciar temporizador de 3.0s si se pulsa C1 o C#1 físico
-            if self.lowest_base_c is not None:
-                if note == self.lowest_base_c:
-                    self.start_modifier_timer("melodic", note)
-                elif note == (self.lowest_base_c + 1):
-                    self.start_modifier_timer("drum", note)
+            # Iniciar temporizador si se pulsa la tecla Do o Do# en cualquier octava
+            if (note % 12) == 0:
+                self.start_modifier_timer("melodic", note)
+            elif (note % 12) == 1:
+                self.start_modifier_timer("drum", note)
 
-            # SHORTCUT: Mantener C1 + C#1 a la vez durante 2.0 segundos para Full Level
+            # SHORTCUT: Mantener C + C# a la vez durante 2.0 segundos para Full Level
             if self.looper.state not in ["RECORDING", "OVERDUBBING"] and len(active_notes) >= 2:
                 lowest_note = active_notes[0]
-                # Solo se activa si la nota más grave es EXACTAMENTE la tecla física C1 (la más grave del teclado)
-                if self.lowest_base_c is not None and lowest_note == self.lowest_base_c:
-                    if (lowest_note + 1) in self.held_keyboard_notes:
-                        self.start_full_level_timer(lowest_note)
+                # Se activa si la nota más grave del acorde sostenido es Do y su contigua es Do#
+                if (lowest_note % 12) == 0 and (lowest_note + 1) in self.held_keyboard_notes:
+                    self.start_full_level_timer(lowest_note)
 
             # SELECCIÓN DE INSTRUMENTO / KIT (Modo Selección confirmado tras 2s de hold):
             if self.looper.state not in ["RECORDING", "OVERDUBBING"] and len(active_notes) >= 2:
                 lowest_note = active_notes[0]
                 modifier_hold_time = now - self.held_keyboard_notes.get(lowest_note, now)
 
-                # Solo actúa como modificador si es la tecla física C1 o C#1 del extremo izquierdo y pasaron >= 2.0s
-                is_physical_modifier = (self.lowest_base_c is not None and lowest_note in [self.lowest_base_c, self.lowest_base_c + 1])
+                # Actúa como modificador si la nota sostenida más grave es Do o Do# y pasaron >= 2.0s (o chime listo)
+                is_physical_modifier = (lowest_note % 12 in [0, 1])
                 is_mode_ready = (self.modifier_active_mode is not None or modifier_hold_time >= 2.0)
                 if is_physical_modifier and is_mode_ready and note >= (lowest_note + 2):
-                    base_c = self.lowest_base_c
+                    base_c = lowest_note if (lowest_note % 12 == 0) else (lowest_note - 1)
 
-                    # MODIFIER 1: Tecla C1 (Blanca, más grave) sostenida >= 3.0s -> CAMBIO DE PIANO / MELÓDICO
-                    if lowest_note == base_c:
-                        fluid.send(f"noteoff 0 {note}\nnoteoff 0 {base_c}")
+                    # MODIFIER 1: Tecla C (Blanca) sostenida >= 2.0s -> CAMBIO DE PIANO / MELÓDICO
+                    if (lowest_note % 12) == 0:
+                        fluid.send(f"noteoff 0 {note}\nnoteoff 0 {lowest_note}")
                         idx = (note - (base_c + 2)) % len(MELODIC_INSTRUMENTS)
                         self.current_melodic_idx = idx
                         prog_num, name = MELODIC_INSTRUMENTS[idx]
@@ -1115,9 +1113,9 @@ class AdvancedAkaiController:
                         play_preview(chan=0, note=72, vel=110, duration=0.35)
                         return
 
-                    # MODIFIER 2: Tecla C#1 (Negra contigua) sostenida >= 3.0s -> CAMBIO DE BATERÍAS (DRUM KITS)
-                    if lowest_note == (base_c + 1):
-                        fluid.send(f"noteoff 0 {note}\nnoteoff 0 {base_c + 1}")
+                    # MODIFIER 2: Tecla C# (Negra contigua) sostenida >= 2.0s -> CAMBIO DE BATERÍAS (DRUM KITS)
+                    if (lowest_note % 12) == 1:
+                        fluid.send(f"noteoff 0 {note}\nnoteoff 0 {lowest_note}")
                         idx = (note - (base_c + 2)) % len(DRUM_KITS)
                         self.current_drum_idx = idx
                         kit_num, name = DRUM_KITS[idx]
@@ -1217,7 +1215,7 @@ class AdvancedAkaiController:
             self.held_keyboard_notes.pop(note, None)
             self.cancel_shutdown_timer()
             self.cancel_full_level_timer()
-            if self.lowest_base_c is not None and note in [self.lowest_base_c, self.lowest_base_c + 1]:
+            if (note % 12) in [0, 1]:
                 self.cancel_modifier_timer()
             if not self.sustain_active:
                 timer = self.active_note_timers.pop(note, None)
@@ -1423,19 +1421,29 @@ class AdvancedAkaiController:
                     fluid.send(f"prog 0 {prog_num}")
                     print(f"\n[PAD CC A-7] Instrumento Siguiente -> ({self.current_melodic_idx + 1}/{len(MELODIC_INSTRUMENTS)}): {name} (Prog {prog_num})", flush=True)
                     play_preview(chan=0, note=72, vel=110, duration=0.35)
-            elif pad_idx == 7:  # Pad 8: Pánico / All Notes Off (Silencia sonidos sin alterar la configuración de efectos)
+            elif pad_idx == 7:  # Pad 8: Pánico / Hard-Cut (Silencia todo sonido inmediatamente)
                 if value > 0:
-                    prev_sustain = self.sustain_active
+                    # 1. Desactivar y cancelar pedal de sustain
+                    self.sustain_active = False
                     for t in self.active_note_timers.values():
                         t.cancel()
                     self.active_note_timers.clear()
-                    # Silenciar notas activas de inmediato sin desconfigurar CC 64
-                    fluid.send("cc 0 123 0\ncc 9 123 0\ncc 0 120 0\ncc 9 120 0")
+
+                    # 2. Detener looper y metrónomo
                     self.looper.stop_all()
-                    if prev_sustain:
-                        # Re-asegurar estado de sustain activo para las siguientes notas
-                        fluid.send("cc 0 64 127")
-                    print("\n[PAD CC A-8] ¡PÁNICO! Silenciadas todas las notas y detenido el Looper (Configuración de efectos preservada)", flush=True)
+
+                    # 3. Corte total en FluidSynth: soltar sustain en todos los canales y enviar corte
+                    kill_cmds = []
+                    for c in range(16):
+                        kill_cmds.append(f"cc {c} 64 0\ncc {c} 120 0\ncc {c} 123 0")
+                    fluid.send("\n".join(kill_cmds))
+
+                    # 4. Enviar noteoff explícito a cualquier tecla física que siga sostenida
+                    if self.held_keyboard_notes:
+                        offs = "\n".join(f"noteoff 0 {k}" for k in list(self.held_keyboard_notes.keys()))
+                        fluid.send(offs)
+
+                    print("\n[PAD CC A-8] ¡PÁNICO TOTAL! Silenciadas todas las notas, sustain desactivado y looper detenido.", flush=True)
 
         # PADS BANCO B (LIVE LOOPER & GROOVE ENGINE)
         elif is_pad_bank_b:

@@ -1,5 +1,7 @@
 # Akai MPK Mini & Roland S-1 Synth Controller
 > **Target:** `scripts/akai_controller.py`
+- 2026-11-04 12:49: Upgraded CC Pad 8 to absolute Hard-Cut Panic (instantly drops CC 64 sustain on all 16 channels, sends CC 120/123 cut, explicit noteoffs, and stops looper/metronome) to eliminate endless drone on organs/leads. Deployed to Pi and restarted synth.service. [Done]
+- 2026-11-04 12:30: Made C (melodic select), C# (drum kit select), C+C# (full level), and C+C' (safe shutdown) octave-agnostic via modulo 12 / dynamic base Do tracking so instrument switching works across all OCT-/OCT+ transpose states. Deployed to Pi and restarted synth.service. [Done]
 - 2026-11-01 23:10: Implemented professional looper upgrades: unity gain staging (-g 1.0, master boost ceiling 1.25), parallel drum/keys CC volume parity, isolated Channel 15 metronome, D1/D#1 modifier note leak protection, 1-bar phrase quantization, and multi-level Undo/Redo/Clear All on D1+Pad 4. Deployed to Pi and restarted synth.service. [Done]
 - 2026-11-01 22:48: Verified path references across scripts in /home/cromero/raspberry-mk2/scripts/, confirmed no hardcoded root scripts or PWD dependencies, and verified synth.service clean restart. [Done]
 - 2026-10-25 14:20: Added Synth Bass 1 (808 Sub) and Synth Bass 2 (Acid 303) to the continuous instruments list, ensuring all 24 instruments either naturally fade out or are bounded by Knob 7's 3s-30s auto-decay timer without infinite droning. [Done]
