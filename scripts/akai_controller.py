@@ -1063,48 +1063,49 @@ class AdvancedAkaiController:
             now = time.time()
             self.held_keyboard_notes[note] = now
 
-            # Actualizar la tecla base Do (C) de forma adaptativa a cualquier octava activa
-            if (note % 12) == 0:
-                self.lowest_base_c = note
-            elif (note % 12) == 1:
-                self.lowest_base_c = note - 1
+            # Actualizar la tecla base Do (C) del extremo izquierdo físico adaptándose
+            # a cualquier transposición por OCT- / OCT+ (teclado de 25 teclas: base_c .. base_c + 24)
+            if self.lowest_base_c is None:
+                self.lowest_base_c = (note // 12) * 12
+            elif note < self.lowest_base_c:
+                shift = ((self.lowest_base_c - note + 11) // 12) * 12
+                self.lowest_base_c -= shift
+            elif note > (self.lowest_base_c + 24):
+                shift = ((note - (self.lowest_base_c + 24) + 11) // 12) * 12
+                self.lowest_base_c += shift
+
+            base_c = self.lowest_base_c
 
             # Check for Safe Shutdown Key Combo:
-            # Hold Lowest C (C1) and Highest C (C3) together for 3.0 seconds
+            # Hold Lowest C (C1) and Highest C (C3) together for 3.0 seconds (extremos físicos)
             active_notes = sorted(list(self.held_keyboard_notes.keys()))
             if len(active_notes) >= 2:
-                lowest_k = active_notes[0]
-                highest_k = active_notes[-1]
-                if (highest_k - lowest_k == 24) and (lowest_k % 12 == 0) and (highest_k % 12 == 0):
+                if (base_c in self.held_keyboard_notes) and ((base_c + 24) in self.held_keyboard_notes):
                     self.start_shutdown_timer()
 
-            # Iniciar temporizador si se pulsa la tecla Do o Do# en cualquier octava
-            if (note % 12) == 0:
+            # Iniciar temporizador si se pulsa la tecla Do o Do# del extremo izquierdo físico
+            if note == base_c:
                 self.start_modifier_timer("melodic", note)
-            elif (note % 12) == 1:
+            elif note == (base_c + 1):
                 self.start_modifier_timer("drum", note)
 
-            # SHORTCUT: Mantener C + C# a la vez durante 2.0 segundos para Full Level
+            # SHORTCUT: Mantener C + C# a la vez durante 2.0 segundos para Full Level (extremo izquierdo)
             if self.looper.state not in ["RECORDING", "OVERDUBBING"] and len(active_notes) >= 2:
-                lowest_note = active_notes[0]
-                # Se activa si la nota más grave del acorde sostenido es Do y su contigua es Do#
-                if (lowest_note % 12) == 0 and (lowest_note + 1) in self.held_keyboard_notes:
-                    self.start_full_level_timer(lowest_note)
+                if (base_c in self.held_keyboard_notes) and ((base_c + 1) in self.held_keyboard_notes):
+                    self.start_full_level_timer(base_c)
 
             # SELECCIÓN DE INSTRUMENTO / KIT (Modo Selección confirmado tras 2s de hold):
             if self.looper.state not in ["RECORDING", "OVERDUBBING"] and len(active_notes) >= 2:
                 lowest_note = active_notes[0]
                 modifier_hold_time = now - self.held_keyboard_notes.get(lowest_note, now)
 
-                # Actúa como modificador si la nota sostenida más grave es Do o Do# y pasaron >= 2.0s (o chime listo)
-                is_physical_modifier = (lowest_note % 12 in [0, 1])
+                # Actúa como modificador ÚNICAMENTE si la nota más grave sostenida es C o C# del extremo izquierdo
+                is_physical_modifier = (lowest_note in [base_c, base_c + 1])
                 is_mode_ready = (self.modifier_active_mode is not None or modifier_hold_time >= 2.0)
-                if is_physical_modifier and is_mode_ready and note >= (lowest_note + 2):
-                    base_c = lowest_note if (lowest_note % 12 == 0) else (lowest_note - 1)
-
-                    # MODIFIER 1: Tecla C (Blanca) sostenida >= 2.0s -> CAMBIO DE PIANO / MELÓDICO
-                    if (lowest_note % 12) == 0:
-                        fluid.send(f"noteoff 0 {note}\nnoteoff 0 {lowest_note}")
+                if is_physical_modifier and is_mode_ready and note >= (base_c + 2):
+                    # MODIFIER 1: Tecla C (Blanca del extremo izquierdo) sostenida >= 2.0s -> CAMBIO MELÓDICO
+                    if lowest_note == base_c:
+                        fluid.send(f"noteoff 0 {note}\nnoteoff 0 {base_c}")
                         idx = (note - (base_c + 2)) % len(MELODIC_INSTRUMENTS)
                         self.current_melodic_idx = idx
                         prog_num, name = MELODIC_INSTRUMENTS[idx]
@@ -1113,9 +1114,9 @@ class AdvancedAkaiController:
                         play_preview(chan=0, note=72, vel=110, duration=0.35)
                         return
 
-                    # MODIFIER 2: Tecla C# (Negra contigua) sostenida >= 2.0s -> CAMBIO DE BATERÍAS (DRUM KITS)
-                    if (lowest_note % 12) == 1:
-                        fluid.send(f"noteoff 0 {note}\nnoteoff 0 {lowest_note}")
+                    # MODIFIER 2: Tecla C# (Negra contigua al extremo izquierdo) sostenida >= 2.0s -> CAMBIO BATERÍAS
+                    if lowest_note == (base_c + 1):
+                        fluid.send(f"noteoff 0 {note}\nnoteoff 0 {base_c + 1}")
                         idx = (note - (base_c + 2)) % len(DRUM_KITS)
                         self.current_drum_idx = idx
                         kit_num, name = DRUM_KITS[idx]
@@ -1155,9 +1156,9 @@ class AdvancedAkaiController:
             self.looper.register_key_note(note)
 
             # Grabar notas de teclado en el Looper (incluso si está en ARMED para disparar la grabación):
-            # IMPORTANTE: Las teclas modificadoras (D1 = semitono 2 para Looper, D#1 = semitono 3 para Presets)
+            # IMPORTANTE: Las teclas modificadoras físicas del extremo izquierdo (D = base_c + 2, D# = base_c + 3)
             # NUNCA deben grabarse en el loop ni disparar la grabación durante modo ARMED.
-            is_modifier_key = ((note % 12) == 2) or ((note % 12) == 3)
+            is_modifier_key = (base_c is not None and note in [base_c + 2, base_c + 3])
             if not is_modifier_key and self.looper.state in ["ARMED", "RECORDING", "OVERDUBBING"]:
                 rec_vel = 127 if self.keys_full_level else velocity
                 self.looper.record_event(0, note, rec_vel, True)
@@ -1173,17 +1174,18 @@ class AdvancedAkaiController:
             pad_num = (note - 36) % 8 if note < 44 else (note - 44) % 8
 
             # Modificadores de teclado para controlar ritmos con los pads:
-            # D1  (segunda tecla blanca, semitono 2) -> LIVE LOOPER (8 pads dedicados)
-            # D#1 (segunda tecla negra, semitono 3)  -> 7 RITMOS PREGRABADOS + STOP
-            if self.held_keyboard_notes:
-                is_d_held = any((h % 12 == 2) for h in self.held_keyboard_notes)
-                is_ds_held = any((h % 12 == 3) for h in self.held_keyboard_notes)
+            # D1  (segunda tecla blanca, base_c + 2) -> LIVE LOOPER (8 pads dedicados)
+            # D#1 (segunda tecla negra, base_c + 3)  -> 7 RITMOS PREGRABADOS + STOP
+            base_c = self.lowest_base_c
+            if self.held_keyboard_notes and base_c is not None:
+                is_d_held = (base_c + 2) in self.held_keyboard_notes
+                is_ds_held = (base_c + 3) in self.held_keyboard_notes
 
                 if is_d_held:
                     # Mute instantáneo del canal 9 para suprimir cualquier fuga del golpe de percusión
                     fluid.send("cc 9 7 0")
-                    for h in list(self.held_keyboard_notes.keys()):
-                        if h % 12 == 2:
+                    for h in [(base_c + 2)]:
+                        if h in self.held_keyboard_notes:
                             fluid.send(f"noteoff 0 {h}")
                             self.looper.remove_recent_note(0, h, window=1.0)
                     fluid.send(f"noteoff 9 {note}")
@@ -1194,8 +1196,8 @@ class AdvancedAkaiController:
 
                 if is_ds_held:
                     fluid.send("cc 9 7 0")
-                    for h in list(self.held_keyboard_notes.keys()):
-                        if h % 12 == 3:
+                    for h in [(base_c + 3)]:
+                        if h in self.held_keyboard_notes:
                             fluid.send(f"noteoff 0 {h}")
                             self.looper.remove_recent_note(0, h, window=1.0)
                     fluid.send(f"noteoff 9 {note}")
@@ -1211,24 +1213,26 @@ class AdvancedAkaiController:
                 self.looper.record_event(9, note, velocity, True)
 
     def handle_note_off(self, note: int, channel: int):
+        base_c = self.lowest_base_c
         if channel == 0:
             self.held_keyboard_notes.pop(note, None)
             self.cancel_shutdown_timer()
             self.cancel_full_level_timer()
-            if (note % 12) in [0, 1]:
+            if base_c is not None and note in [base_c, base_c + 1]:
                 self.cancel_modifier_timer()
             if not self.sustain_active:
                 timer = self.active_note_timers.pop(note, None)
                 if timer:
                     timer.cancel()
             # Grabar liberación de tecla para mantener duración exacta de notas
-            is_modifier_key = ((note % 12) == 2) or ((note % 12) == 3)
+            is_modifier_key = (base_c is not None and note in [base_c + 2, base_c + 3])
             if not is_modifier_key and self.looper.state in ["RECORDING", "OVERDUBBING"]:
                 self.looper.record_event(0, note, 0, False)
         elif channel == 9:
             pad_num = (note - 36) % 8 if note < 44 else (note - 44) % 8
-            # Si se suelta un pad mientras D1 está sostenido (o estaba activo el looper):
-            if self.held_keyboard_notes and any((h % 12 == 2) for h in self.held_keyboard_notes):
+            # Si se suelta un pad mientras D1 del extremo izquierdo está sostenido (o estaba activo el looper):
+            d_held = (base_c is not None and (base_c + 2) in self.held_keyboard_notes)
+            if self.held_keyboard_notes and d_held:
                 self.trigger_looper_pad_release(pad_num)
             elif pad_num in self.looper_pad_press_times or pad_num in self.looper_pad_hold_timers:
                 self.trigger_looper_pad_release(pad_num)
