@@ -688,73 +688,73 @@ class LiveMidiLooper:
     def _play_chime(self, kind: str):
         def _worker():
             try:
-                self.fluid.send("prog 15 8\ncc 15 91 80")
+                self.fluid.send("prog 15 8\ncc 15 7 55\ncc 15 91 80")
                 if kind in ["rec", "start_rec"]:
-                    # Chime ascendente brillante de inicio de grabación (Do-Mi agudos)
-                    self.fluid.send("noteon 15 84 90\n")
+                    # Chime ascendente de inicio de grabación (Do-Mi agudos)
+                    self.fluid.send("noteon 15 84 65\n")
                     time.sleep(0.06)
-                    self.fluid.send("noteoff 15 84\nnoteon 15 88 95\n")
+                    self.fluid.send("noteoff 15 84\nnoteon 15 88 70\n")
                     time.sleep(0.1)
                     self.fluid.send("noteoff 15 88\n")
                 elif kind in ["play", "end_rec"]:
                     # Chime resolutivo cristalino de cierre de bucle y loop activo
-                    self.fluid.send("noteon 15 72 85\n")
+                    self.fluid.send("noteon 15 72 65\n")
                     time.sleep(0.06)
-                    self.fluid.send("noteoff 15 72\nnoteon 15 76 85\n")
+                    self.fluid.send("noteoff 15 72\nnoteon 15 76 65\n")
                     time.sleep(0.08)
                     self.fluid.send("noteoff 15 76\n")
                 elif kind == "armed":
                     # Toque suave de preparación para escuchar la claqueta
-                    self.fluid.send("noteon 15 79 80\n")
+                    self.fluid.send("noteon 15 79 60\n")
                     time.sleep(0.06)
                     self.fluid.send("noteoff 15 79\n")
                 elif kind == "overdub":
-                    self.fluid.send("noteon 15 79 90\n")
+                    self.fluid.send("noteon 15 79 65\n")
                     time.sleep(0.06)
-                    self.fluid.send("noteoff 15 79\nnoteon 15 83 90\n")
+                    self.fluid.send("noteoff 15 79\nnoteon 15 83 65\n")
                     time.sleep(0.1)
                     self.fluid.send("noteoff 15 83\n")
                 elif kind == "pause":
-                    self.fluid.send("noteon 15 76 75\n")
+                    self.fluid.send("noteon 15 76 55\n")
                     time.sleep(0.08)
-                    self.fluid.send("noteoff 15 76\nnoteon 15 72 70\n")
+                    self.fluid.send("noteoff 15 76\nnoteon 15 72 50\n")
                     time.sleep(0.1)
                     self.fluid.send("noteoff 15 72\n")
                 elif kind == "track_mute":
                     # Tono grave suave apagado (Do grave)
-                    self.fluid.send("noteon 15 48 85\n")
+                    self.fluid.send("noteon 15 48 60\n")
                     time.sleep(0.08)
                     self.fluid.send("noteoff 15 48\n")
                 elif kind == "track_unmute":
                     # Tono agudo brillante (Do agudo)
-                    self.fluid.send("noteon 15 72 90\n")
+                    self.fluid.send("noteon 15 72 65\n")
                     time.sleep(0.08)
                     self.fluid.send("noteoff 15 72\n")
                 elif kind == "track_deleted":
                     # Acorde suave de disolución (Mi-Do grave)
-                    self.fluid.send("noteon 15 64 80\n")
+                    self.fluid.send("noteon 15 64 60\n")
                     time.sleep(0.07)
-                    self.fluid.send("noteoff 15 64\nnoteon 15 52 75\n")
+                    self.fluid.send("noteoff 15 64\nnoteon 15 52 55\n")
                     time.sleep(0.12)
                     self.fluid.send("noteoff 15 52\n")
                 elif kind == "undo":
                     # Chime suave descendente de acción deshecha (Sol -> Mi)
-                    self.fluid.send("noteon 15 79 80\n")
+                    self.fluid.send("noteon 15 79 60\n")
                     time.sleep(0.06)
-                    self.fluid.send("noteoff 15 79\nnoteon 15 76 75\n")
+                    self.fluid.send("noteoff 15 79\nnoteon 15 76 55\n")
                     time.sleep(0.08)
                     self.fluid.send("noteoff 15 76\n")
                 elif kind == "redo":
                     # Chime ascendente brillante de acción recuperada (Mi -> Sol)
-                    self.fluid.send("noteon 15 76 80\n")
+                    self.fluid.send("noteon 15 76 60\n")
                     time.sleep(0.06)
-                    self.fluid.send("noteoff 15 76\nnoteon 15 79 85\n")
+                    self.fluid.send("noteoff 15 76\nnoteon 15 79 65\n")
                     time.sleep(0.08)
                     self.fluid.send("noteoff 15 79\n")
                 elif kind == "clear":
-                    self.fluid.send("noteon 15 64 75\n")
+                    self.fluid.send("noteon 15 64 55\n")
                     time.sleep(0.08)
-                    self.fluid.send("noteoff 15 64\nnoteon 15 60 70\n")
+                    self.fluid.send("noteoff 15 64\nnoteon 15 60 50\n")
                     time.sleep(0.1)
                     self.fluid.send("noteoff 15 60\n")
             except Exception:
@@ -832,18 +832,18 @@ class AdvancedAkaiController:
         def _worker():
             try:
                 fluid.send("prog 15 8")       # Celesta / Campanas suaves
-                fluid.send("cc 15 7 127")     # Volumen al máximo en canal 15
+                fluid.send("cc 15 7 55")      # Volumen suave calibrado para feedback discreto (no estridente)
                 fluid.send("cc 15 91 85")     # Reverb cálida
                 if active:
                     # Chime ascendente cristalino y suave (Do-Mi-Sol-Do)
                     for n in [72, 76, 79, 84]:
-                        fluid.send(f"noteon 15 {n} 95")
+                        fluid.send(f"noteon 15 {n} 65")
                         time.sleep(0.055)
                         fluid.send(f"noteoff 15 {n}")
                 else:
                     # Chime descendente tenue y relajante (Sol-Mi-Do)
                     for n in [79, 76, 72]:
-                        fluid.send(f"noteon 15 {n} 80")
+                        fluid.send(f"noteon 15 {n} 55")
                         time.sleep(0.075)
                         fluid.send(f"noteoff 15 {n}")
             except Exception:
@@ -1297,7 +1297,7 @@ class AdvancedAkaiController:
                 self.current_drum_volume = value
                 # Paridad total de volumen: Canal 10 (batería) y Canal 1 (teclado / looper)
                 fluid.send(f"cc 9 7 {value}\ncc 0 7 {value}")
-                print(f"[KNOB 4 - BATERÍA/LOOP] Volumen Mezcla Batería/Loop: {int((value/127)*100)}%", flush=True)
+                print(f"[KNOB 4 - BATERÍA/LOOP] Balance Batería/Loop: {int((value/127)*100)}% (CC 7: {value})", flush=True)
 
             # --- FILA INFERIOR: TECLADO & MASTER (KEYS & OUTPUT) ---
             elif knob_idx == 4:  # K5: Keyboard Reverb Echo (Reverb en Teclado)
@@ -1349,12 +1349,12 @@ class AdvancedAkaiController:
                     print(f"[KNOB 7 - ROTARY VIBRATO] Velocidad Leslie: {speed_hz:.1f} Hz | Modulación: {int(norm*100)}%", flush=True)
 
             elif knob_idx == 7:  # K8: Master Volume (Volumen General)
-                # Calibración de alta ganancia (0.0 a 4.00):
-                # 0% = 0.0, 50% = 1.70, 80% = 3.00, 100% = 4.00
+                # Calibración real-time de FluidSynth setting synth.gain (0.00 a 2.50):
+                # Afecta a TODOS los canales de forma global (teclado, pads, looper, metrónomo y chimes)
                 norm = value / 127.0
-                gain = (norm ** 1.20) * 4.00
-                fluid.send(f"gain {gain:.2f}")
-                print(f"[KNOB 8 - MASTER] Volumen General: {int(norm * 100)}% (Gain {gain:.2f})", flush=True)
+                gain = (norm ** 1.25) * 2.50
+                fluid.send(f"set synth.gain {gain:.3f}")
+                print(f"[KNOB 8 - MASTER] Volumen General: {int(norm * 100)}% (synth.gain {gain:.2f})", flush=True)
 
             return
 
@@ -1512,8 +1512,8 @@ class AdvancedAkaiController:
             try:
                 # Asegurar enlace ALSA Sequencer directo con FluidSynth al conectar
                 subprocess.run("aconnect 'MPK mini':0 'FLUID Synth':0 2>/dev/null || true", shell=True)
-                fluid.send("gain 1.80\ncc 0 7 127\ncc 9 7 127\ncc 15 7 127\n")
-                print(f"[+] Conectado a {port_name}. Listo para tocar (Volumen inicial Gain 1.80, CC 7: 127).", flush=True)
+                fluid.send("set synth.gain 1.25\ncc 0 7 127\ncc 9 7 100\ncc 15 7 55\n")
+                print(f"[+] Conectado a {port_name}. Listo para tocar (Volumen inicial synth.gain 1.25, CC 7: 127).", flush=True)
 
                 if not self.startup_sound_played:
                     self.startup_sound_played = True
