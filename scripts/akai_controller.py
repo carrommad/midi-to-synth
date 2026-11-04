@@ -782,6 +782,8 @@ class AdvancedAkaiController:
         self.startup_sound_played: bool = False
         self.running = True
         self.keys_full_level: bool = False
+        self.master_knob_val: int = 127
+        self.drum_knob_val: int = 100
         self.current_drum_volume: int = 100
         self.sustain_decay_seconds: float = 5.0
         self.active_note_timers: Dict[int, threading.Timer] = {}
@@ -1294,10 +1296,13 @@ class AdvancedAkaiController:
                 print(f"[KNOB 3 - TEMPO LOOPER] BPM: {bpm} (Rango 30-210 BPM)", flush=True)
 
             elif knob_idx == 3:  # K4: Drum & Looper Volume Balance (Volumen Mezcla Batería / Looper)
-                self.current_drum_volume = value
+                self.drum_knob_val = value
+                # El volumen máximo de K4 queda estrictamente acotado por el estado actual de Knob 8 (Master)
+                effective_vol = int((value / 127.0) * self.master_knob_val)
+                self.current_drum_volume = effective_vol
                 # Paridad total de volumen: Canal 10 (batería) y Canal 1 (teclado / looper)
-                fluid.send(f"cc 9 7 {value}\ncc 0 7 {value}")
-                print(f"[KNOB 4 - BATERÍA/LOOP] Balance Batería/Loop: {int((value/127)*100)}% (CC 7: {value})", flush=True)
+                fluid.send(f"cc 9 7 {effective_vol}\ncc 0 7 {effective_vol}")
+                print(f"[KNOB 4 - BATERÍA/LOOP] Mezcla Batería/Loop: {int((value/127)*100)}% (Tope Master K8: {self.master_knob_val} -> CC 7: {effective_vol})", flush=True)
 
             # --- FILA INFERIOR: TECLADO & MASTER (KEYS & OUTPUT) ---
             elif knob_idx == 4:  # K5: Keyboard Reverb Echo (Reverb en Teclado)
@@ -1349,12 +1354,19 @@ class AdvancedAkaiController:
                     print(f"[KNOB 7 - ROTARY VIBRATO] Velocidad Leslie: {speed_hz:.1f} Hz | Modulación: {int(norm*100)}%", flush=True)
 
             elif knob_idx == 7:  # K8: Master Volume (Volumen General)
+                self.master_knob_val = value
                 # Calibración real-time de FluidSynth setting synth.gain (0.00 a 2.50):
                 # Afecta a TODOS los canales de forma global (teclado, pads, looper, metrónomo y chimes)
                 norm = value / 127.0
                 gain = (norm ** 1.25) * 2.50
                 fluid.send(f"set synth.gain {gain:.3f}")
-                print(f"[KNOB 8 - MASTER] Volumen General: {int(norm * 100)}% (synth.gain {gain:.2f})", flush=True)
+
+                # Actualizar dinámicamente el tope de volumen en los canales para respetar el límite de K8 sobre K4
+                effective_vol = int((self.drum_knob_val / 127.0) * self.master_knob_val)
+                self.current_drum_volume = effective_vol
+                fluid.send(f"cc 9 7 {effective_vol}\ncc 0 7 {effective_vol}")
+
+                print(f"[KNOB 8 - MASTER] Volumen General: {int(norm * 100)}% (synth.gain {gain:.2f} | Tope K4: {effective_vol})", flush=True)
 
             return
 
