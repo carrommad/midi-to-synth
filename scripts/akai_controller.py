@@ -11,7 +11,7 @@ import time
 import socket
 import threading
 import subprocess
-from typing import Optional, Set
+from typing import Optional, Set, Any
 import mido
 
 FLUID_HOST = "localhost"
