@@ -1421,10 +1421,6 @@ class AdvancedAkaiController:
         if self.modifier_timer is None:
             def _on_selection_ready():
                 self.modifier_active_mode = key_type
-                # Fijar explícitamente el Do base activo de esta octava
-                base = note if (key_type == "melodic") else (note - 1)
-                self.lowest_base_c = base
-
                 # Silenciar de inmediato en FluidSynth la nota que se estaba manteniendo para dejar paso limpio al chime
                 try:
                     fluid.send(f"noteoff 0 {note}\ncc 0 120 0\ncc 0 123 0")
@@ -1555,16 +1551,25 @@ class AdvancedAkaiController:
 
             # Actualizar la tecla base Do (C) del extremo izquierdo físico adaptándose
             # a cualquier transposición por OCT- / OCT+ (teclado de 25 teclas: base_c .. base_c + 24, rango -4 .. +4 octavas)
-            valid_bases = [0, 12, 24, 36, 48, 60, 72, 84, 96]
             if self.lowest_base_c is None:
                 self.lowest_base_c = (note // 12) * 12
             else:
-                if note < self.lowest_base_c:
-                    shift = ((self.lowest_base_c - note + 11) // 12) * 12
-                    self.lowest_base_c = max(0, self.lowest_base_c - shift)
-                elif note > (self.lowest_base_c + 24):
-                    shift = ((note - (self.lowest_base_c + 24) + 11) // 12) * 12
-                    self.lowest_base_c = min(96, self.lowest_base_c + shift)
+                if note < 48:
+                    # Inequívocamente desplazado hacia los graves (OCT-1 base 36, OCT-2 base 24, etc.)
+                    target_base = (note // 12) * 12
+                    self.lowest_base_c = min(self.lowest_base_c, target_base) if self.lowest_base_c < 48 else target_base
+                elif note > 72:
+                    # Inequívocamente desplazado hacia los agudos (OCT+1 base 60, OCT+2 base 72, etc.)
+                    target_base = ((note - 24 + 11) // 12) * 12
+                    self.lowest_base_c = max(self.lowest_base_c, target_base) if self.lowest_base_c > 48 else target_base
+                elif 61 <= note <= 72:
+                    # Rango exclusivo de octava neutral o superior (imposible en OCT-1 cuyo rango máximo es 60)
+                    if self.lowest_base_c < 48:
+                        self.lowest_base_c = 48
+                elif 48 <= note <= 59:
+                    # Rango exclusivo de octava neutral o inferior (imposible en OCT+1 cuyo rango mínimo es 60)
+                    if self.lowest_base_c > 48:
+                        self.lowest_base_c = 48
 
             base_c = self.lowest_base_c
             is_neutral_octave = (self.lowest_base_c == 48 and 48 <= note <= 72)
