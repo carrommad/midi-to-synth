@@ -1667,11 +1667,25 @@ class AdvancedAkaiController:
             base_c = self.lowest_base_c
             is_neutral_octave = (base_c == 48)
             if self.held_keyboard_notes and is_neutral_octave and not self.mute_function_sounds:
+                is_c_held = 48 in self.held_keyboard_notes
                 is_cs_held = 49 in self.held_keyboard_notes
                 is_d_held = 50 in self.held_keyboard_notes
                 is_ds_held = 51 in self.held_keyboard_notes
 
-                # MODIFICADOR [S] C#2 (49) + Pads 1..8: Selecciona 16 Drum Sets (Bank A: 1..8 | Bank B: 9..16)
+                # MODIFICADOR [K] C2 (48) + Pads 1..8: Selecciona 8 Melodic Sets (200 sonidos)
+                if is_c_held:
+                    fluid.send("cc 9 7 0\n" + f"noteoff 9 {note}")
+                    self.active_library_idx = pad_num % len(LIBRARY_ORDER)
+                    self.current_melodic_idx = 0
+                    lib_key = LIBRARY_ORDER[self.active_library_idx]
+                    first_prog, first_name = OCTAVE_INSTRUMENT_LIBRARIES[lib_key][0]
+                    fluid.send(f"prog 0 {first_prog}")
+                    print(f"\n[SET MELÓDICO SELECCIONADO] Pad {pad_num + 1} -> {LIBRARY_NAMES[self.active_library_idx]} (1er Sonido: {first_name})", flush=True)
+                    play_preview(chan=0, note=72, vel=110, duration=0.35)
+                    threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {self.current_drum_volume}")).start()
+                    return
+
+                # MODIFICADOR [D] C#2 (49) + Pads 1..8: Selecciona 16 Drum Sets (Bank A: 1..8 | Bank B: 9..16)
                 if is_cs_held:
                     fluid.send("cc 9 7 0\n" + f"noteoff 9 {note}")
                     base_idx = 0 if self.pad_bank == "A" else 8
@@ -2169,12 +2183,14 @@ class AdvancedAkaiController:
         print("==================================================================")
         print(" Akai MPK Mini - Live Beat Looper & Standalone Synth Workstation  ")
         print("==================================================================")
-        print(" • F (Full Volume): Mantén [F] C2 + [F] B3 (2s) -> 100% vs dinámico")
+        print(" • ● (Big Dot Full Volume): Mantén [●] C2 + [●] B3 (2s) -> 100% vs dinámico")
         print(" • — (Line Shutdown): Mantén [—] C2 + [—] C4 (3s) -> Apagado Pi")
-        print(" • S (Sets de Batería): Mantén [S] C#2 + Pads 1..8 -> 16 Drum Sets (P8 Bank A: Flamenco)")
+        print(" • K (Keys - Melodic Sets): Mantén [K] C2 + Pads 1..8 -> 8 Sets Melódicos (200 sonidos)")
+        print(" • D (Drums - Drum Sets): Mantén [D] C#2 + Pads 1..8 -> 16 Drum Sets (P8 Bank A: Flamenco)")
         print(" • L (Looper): Mantén [L] D2 + Pads 1..8 -> 8-Track Beat Looper")
         print(" • P (Presets): Mantén [P] D#2 + Pads 1..8 -> 16 Beat Grooves")
         print(" • PADS 6+7 (2s en CC): Modo Selección Teclas (25 sonidos melódicos)")
+        print(" • PAD 8 (2s en CC): Performance Lock (Silencia chimes y anula 100% funciones de teclas)")
         print(" • KNOB 1: Drum Reverb Splash | KNOB 2: Drum Pitch Tuning (±12 st)")
         print(" • KNOB 3: Looper Tempo (30-210 BPM) | KNOB 4: Drum & Loop Volume Mix")
         print(" • KNOB 5: Keys Reverb Echo   | KNOB 6: Keys Chorus Lush")

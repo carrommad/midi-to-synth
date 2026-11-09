@@ -5,11 +5,12 @@ This test suite covers every hardware function, shortcut, instrument library, lo
 ### Rotulación Física del Teclado (Marcas sobre las Teclas):
 | Marca | Tecla Física | Acción / Función |
 |---|---|---|
-| **`[F]`** | **$C2$** + **$B3$** (ambas a la vez) | **Full Volume**: Mantén 2s `[F]` $C2$ (blanca izq) + `[F]` $B3$ (penúltima blanca der) para 100% volumen |
-| **`[—]`** | **$C2$** + **$C4$** (ambas a la vez) | **Line Shutdown**: Mantén 3s los dos extremos `[—]` $C2$ + `[—]` $C4$ para apagar la Raspberry Pi |
-| **`[S]`** | **$C\#2$** (1ª negra izquierda) | **Sets (Drums Sets)**: Mantén `[S]` + Pads 1..8 para elegir 16 Drum Sets (Bank A: 1..8, Bank B: 9..16; Pad 8 Bank A: Flamenco) |
+| **`[K]`** | **$C2$** (1ª blanca izquierda) | **Keys**: Mantén `[K]` + Pads 1..8 para elegir los 8 Sets Melódicos de Instrumentos (200 sonidos) |
+| **`[D]`** | **$C\#2$** (1ª negra izquierda) | **Drums**: Mantén `[D]` + Pads 1..8 para elegir 16 Drum Sets (Bank A: 1..8, Bank B: 9..16; Pad 8 Bank A: Flamenco) |
 | **`[L]`** | **$D2$** (2ª blanca izquierda) | **Looper**: Mantén `[L]` + Pads 1..8 para control del Live Looper de 8 pistas |
 | **`[P]`** | **$D\#2$** (2ª negra izquierda) | **Presets**: Mantén `[P]` + Pads 1..8 para disparar los 16 Ritmos pregrabados |
+| **`[●]`** | **$C2$** + **$B3$** (ambas a la vez) | **Big Dot Full Volume**: Mantén 2s `[●]` $C2$ (blanca izq) + `[●]` $B3$ (penúltima blanca der) para 100% volumen |
+| **`[—]`** | **$C2$** + **$C4$** (ambas a la vez) | **Line Shutdown**: Mantén 3s los dos extremos `[—]` $C2$ + `[—]` $C4$ para apagar la Raspberry Pi |
 
 ---
 
