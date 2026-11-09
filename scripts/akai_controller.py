@@ -1247,7 +1247,7 @@ class AdvancedAkaiController:
         self.last_undo_tap_time: float = 0.0
         self.knob3_last_raw_val: Optional[int] = None
         self.knob3_base_bpm: int = 90
-        self.knob3_base_raw: int = 64
+        self.knob3_base_raw: Optional[int] = None
         self.looper = LiveMidiLooper(fluid, controller=self)
         # Enable FluidSynth effects engines & set responsive velocity curve
         fluid.send("reverb on\nchorus on\n")
@@ -1256,10 +1256,8 @@ class AdvancedAkaiController:
     def calibrate_knob3_baseline(self, current_bpm: int):
         """Centra el Knob 3 en el BPM recién configurado o sincronizado."""
         self.knob3_base_bpm = current_bpm
-        if self.knob3_last_raw_val is not None:
-            self.knob3_base_raw = self.knob3_last_raw_val
-        else:
-            self.knob3_base_raw = 64
+        # Al recalibrar por Arp/sync, el próximo giro físico de Knob 3 arranca exactamente desde este nuevo centro
+        self.knob3_base_raw = None
 
     def apply_key_velocity_router(self):
         if self.keys_full_level:
@@ -1830,7 +1828,10 @@ class AdvancedAkaiController:
                 print(f"[KNOB 2 - BATERÍA] Afinación/Pitch: {semis:+d} semitonos", flush=True)
 
             elif knob_idx == 2:  # K3: Beat Looper & Metronome Tempo (BPM)
-                # Calibración en pasos enteros de 1 BPM centrados alrededor del tempo seleccionado/sincronizado
+                # Si es el primer movimiento tras un auto-sync o inicio, enganchar en la posición física actual
+                if self.knob3_base_raw is None:
+                    self.knob3_base_raw = value
+
                 self.knob3_last_raw_val = value
                 delta_raw = value - self.knob3_base_raw
                 # Cada paso de CC desplaza exactamente 1 BPM entero
