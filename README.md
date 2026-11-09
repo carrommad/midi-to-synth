@@ -60,40 +60,50 @@ Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales 
 
 ## Guía Rápida de Operación en Vivo
 
-### 1. Los 4 Modificadores Sin Pantalla (Extremo Izquierdo)
-Las 4 primeras teclas del extremo izquierdo del teclado actúan como selectores ergonómicos:
-* **`C1` (1ª Blanca) + Teclas (3 a 25)**: Accede a las **7 Librerías de Octava Dinámicas** (168 instrumentos en total mapeados con transposición física `OCT-` a `OCT+`):
-  - `OCT -3`: Bajos profundos, subgraves 808 y TB-303 ácidos.
-  - `OCT -2`: Instrumentos étnicos y del mundo (Sitar, Shamisen, Koto, Kalimba, Steel Drums).
-  - `OCT -1`: Sintetizadores, solistas y pads cálidos analógicos.
-  - `Neutral OCT (0)`: Pianos de cola, Rhodes MK1, Wurlitzer, Clavinet y Órganos.
-  - `OCT +1`: Guitarras acústicas, flamencas rasgueadas, Stratocaster y Archtop jazz.
-  - `OCT +2`: Cuerdas orquestales, metales, vientos y maderas.
-  - `OCT +3`: Chiptune retro de 8 bits (NES/C64) y efectos de sonido Sci-Fi.
-* **`C#1` (1ª Negra) + Teclas (3 a 25)**: Cambia entre **24 Kits de Batería** (Standard, Room Rock, Heavy Gated, Roland TR-808 Trap, Jazz, Escobillas, Orquestal...) con preview en bombo/caja.
-* **`D1` (2ª Blanca) + Pads (1 a 8)**: Control completo del **LIVE BEAT LOOPER (8 Pistas)**:
-  - `Pad 1`: Armar metrónomo / Cuantización a 16avos / Auto-cierre de compás / Overdub en menor slot libre disponible.
+### Rotulación Física del Teclado (Marcas sobre las Teclas):
+| Marca | Tecla Física | Acción / Función |
+|---|---|---|
+| **`[S]`** | **$C2$** (1ª blanca izquierda) | **Sets**: Mantén `[S]` + Pads 1..8 para elegir los 8 Sets de Instrumentos (200 sonidos) |
+| **`[D]`** | **$C\#2$** (1ª negra izquierda) | **Drums**: Mantén `[D]` + Pads 1..8 para elegir 16 Kits de Batería (Bank A: 1..8, Bank B: 9..16) |
+| **`[L]`** | **$D2$** (2ª blanca izquierda) | **Looper**: Mantén `[L]` + Pads 1..8 para control del Live Looper de 8 pistas |
+| **`[P]`** | **$D\#2$** (2ª negra izquierda) | **Presets**: Mantén `[P]` + Pads 1..8 para disparar los 16 Ritmos pregrabados |
+| **`[F]`** | **$C2$** + **$B3$** (ambas a la vez) | **Full Volume**: Mantén 2s `[F]` $C2$ (blanca izq) + `[F]` $B3$ (penúltima blanca der) para 100% volumen |
+| **`[—]`** | **$C2$** + **$C4$** (ambas a la vez) | **Line Shutdown**: Mantén 3s los dos extremos `[—]` $C2$ + `[—]` $C4$ para apagar la Raspberry Pi |
+
+---
+
+### 1. Modificadores y Selección
+* **`[S]` ($C2$, 1ª Blanca) + Pads (1 a 8)**: Accede a los **8 Sets Melódicos** (25 instrumentos cada uno = 200 instrumentos en total):
+  - `Set 1`: Pianos de cola, Rhodes MK1, Wurlitzer, Clavinet y Órganos.
+  - `Set 2`: Bajos profundos, subgraves 808 y TB-303 ácidos.
+  - `Set 3`: Instrumentos étnicos y del mundo (Sitar, Shamisen, Koto, Kalimba, Steel Drums).
+  - `Set 4`: Sintetizadores analógicos, solistas y pads cálidos.
+  - `Set 5`: Guitarras acústicas, flamencas, Stratocaster y Archtop jazz.
+  - `Set 6`: Cuerdas orquestales, metales, vientos y maderas.
+  - `Set 7`: Chiptune retro de 8 bits (NES/C64) y efectos Sci-Fi.
+  - `Set 8`: Solistas acústicos y expresivos (Sax, Flauta, Violín, Armónica).
+* **`[D]` ($C\#2$, 1ª Negra) + Pads (1 a 8)**: Elige entre **16 Kits de Batería** (Bank A: 1..8, Bank B: 9..16) con prueba sonora inmediata al soltar la tecla.
+* **`[L]` ($D2$, 2ª Blanca) + Pads (1 a 8)**: Control completo del **LIVE BEAT LOOPER (8 Pistas)**:
+  - `Pad 1`: Armar metrónomo / Cuantización / Auto-cierre de 4 compases / Overdub.
   - `Pad 2`: Conmutar modo **Re-Voice** (Bloqueo de instrumento por pista vs Re-Voice global).
   - `Pad 3`: Metrónomo click On / Off.
   - `Pad 4`: Toque corto: **Play / Pause** | Sostener > 1.5s: **Borrado Total de Pistas**.
-  - `Pads 5, 6, 7 y 8`: **Control de Pistas 1 a 4 (Banco A) y 5 a 8 (Banco B)** (Toque corto: Silenciar/Mute toggle con chime grave/agudo; Sostener > 1.0s: Borrado individual y liberación dinámica de slot).
-* **`D#1` (2ª Negra) + Pads (1 a 8)**: **16 Ritmos Pregrabados** listos para improvisar:
-  - **Banco A**: Lo-Fi 76 BPM, Boom-Bap 88 BPM, Trap 808 138 BPM, Deep House 124 BPM, Pop Rock 104 BPM, Funk Pocket 94 BPM, Jazz Swing 118 BPM, Afrobeat 108 BPM.
-  - **Banco B**: Tekno Acid 150 BPM, Flamenco Rumba 102 BPM, Flamenco Bulerías compás 12 tiempos 180 BPM, Reggaeton Dembow 95 BPM, Drum & Bass Jungle 174 BPM, Bossa Nova 128 BPM, Synthwave 115 BPM, Minimal Microhouse 122 BPM.
-  - **Auto-Sync BPM con Arpegiador**: Si tocas notas con el arpegiador activo antes de pulsar el pad, el ritmo arranca de inmediato sincronizado al tempo exacto. Gira **`K3`** para afinar o alterar la velocidad en directo.
+  - `Pads 5 a 8`: **Control de Pistas 1 a 4 (Bank A) y 5 a 8 (Bank B)** (Tap: Mute toggle; Hold >1s: Borrado individual).
+* **`[P]` ($D\#2$, 2ª Negra) + Pads (1 a 8)**: **16 Ritmos Pregrabados** listos para improvisar (8 en Bank A, 8 en Bank B) con Auto-Sync BPM desde Arpegiador.
+* **Pads 6 + 7 juntos durante 2s (Modo CC)**: Activa el **Modo Selección por Teclado** donde las 25 teclas físicas eligen directamente entre los 25 sonidos del set activo (en Bank A) o los 25 kits de batería (en Bank B).
 
 ---
 
 ### 2. Atajos Globales de Teclado & Hardware
-* **`PROG SELECT` / `PROG CHANGE`**: Conmuta el **silenciado global de chimes y sonidos de función auxiliares** para directos limpios.
-* **`C1` + `C#1` (Pulsar a la vez)**: Alterna el modo **FULL LEVEL** del teclado (100% fuerza fija en todas las notas vs curva dinámica táctil).
-* **`C1` + `C3` (Sostener 3 segundos)**: **Apagado Seguro** de la Raspberry Pi. Silencia de inmediato las notas extremas, avisa con un sutil chime y reproduce un arpegio descendente de despedida antes de apagar el sistema.
+* **`[F]` $C2$ + `[F]` $B3$ (Sostener 2s)**: Alterna el modo **FULL VOLUME / FULL LEVEL** del teclado (100% volumen fijo vs curva dinámica táctil).
+* **`[—]` $C2$ + `[—]` $C4$ (Sostener 3s)**: **Apagado Seguro** de la Raspberry Pi con chime descendente.
+* **`PROG SELECT` / `PROG CHANGE`**: Conmuta el silenciado global de chimes auxiliares.
 * **Switchable Magic Pad (`magic_pad.py`)**:
   - *Toque de 3 dedos*: Cicla entre **Theremin Glide**, **Kaoss Pad FX** (X=Cutoff, Y=Reverb) y **Vector Morpher** (X=Pan, Y=Chorus).
   - *Barrido horizontal de 4 dedos*: Izquierda a derecha avanza instrumento; derecha a izquierda retrocede instrumento.
 * **Joystick 4 direcciones**:
-  - *Horizontal*: Pitch Bend suave (&plusmn;2 semitonos).
-  - *Vertical*: Modulación / Vibrato expresivo.
+  - *Horizontal*: Pan estéreo (CC 10).
+  - *Vertical*: Modulación (CC 1) y Cutoff (CC 74).
 
 ---
 
