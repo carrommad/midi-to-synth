@@ -262,34 +262,27 @@ LIBRARY_NAMES = [
 # Compatibility reference fallback
 MELODIC_INSTRUMENTS = OCTAVE_INSTRUMENT_LIBRARIES[0]
 
-# 24 Drum Kits (Mapped to Keys 1..24 while holding C#1 modifier)
-# Key 1 = D2, Key 2 = D#2, Key 3 = E2 (Flamenco Cajón & Palmas Kit)
+# 16 Drum Kits (Mapped to Pads 1..8 while holding [D] C#2 modifier: Bank A 1..8, Bank B 9..16)
+# Pad 8 (Bank A) = Flamenco Cajón & Palmas Kit (Dedicated acoustic mapping)
 DRUM_KITS = [
-    (0,  "Standard Drum Kit"),               # Key 1 (D2)
-    (8,  "Room Rock Drum Kit"),              # Key 2 (D#2)
-    (0,  "Flamenco Cajón & Palmas Kit"),    # Key 3 (E2) - Dedicated Flamenco mapping
-    (24, "Electronic Kit (909 / Techno)"),  # Key 4 (F2)
-    (25, "Roland TR-808 Classic Trap Kit"), # Key 5 (F#2)
-    (16, "Power Heavy Gated Rock Kit"),     # Key 6 (G2)
-    (32, "Jazz Drum Kit"),                  # Key 7 (G#2)
-    (40, "Brush Drum Kit (Escobillas)"),    # Key 8 (A2)
-    (48, "Orchestra Percussion Kit"),       # Key 9 (A#2)
-    (1,  "Standard Kit 1"),                 # Key 10 (B2)
-    (2,  "Standard Kit 2"),                 # Key 11 (C3)
-    (3,  "Standard Kit 3"),                 # Key 12 (C#3)
-    (4,  "Standard Kit 4"),                 # Key 13 (D3)
-    (9,  "Room Kit 1"),                     # Key 14 (D#3)
-    (10, "Room Kit 2"),                     # Key 15 (E3)
-    (17, "Power Kit 1"),                    # Key 16 (F3)
-    (18, "Power Kit 2"),                    # Key 17 (F#3)
-    (33, "Jazz Kit 1"),                     # Key 18 (G3)
-    (34, "Jazz Kit 2"),                     # Key 19 (G#3)
-    (41, "Brush Kit 1"),                    # Key 20 (A3)
-    (42, "Brush Kit 2"),                    # Key 21 (A#3)
-    (5,  "Standard Kit 5"),                 # Key 22 (B3)
-    (6,  "Standard Kit 6"),                 # Key 23 (C4)
-    (7,  "Standard Kit 7"),                 # Key 24 (C#4)
-    (26, "Analog Dance / TR-808 Electro Kit 2") # Key 25 (D4)
+    # Bank A: 8 Core & Signature Kits (Pads 1..8)
+    (0,  "Standard Drum Kit"),               # Pad 1
+    (8,  "Room Rock Drum Kit"),              # Pad 2
+    (24, "Electronic Kit (909 / Techno)"),  # Pad 3
+    (25, "Roland TR-808 Classic Trap Kit"), # Pad 4
+    (16, "Power Heavy Gated Rock Kit"),     # Pad 5
+    (32, "Jazz Drum Kit"),                  # Pad 6
+    (40, "Brush Drum Kit (Escobillas)"),    # Pad 7
+    (0,  "Flamenco Cajón & Palmas Kit"),    # Pad 8 (Dedicated acoustic mapping)
+    # Bank B: 8 Specialized & Alternative Kits (Pads 1..8 -> Kits 9..16)
+    (48, "Orchestra Percussion Kit"),       # Pad 9 (Bank B Pad 1)
+    (1,  "Standard Kit 1"),                 # Pad 10 (Bank B Pad 2)
+    (2,  "Standard Kit 2"),                 # Pad 11 (Bank B Pad 3)
+    (3,  "Standard Kit 3"),                 # Pad 12 (Bank B Pad 4)
+    (9,  "Room Kit 1"),                     # Pad 13 (Bank B Pad 5)
+    (10, "Room Kit 2"),                     # Pad 14 (Bank B Pad 6)
+    (17, "Power Kit 1"),                    # Pad 15 (Bank B Pad 7)
+    (26, "Analog Dance / TR-808 Electro Kit 2") # Pad 16 (Bank B Pad 8)
 ]
 
 class FluidClient:
@@ -1603,29 +1596,19 @@ class AdvancedAkaiController:
                     self.start_full_level_timer(base_c)
 
             # SELECCIÓN CROMÁTICA VÍA TECLADO (Activa mientras Pad 6 y Pad 7 estén ambos pulsados >= 2.0s):
-            # En Banco A: Elige entre los 25 instrumentos melódicos del set activo (1:1 con las 25 teclas físicas).
-            # En Banco B: Elige entre los 25 kits de batería (1:1 con las 25 teclas físicas).
-            if self.dual_pad_selection_active and self.dual_pad_selection_mode:
+            # Elige entre los 25 instrumentos melódicos del set activo (1:1 con las 25 teclas físicas).
+            if self.dual_pad_selection_active and self.dual_pad_selection_mode == "melodic":
                 fluid.send(f"noteoff 0 {note}")
                 key_idx = (note - base_c) % 25
-                if self.dual_pad_selection_mode == "melodic":
-                    lib_key = LIBRARY_ORDER[self.active_library_idx]
-                    library = OCTAVE_INSTRUMENT_LIBRARIES.get(lib_key, OCTAVE_INSTRUMENT_LIBRARIES[0])
-                    idx = key_idx % len(library)
-                    self.current_melodic_idx = idx
-                    prog_num, name = library[idx]
-                    fluid.send(f"prog 0 {prog_num}")
-                    print(f"\n[KEYBOARD SELECT] [{LIBRARY_NAMES[self.active_library_idx]}] -> Tecla {key_idx + 1}: {name} (Prog {prog_num})", flush=True)
-                    play_preview(chan=0, note=72, vel=110, duration=0.35)
-                    return
-                elif self.dual_pad_selection_mode == "drum":
-                    idx = key_idx % len(DRUM_KITS)
-                    self.current_drum_idx = idx
-                    kit_num, name = DRUM_KITS[idx]
-                    fluid.send(f"prog 9 {kit_num}")
-                    print(f"\n[DRUM KIT SELECT] -> Tecla {key_idx + 1}: {name} (Kit {kit_num})", flush=True)
-                    play_preview(chan=9, note=36, vel=120, duration=0.35)
-                    return
+                lib_key = LIBRARY_ORDER[self.active_library_idx]
+                library = OCTAVE_INSTRUMENT_LIBRARIES.get(lib_key, OCTAVE_INSTRUMENT_LIBRARIES[0])
+                idx = key_idx % len(library)
+                self.current_melodic_idx = idx
+                prog_num, name = library[idx]
+                fluid.send(f"prog 0 {prog_num}")
+                print(f"\n[KEYBOARD SELECT] [{LIBRARY_NAMES[self.active_library_idx]}] -> Tecla {key_idx + 1}: {name} (Prog {prog_num})", flush=True)
+                play_preview(chan=0, note=72, vel=110, duration=0.35)
+                return
 
             # Continuous Instruments Drone Prevention & Re-trigger cut:
             # (Trumpet, Organs, Strings, Synth Basses, Synth Leads, Warm Pad)
@@ -1741,10 +1724,10 @@ class AdvancedAkaiController:
                     return
 
             # Si no hay modificador (tocar batería libremente con los pads):
-            # Mapeo Flamenco dedicado en Kit 3 (Flamenco Cajón & Palmas - Tecla E2, idx 2):
+            # Mapeo Flamenco dedicado en Kit 8 (Flamenco Cajón & Palmas - Pad 8 Bank A, idx 7):
             # Asigna cajón, palmas, castañuelas, tacón y percusión acústica a los pads
             target_note = note
-            if self.current_drum_idx == 2:
+            if self.current_drum_idx == 7:
                 # Banco A (Pads 1..8): Compás y Percusión Principal
                 # P1 (36): Cajón Grave (36, Bass Drum 1)
                 # P2 (37): Cajón Golpe Seco (38, Acoustic Snare)
@@ -1954,16 +1937,17 @@ class AdvancedAkaiController:
             # Rastreo dual de Pads 6 (idx 5) y 7 (idx 6) sostenidos juntos >= 2.0s:
             # Mientras estén ambos pulsados >= 2s, las 25 teclas del piano seleccionan:
             # - En Banco A: Instrumento melódico (1 de 25 en el set activo)
-            # - En Banco B: Kit de batería (1 de 25 kits)
+            # Detección de doble pulsación simultánea Pad 6 + Pad 7 (sostener 2.0s):
+            # Activa Selección Cromática de Instrumentos Melódicos vía teclas (1 de 25 sonidos del set activo)
             if value > 0:
                 self.held_cc_pads[pad_idx] = now
                 if 5 in self.held_cc_pads and 6 in self.held_cc_pads:
                     if self.dual_pad_selection_timer is None and not self.dual_pad_selection_active:
                         def _activate_dual_selection():
                             self.dual_pad_selection_active = True
-                            self.dual_pad_selection_mode = "melodic" if self.pad_bank == "A" else "drum"
-                            mode_label = f"Instrumento Melódico ({LIBRARY_NAMES[self.active_library_idx]})" if self.dual_pad_selection_mode == "melodic" else "Kit de Batería"
-                            print(f"\n[MODO SELECCIÓN ACTIVADO - PADS 6+7 ({self.pad_bank})] Toca cualquiera de las 25 teclas para elegir {mode_label}.", flush=True)
+                            self.dual_pad_selection_mode = "melodic"
+                            mode_label = f"Instrumento Melódico ({LIBRARY_NAMES[self.active_library_idx]})"
+                            print(f"\n[MODO SELECCIÓN ACTIVADO - PADS 6+7] Toca cualquiera de las 25 teclas para elegir {mode_label}.", flush=True)
                             self.play_chime(active=True)
 
                         self.dual_pad_selection_timer = threading.Timer(2.0, _activate_dual_selection)
@@ -2199,11 +2183,11 @@ class AdvancedAkaiController:
         print("==================================================================")
         print(" • F (Full Volume): Mantén [F] C2 + [F] B3 (2s) -> 100% vs dinámico")
         print(" • — (Line Shutdown): Mantén [—] C2 + [—] C4 (3s) -> Apagado Pi")
-        print(" • S (Sets): Mantén [S] C2 + Pads 1..8 -> 8 Sets Melódicos")
-        print(" • D (Drums): Mantén [D] C#2 + Pads 1..8 -> 16 Kits de Batería")
+        print(" • S (Melodic Sets): Mantén [S] C2 + Pads 1..8 -> 8 Sets Melódicos")
+        print(" • D (Drums Sets): Mantén [D] C#2 + Pads 1..8 -> 16 Drum Sets (P8 Bank A: Flamenco)")
         print(" • L (Looper): Mantén [L] D2 + Pads 1..8 -> 8-Track Beat Looper")
         print(" • P (Presets): Mantén [P] D#2 + Pads 1..8 -> 16 Beat Grooves")
-        print(" • PADS 6+7 (2s en CC): Modo Selección Teclas (25 sonidos / 25 kits)")
+        print(" • PADS 6+7 (2s en CC): Modo Selección Teclas (25 sonidos melódicos)")
         print(" • KNOB 1: Drum Reverb Splash | KNOB 2: Drum Pitch Tuning (±12 st)")
         print(" • KNOB 3: Looper Tempo (30-210 BPM) | KNOB 4: Drum & Loop Volume Mix")
         print(" • KNOB 5: Keys Reverb Echo   | KNOB 6: Keys Chorus Lush")

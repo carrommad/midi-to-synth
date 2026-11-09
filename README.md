@@ -63,8 +63,8 @@ Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales 
 ### Rotulación Física del Teclado (Marcas sobre las Teclas):
 | Marca | Tecla Física | Acción / Función |
 |---|---|---|
-| **`[S]`** | **$C2$** (1ª blanca izquierda) | **Sets**: Mantén `[S]` + Pads 1..8 para elegir los 8 Sets de Instrumentos (200 sonidos) |
-| **`[D]`** | **$C\#2$** (1ª negra izquierda) | **Drums**: Mantén `[D]` + Pads 1..8 para elegir 16 Kits de Batería (Bank A: 1..8, Bank B: 9..16) |
+| **`[S]`** | **$C2$** (1ª blanca izquierda) | **Melodic Sets**: Mantén `[S]` + Pads 1..8 para elegir los 8 Sets de Instrumentos (200 sonidos) |
+| **`[D]`** | **$C\#2$** (1ª negra izquierda) | **Drums Sets**: Mantén `[D]` + Pads 1..8 para elegir 16 Drum Sets (Bank A: 1..8, Bank B: 9..16; Pad 8 Bank A: Flamenco) |
 | **`[L]`** | **$D2$** (2ª blanca izquierda) | **Looper**: Mantén `[L]` + Pads 1..8 para control del Live Looper de 8 pistas |
 | **`[P]`** | **$D\#2$** (2ª negra izquierda) | **Presets**: Mantén `[P]` + Pads 1..8 para disparar los 16 Ritmos pregrabados |
 | **`[F]`** | **$C2$** + **$B3$** (ambas a la vez) | **Full Volume**: Mantén 2s `[F]` $C2$ (blanca izq) + `[F]` $B3$ (penúltima blanca der) para 100% volumen |
@@ -82,7 +82,9 @@ Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales 
   - `Set 6`: Cuerdas orquestales, metales, vientos y maderas.
   - `Set 7`: Chiptune retro de 8 bits (NES/C64) y efectos Sci-Fi.
   - `Set 8`: Solistas acústicos y expresivos (Sax, Flauta, Violín, Armónica).
-* **`[D]` ($C\#2$, 1ª Negra) + Pads (1 a 8)**: Elige entre **16 Kits de Batería** (Bank A: 1..8, Bank B: 9..16) con prueba sonora inmediata al soltar la tecla.
+* **`[D]` ($C\#2$, 1ª Negra) + Pads (1 a 8)**: Elige entre **16 Drums Sets** (Bank A: 1..8, Bank B: 9..16) con prueba sonora inmediata al soltar la tecla:
+  - **Bank A**: 1. Standard, 2. Room Rock, 3. Electronic 909, 4. Roland TR-808, 5. Power Rock, 6. Jazz, 7. Brush (Escobillas), **8. Flamenco Cajón & Palmas Kit**.
+  - **Bank B**: 9. Orchestra Percussion, 10. Standard 1, 11. Standard 2, 12. Standard 3, 13. Room 1, 14. Room 2, 15. Power 1, 16. Analog Dance / Electro 808.
 * **`[L]` ($D2$, 2ª Blanca) + Pads (1 a 8)**: Control completo del **LIVE BEAT LOOPER (8 Pistas)**:
   - `Pad 1`: Armar metrónomo / Cuantización / Auto-cierre de 4 compases / Overdub.
   - `Pad 2`: Conmutar modo **Re-Voice** (Bloqueo de instrumento por pista vs Re-Voice global).
@@ -90,7 +92,7 @@ Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales 
   - `Pad 4`: Toque corto: **Play / Pause** | Sostener > 1.5s: **Borrado Total de Pistas**.
   - `Pads 5 a 8`: **Control de Pistas 1 a 4 (Bank A) y 5 a 8 (Bank B)** (Tap: Mute toggle; Hold >1s: Borrado individual).
 * **`[P]` ($D\#2$, 2ª Negra) + Pads (1 a 8)**: **16 Ritmos Pregrabados** listos para improvisar (8 en Bank A, 8 en Bank B) con Auto-Sync BPM desde Arpegiador.
-* **Pads 6 + 7 juntos durante 2s (Modo CC)**: Activa el **Modo Selección por Teclado** donde las 25 teclas físicas eligen directamente entre los 25 sonidos del set activo (en Bank A) o los 25 kits de batería (en Bank B).
+* **Pads 6 + 7 juntos durante 2s (Modo CC)**: Activa el **Modo Selección por Teclado** donde las 25 teclas físicas eligen directamente entre los 25 sonidos del set melódico activo. Al soltar los pads, las teclas vuelven de inmediato a tocar notas.
 
 ---
 
