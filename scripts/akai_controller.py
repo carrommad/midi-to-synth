@@ -1684,10 +1684,11 @@ class AdvancedAkaiController:
             is_neutral_octave = (base_c == 48)
             if self.held_keyboard_notes and is_neutral_octave:
                 is_c_held = 48 in self.held_keyboard_notes
+                is_cs_held = 49 in self.held_keyboard_notes
                 is_d_held = 50 in self.held_keyboard_notes
                 is_ds_held = 51 in self.held_keyboard_notes
 
-                # MODIFICADOR C1 (Pads 1..8): Selecciona el SET de librería (1..8) directamente sin transponer afinación
+                # MODIFICADOR C1 (48) + Pads 1..8: Selecciona el SET de librería (1..8) directamente sin transponer afinación
                 if is_c_held:
                     fluid.send("cc 9 7 0\n" + f"noteoff 9 {note}")
                     self.active_library_idx = pad_num % len(LIBRARY_ORDER)
@@ -1697,6 +1698,20 @@ class AdvancedAkaiController:
                     fluid.send(f"prog 0 {first_prog}")
                     print(f"\n[SET DE INSTRUMENTOS SELECCIONADO] Pad {pad_num + 1} -> {LIBRARY_NAMES[self.active_library_idx]} (1er Sonido: {first_name})", flush=True)
                     play_preview(chan=0, note=72, vel=110, duration=0.35)
+                    threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {self.current_drum_volume}")).start()
+                    return
+
+                # MODIFICADOR C#1 (49) + Pads 1..8: Selecciona 16 Kits de Batería (Bank A: 1..8 | Bank B: 9..16)
+                if is_cs_held:
+                    fluid.send("cc 9 7 0\n" + f"noteoff 9 {note}")
+                    base_idx = 0 if self.pad_bank == "A" else 8
+                    kit_idx = base_idx + pad_num
+                    if kit_idx < len(DRUM_KITS):
+                        self.current_drum_idx = kit_idx
+                        kit_num, name = DRUM_KITS[kit_idx]
+                        fluid.send(f"prog 9 {kit_num}")
+                        print(f"\n[DRUM KIT SELECCIONADO] Pad {pad_num + 1} (Bank {self.pad_bank}) -> Kit {kit_idx + 1}: {name} (Kit {kit_num})", flush=True)
+                        play_preview(chan=9, note=36, vel=120, duration=0.35)
                     threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {self.current_drum_volume}")).start()
                     return
 
@@ -2025,29 +2040,20 @@ class AdvancedAkaiController:
                     fluid.send("cho_set_level 0.45\ncho_set_depth 6.0\ncho_set_speed 0.6\ncc 0 93 25")
                     print(f"[PAD CC {active_bank}-5] Chorus Boost: Normal", flush=True)
 
-            # PAD 6:
-            # En Banco A: Instrumento Melódico Anterior / Mantener >0.5s: Set Anterior
-            # En Banco B: Kit de Batería Anterior / Mantener >0.5s: Primer Kit (Standard)
+            # PAD 6 (Ambos Bancos): Instrumento Melódico Anterior / Mantener >0.5s: Set Melódico Anterior
             elif pad_idx == 5:
                 if value > 0:
                     self.pad_cc_press_times[5] = now
                     def _hold_pad6_action():
                         if 6 in self.held_cc_pads:
                             return  # Si Pad 7 también está pulsado, no disparar acción de pad individual
-                        if active_bank == "A":
-                            self.active_library_idx = (self.active_library_idx - 1) % len(LIBRARY_ORDER)
-                            self.current_melodic_idx = 0
-                            lib_key = LIBRARY_ORDER[self.active_library_idx]
-                            prog_num, name = OCTAVE_INSTRUMENT_LIBRARIES[lib_key][0]
-                            fluid.send(f"prog 0 {prog_num}")
-                            print(f"\n[PAD CC A-6 MANTENIDO >0.5s] -> Set Anterior: {LIBRARY_NAMES[self.active_library_idx]} ({name})", flush=True)
-                            play_preview(chan=0, note=60, vel=110, duration=0.35)
-                        else:
-                            self.current_drum_idx = 0
-                            kit_num, name = DRUM_KITS[0]
-                            fluid.send(f"prog 9 {kit_num}")
-                            print(f"\n[PAD CC B-6 MANTENIDO >0.5s] -> Primer Kit de Batería: {name} (Kit {kit_num})", flush=True)
-                            play_preview(chan=9, note=36, vel=120, duration=0.35)
+                        self.active_library_idx = (self.active_library_idx - 1) % len(LIBRARY_ORDER)
+                        self.current_melodic_idx = 0
+                        lib_key = LIBRARY_ORDER[self.active_library_idx]
+                        prog_num, name = OCTAVE_INSTRUMENT_LIBRARIES[lib_key][0]
+                        fluid.send(f"prog 0 {prog_num}")
+                        print(f"\n[PAD CC {active_bank}-6 MANTENIDO >0.5s] -> Set Anterior: {LIBRARY_NAMES[self.active_library_idx]} ({name})", flush=True)
+                        play_preview(chan=0, note=60, vel=110, duration=0.35)
                         self.pad_cc_press_times.pop(5, None)
 
                     timer = threading.Timer(0.5, _hold_pad6_action)
@@ -2060,45 +2066,29 @@ class AdvancedAkaiController:
                         timer.cancel()
                     press_t = self.pad_cc_press_times.pop(5, None)
                     if press_t is not None and not self.dual_pad_selection_active:
-                        if active_bank == "A":
-                            fluid.send("cc 0 123 0")
-                            lib_key = LIBRARY_ORDER[self.active_library_idx]
-                            active_lib = OCTAVE_INSTRUMENT_LIBRARIES.get(lib_key, OCTAVE_INSTRUMENT_LIBRARIES[0])
-                            self.current_melodic_idx = (self.current_melodic_idx - 1) % len(active_lib)
-                            prog_num, name = active_lib[self.current_melodic_idx]
-                            fluid.send(f"prog 0 {prog_num}")
-                            print(f"\n[PAD CC A-6 TAP] Instrumento Anterior ({self.current_melodic_idx + 1}/{len(active_lib)}): {name} (Prog {prog_num})", flush=True)
-                            play_preview(chan=0, note=72, vel=110, duration=0.35)
-                        else:
-                            self.current_drum_idx = (self.current_drum_idx - 1) % len(DRUM_KITS)
-                            kit_num, name = DRUM_KITS[self.current_drum_idx]
-                            fluid.send(f"prog 9 {kit_num}")
-                            print(f"\n[PAD CC B-6 TAP] Kit Batería Anterior ({self.current_drum_idx + 1}/{len(DRUM_KITS)}): {name} (Kit {kit_num})", flush=True)
-                            play_preview(chan=9, note=36, vel=120, duration=0.35)
+                        fluid.send("cc 0 123 0")
+                        lib_key = LIBRARY_ORDER[self.active_library_idx]
+                        active_lib = OCTAVE_INSTRUMENT_LIBRARIES.get(lib_key, OCTAVE_INSTRUMENT_LIBRARIES[0])
+                        self.current_melodic_idx = (self.current_melodic_idx - 1) % len(active_lib)
+                        prog_num, name = active_lib[self.current_melodic_idx]
+                        fluid.send(f"prog 0 {prog_num}")
+                        print(f"\n[PAD CC {active_bank}-6 TAP] Instrumento Anterior ({self.current_melodic_idx + 1}/{len(active_lib)}): {name} (Prog {prog_num})", flush=True)
+                        play_preview(chan=0, note=72, vel=110, duration=0.35)
 
-            # PAD 7:
-            # En Banco A: Instrumento Melódico Siguiente / Mantener >0.5s: Set Siguiente
-            # En Banco B: Kit de Batería Siguiente / Mantener >0.5s: Kit Flamenco (Cajón & Palmas)
+            # PAD 7 (Ambos Bancos): Instrumento Melódico Siguiente / Mantener >0.5s: Set Melódico Siguiente
             elif pad_idx == 6:
                 if value > 0:
                     self.pad_cc_press_times[6] = now
                     def _hold_pad7_action():
                         if 5 in self.held_cc_pads:
                             return  # Si Pad 6 también está pulsado, no disparar acción de pad individual
-                        if active_bank == "A":
-                            self.active_library_idx = (self.active_library_idx + 1) % len(LIBRARY_ORDER)
-                            self.current_melodic_idx = 0
-                            lib_key = LIBRARY_ORDER[self.active_library_idx]
-                            prog_num, name = OCTAVE_INSTRUMENT_LIBRARIES[lib_key][0]
-                            fluid.send(f"prog 0 {prog_num}")
-                            print(f"\n[PAD CC A-7 MANTENIDO >0.5s] -> Set Siguiente: {LIBRARY_NAMES[self.active_library_idx]} ({name})", flush=True)
-                            play_preview(chan=0, note=84, vel=110, duration=0.35)
-                        else:
-                            self.current_drum_idx = 2  # Flamenco Cajón & Palmas Kit
-                            kit_num, name = DRUM_KITS[2]
-                            fluid.send(f"prog 9 {kit_num}")
-                            print(f"\n[PAD CC B-7 MANTENIDO >0.5s] -> Kit Flamenco: {name} (Kit {kit_num})", flush=True)
-                            play_preview(chan=9, note=36, vel=120, duration=0.35)
+                        self.active_library_idx = (self.active_library_idx + 1) % len(LIBRARY_ORDER)
+                        self.current_melodic_idx = 0
+                        lib_key = LIBRARY_ORDER[self.active_library_idx]
+                        prog_num, name = OCTAVE_INSTRUMENT_LIBRARIES[lib_key][0]
+                        fluid.send(f"prog 0 {prog_num}")
+                        print(f"\n[PAD CC {active_bank}-7 MANTENIDO >0.5s] -> Set Siguiente: {LIBRARY_NAMES[self.active_library_idx]} ({name})", flush=True)
+                        play_preview(chan=0, note=84, vel=110, duration=0.35)
                         self.pad_cc_press_times.pop(6, None)
 
                     timer = threading.Timer(0.5, _hold_pad7_action)
@@ -2111,21 +2101,14 @@ class AdvancedAkaiController:
                         timer.cancel()
                     press_t = self.pad_cc_press_times.pop(6, None)
                     if press_t is not None and not self.dual_pad_selection_active:
-                        if active_bank == "A":
-                            fluid.send("cc 0 123 0")
-                            lib_key = LIBRARY_ORDER[self.active_library_idx]
-                            active_lib = OCTAVE_INSTRUMENT_LIBRARIES.get(lib_key, OCTAVE_INSTRUMENT_LIBRARIES[0])
-                            self.current_melodic_idx = (self.current_melodic_idx + 1) % len(active_lib)
-                            prog_num, name = active_lib[self.current_melodic_idx]
-                            fluid.send(f"prog 0 {prog_num}")
-                            print(f"\n[PAD CC A-7 TAP] Instrumento Siguiente ({self.current_melodic_idx + 1}/{len(active_lib)}): {name} (Prog {prog_num})", flush=True)
-                            play_preview(chan=0, note=72, vel=110, duration=0.35)
-                        else:
-                            self.current_drum_idx = (self.current_drum_idx + 1) % len(DRUM_KITS)
-                            kit_num, name = DRUM_KITS[self.current_drum_idx]
-                            fluid.send(f"prog 9 {kit_num}")
-                            print(f"\n[PAD CC B-7 TAP] Kit Batería Siguiente ({self.current_drum_idx + 1}/{len(DRUM_KITS)}): {name} (Kit {kit_num})", flush=True)
-                            play_preview(chan=9, note=36, vel=120, duration=0.35)
+                        fluid.send("cc 0 123 0")
+                        lib_key = LIBRARY_ORDER[self.active_library_idx]
+                        active_lib = OCTAVE_INSTRUMENT_LIBRARIES.get(lib_key, OCTAVE_INSTRUMENT_LIBRARIES[0])
+                        self.current_melodic_idx = (self.current_melodic_idx + 1) % len(active_lib)
+                        prog_num, name = active_lib[self.current_melodic_idx]
+                        fluid.send(f"prog 0 {prog_num}")
+                        print(f"\n[PAD CC {active_bank}-7 TAP] Instrumento Siguiente ({self.current_melodic_idx + 1}/{len(active_lib)}): {name} (Prog {prog_num})", flush=True)
+                        play_preview(chan=0, note=72, vel=110, duration=0.35)
 
             # PAD 8 (Ambos Bancos): Pánico (<2s) / Mantener >=2s: Toggle Mute Sonidos Auxiliares
             elif pad_idx == 7:
