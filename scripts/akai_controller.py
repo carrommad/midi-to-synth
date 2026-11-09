@@ -1585,10 +1585,10 @@ class AdvancedAkaiController:
                 self.reverb_muted_by_panic = False
                 fluid.send(f"set synth.reverb.active True\ncc 0 91 {self.reverb_knob_val}\ncc 9 91 60\ncc 15 91 80")
 
-            # Check for Safe Shutdown Key Combo:
-            # Hold Lowest C (C1) and Highest C (C3) together for 3.0 seconds (extremos físicos reales)
+            # Check for Safe Shutdown Key Combo & Full Level:
+            # (Anulados por completo si mute_function_sounds / Performance Lock está activo)
             active_notes = sorted(list(self.held_keyboard_notes.keys()))
-            if len(active_notes) >= 2:
+            if len(active_notes) >= 2 and not self.mute_function_sounds:
                 if (base_c in self.held_keyboard_notes) and ((base_c + 24) in self.held_keyboard_notes):
                     self.start_shutdown_timer()
                 # SHORTCUT FULL LEVEL: Mantener pulsado Lowest C (C1) y High B (B3, base_c + 23) a la vez durante 2.0s
@@ -1597,7 +1597,8 @@ class AdvancedAkaiController:
 
             # SELECCIÓN CROMÁTICA VÍA TECLADO (Activa mientras Pad 6 y Pad 7 estén ambos pulsados >= 2.0s):
             # Elige entre los 25 instrumentos melódicos del set activo (1:1 con las 25 teclas físicas).
-            if self.dual_pad_selection_active and self.dual_pad_selection_mode == "melodic":
+            # (Anulado si Performance Lock está activo)
+            if self.dual_pad_selection_active and self.dual_pad_selection_mode == "melodic" and not self.mute_function_sounds:
                 fluid.send(f"noteoff 0 {note}")
                 key_idx = (note - base_c) % 25
                 lib_key = LIBRARY_ORDER[self.active_library_idx]
@@ -1665,7 +1666,7 @@ class AdvancedAkaiController:
             # D#1 (51) -> 7 RITMOS PREGRABADOS + STOP
             base_c = self.lowest_base_c
             is_neutral_octave = (base_c == 48)
-            if self.held_keyboard_notes and is_neutral_octave:
+            if self.held_keyboard_notes and is_neutral_octave and not self.mute_function_sounds:
                 is_cs_held = 49 in self.held_keyboard_notes
                 is_d_held = 50 in self.held_keyboard_notes
                 is_ds_held = 51 in self.held_keyboard_notes
@@ -2092,6 +2093,7 @@ class AdvancedAkaiController:
                             time.sleep(0.12)
                             fluid.send("noteoff 15 69\n")
                             self.mute_function_sounds = True
+                            st = "BLOQUEADAS / LOCK (Chimes OFF y Teclas 100% notas puras, sin funciones ni apagado)"
                         else:
                             self.mute_function_sounds = False
                             fluid.send("prog 15 8\ncc 15 91 80\nnoteon 15 84 75\n")
@@ -2099,8 +2101,8 @@ class AdvancedAkaiController:
                             fluid.send("noteoff 15 84\nnoteon 15 88 80\n")
                             time.sleep(0.1)
                             fluid.send("noteoff 15 88\n")
-                        st = "MUTED (Silencio)" if self.mute_function_sounds else "ACTIVOS (Chimes on)"
-                        print(f"\n[PAD CC {active_bank}-8 MANTENIDO 2s] -> Sonidos de función y chimes: {st}", flush=True)
+                            st = "ACTIVAS / UNLOCKED (Chimes ON y funciones de teclado [S], [L], [P], [F], [—] operativas)"
+                        print(f"\n[PAD CC {active_bank}-8 MANTENIDO 2s] -> Funciones de Teclado: {st}", flush=True)
                         self.pad_cc_press_times.pop(7, None)
 
                     timer = threading.Timer(2.0, _hold_toggle_chime_mute)

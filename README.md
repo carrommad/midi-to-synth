@@ -123,7 +123,7 @@ Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales 
 * `Pad 5`: **Chorus Splash** (Explosión de chorus espacial mientras se pulsa).
 * `Pad 6`: **Instrumento Anterior** (con preview sonoro).
 * `Pad 7`: **Instrumento Siguiente** (con preview sonoro).
-* `Pad 8`: **¡Pánico / Stop Total!** (silencia cualquier nota o bucle colgado).
+* `Pad 8`: **¡Pánico / Stop Total!** (Toque corto: silencia notas colgadas y vacía reverb | Sostener 2.0s: **Performance Lock** que silencia chimes y anula 100% las funciones en las teclas, incluido el apagado, para tocar en directo sin riesgos).
 
 ---
 
