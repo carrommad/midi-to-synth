@@ -63,26 +63,16 @@ Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales 
 ### Rotulación Física del Teclado (Marcas sobre las Teclas):
 | Marca | Tecla Física | Acción / Función |
 |---|---|---|
-| **`[S]`** | **$C2$** (1ª blanca izquierda) | **Melodic Sets**: Mantén `[S]` + Pads 1..8 para elegir los 8 Sets de Instrumentos (200 sonidos) |
-| **`[D]`** | **$C\#2$** (1ª negra izquierda) | **Drums Sets**: Mantén `[D]` + Pads 1..8 para elegir 16 Drum Sets (Bank A: 1..8, Bank B: 9..16; Pad 8 Bank A: Flamenco) |
-| **`[L]`** | **$D2$** (2ª blanca izquierda) | **Looper**: Mantén `[L]` + Pads 1..8 para control del Live Looper de 8 pistas |
-| **`[P]`** | **$D\#2$** (2ª negra izquierda) | **Presets**: Mantén `[P]` + Pads 1..8 para disparar los 16 Ritmos pregrabados |
 | **`[F]`** | **$C2$** + **$B3$** (ambas a la vez) | **Full Volume**: Mantén 2s `[F]` $C2$ (blanca izq) + `[F]` $B3$ (penúltima blanca der) para 100% volumen |
 | **`[—]`** | **$C2$** + **$C4$** (ambas a la vez) | **Line Shutdown**: Mantén 3s los dos extremos `[—]` $C2$ + `[—]` $C4$ para apagar la Raspberry Pi |
+| **`[S]`** | **$C\#2$** (1ª negra izquierda) | **Sets (Drums Sets)**: Mantén `[S]` + Pads 1..8 para elegir 16 Drum Sets (Bank A: 1..8, Bank B: 9..16; Pad 8 Bank A: Flamenco) |
+| **`[L]`** | **$D2$** (2ª blanca izquierda) | **Looper**: Mantén `[L]` + Pads 1..8 para control del Live Looper de 8 pistas |
+| **`[P]`** | **$D\#2$** (2ª negra izquierda) | **Presets**: Mantén `[P]` + Pads 1..8 para disparar los 16 Ritmos pregrabados |
 
 ---
 
 ### 1. Modificadores y Selección
-* **`[S]` ($C2$, 1ª Blanca) + Pads (1 a 8)**: Accede a los **8 Sets Melódicos** (25 instrumentos cada uno = 200 instrumentos en total):
-  - `Set 1`: Pianos de cola, Rhodes MK1, Wurlitzer, Clavinet y Órganos.
-  - `Set 2`: Bajos profundos, subgraves 808 y TB-303 ácidos.
-  - `Set 3`: Instrumentos étnicos y del mundo (Sitar, Shamisen, Koto, Kalimba, Steel Drums).
-  - `Set 4`: Sintetizadores analógicos, solistas y pads cálidos.
-  - `Set 5`: Guitarras acústicas, flamencas, Stratocaster y Archtop jazz.
-  - `Set 6`: Cuerdas orquestales, metales, vientos y maderas.
-  - `Set 7`: Chiptune retro de 8 bits (NES/C64) y efectos Sci-Fi.
-  - `Set 8`: Solistas acústicos y expresivos (Sax, Flauta, Violín, Armónica).
-* **`[D]` ($C\#2$, 1ª Negra) + Pads (1 a 8)**: Elige entre **16 Drums Sets** (Bank A: 1..8, Bank B: 9..16) con prueba sonora inmediata al soltar la tecla:
+* **`[S]` ($C\#2$, 1ª Negra) + Pads (1 a 8)**: Elige entre **16 Drums Sets** (Bank A: 1..8, Bank B: 9..16) con prueba sonora inmediata al soltar la tecla:
   - **Bank A**: 1. Standard, 2. Room Rock, 3. Electronic 909, 4. Roland TR-808, 5. Power Rock, 6. Jazz, 7. Brush (Escobillas), **8. Flamenco Cajón & Palmas Kit**.
   - **Bank B**: 9. Orchestra Percussion, 10. Standard 1, 11. Standard 2, 12. Standard 3, 13. Room 1, 14. Room 2, 15. Power 1, 16. Analog Dance / Electro 808.
 * **`[L]` ($D2$, 2ª Blanca) + Pads (1 a 8)**: Control completo del **LIVE BEAT LOOPER (8 Pistas)**:

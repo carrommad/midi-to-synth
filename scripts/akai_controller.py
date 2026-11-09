@@ -1666,25 +1666,11 @@ class AdvancedAkaiController:
             base_c = self.lowest_base_c
             is_neutral_octave = (base_c == 48)
             if self.held_keyboard_notes and is_neutral_octave:
-                is_c_held = 48 in self.held_keyboard_notes
                 is_cs_held = 49 in self.held_keyboard_notes
                 is_d_held = 50 in self.held_keyboard_notes
                 is_ds_held = 51 in self.held_keyboard_notes
 
-                # MODIFICADOR C1 (48) + Pads 1..8: Selecciona el SET de librería (1..8) directamente sin transponer afinación
-                if is_c_held:
-                    fluid.send("cc 9 7 0\n" + f"noteoff 9 {note}")
-                    self.active_library_idx = pad_num % len(LIBRARY_ORDER)
-                    self.current_melodic_idx = 0
-                    lib_key = LIBRARY_ORDER[self.active_library_idx]
-                    first_prog, first_name = OCTAVE_INSTRUMENT_LIBRARIES[lib_key][0]
-                    fluid.send(f"prog 0 {first_prog}")
-                    print(f"\n[SET DE INSTRUMENTOS SELECCIONADO] Pad {pad_num + 1} -> {LIBRARY_NAMES[self.active_library_idx]} (1er Sonido: {first_name})", flush=True)
-                    play_preview(chan=0, note=72, vel=110, duration=0.35)
-                    threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {self.current_drum_volume}")).start()
-                    return
-
-                # MODIFICADOR C#1 (49) + Pads 1..8: Selecciona 16 Kits de Batería (Bank A: 1..8 | Bank B: 9..16)
+                # MODIFICADOR [S] C#2 (49) + Pads 1..8: Selecciona 16 Drum Sets (Bank A: 1..8 | Bank B: 9..16)
                 if is_cs_held:
                     fluid.send("cc 9 7 0\n" + f"noteoff 9 {note}")
                     base_idx = 0 if self.pad_bank == "A" else 8
@@ -1693,7 +1679,7 @@ class AdvancedAkaiController:
                         self.current_drum_idx = kit_idx
                         kit_num, name = DRUM_KITS[kit_idx]
                         fluid.send(f"prog 9 {kit_num}")
-                        print(f"\n[DRUM KIT SELECCIONADO] Pad {pad_num + 1} (Bank {self.pad_bank}) -> Kit {kit_idx + 1}: {name} (Kit {kit_num})", flush=True)
+                        print(f"\n[DRUM SET SELECCIONADO] Pad {pad_num + 1} (Bank {self.pad_bank}) -> Kit {kit_idx + 1}: {name} (Kit {kit_num})", flush=True)
                         play_preview(chan=9, note=36, vel=120, duration=0.35)
                     threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {self.current_drum_volume}")).start()
                     return
@@ -2183,8 +2169,7 @@ class AdvancedAkaiController:
         print("==================================================================")
         print(" • F (Full Volume): Mantén [F] C2 + [F] B3 (2s) -> 100% vs dinámico")
         print(" • — (Line Shutdown): Mantén [—] C2 + [—] C4 (3s) -> Apagado Pi")
-        print(" • S (Melodic Sets): Mantén [S] C2 + Pads 1..8 -> 8 Sets Melódicos")
-        print(" • D (Drums Sets): Mantén [D] C#2 + Pads 1..8 -> 16 Drum Sets (P8 Bank A: Flamenco)")
+        print(" • S (Sets de Batería): Mantén [S] C#2 + Pads 1..8 -> 16 Drum Sets (P8 Bank A: Flamenco)")
         print(" • L (Looper): Mantén [L] D2 + Pads 1..8 -> 8-Track Beat Looper")
         print(" • P (Presets): Mantén [P] D#2 + Pads 1..8 -> 16 Beat Grooves")
         print(" • PADS 6+7 (2s en CC): Modo Selección Teclas (25 sonidos melódicos)")
