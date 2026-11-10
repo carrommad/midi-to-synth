@@ -378,38 +378,66 @@ class APC40FullSessionController:
         print(f"[COL {col_idx + 1} STEREO PAN] -> {pan}", flush=True)
 
     def handle_device_control_fx(self, control: int, value: int):
+        """
+        8 Device Control Knobs (on the right) mapped to 8 distinct real-time performance FX:
+        Top Row:
+        - Knob 1 (CC 16/24): Filter Cutoff (CC 74) - Brightness / Lowpass frequency
+        - Knob 2 (CC 17/25): Filter Resonance Q (CC 71) - Sharpness / Acid peak
+        - Knob 3 (CC 18/26): Reverb Wet Send (CC 91) - Space & Cathedral Room
+        - Knob 4 (CC 19/27): Chorus & Dimension Depth (CC 93) - Stereo thickness & detuning
+        Bottom Row:
+        - Knob 5 (CC 20/28): Attack Time (CC 73) - Envelope punch vs slow swells
+        - Knob 6 (CC 21/29): Release Time (CC 72) - Staccato dry vs long ring-out tail
+        - Knob 7 (CC 22/30): Vibrato & LFO Modulation (CC 1) - Expressive pitch modulation
+        - Knob 8 (CC 23/31): Pitch Tuning / Detune (Pitch Bend) - +/-12 semitones
+        """
         val_norm = value / 127.0
         cfg = MODES_CONFIG[self.current_mode_idx]
         chan = cfg.get("chan", 9)
 
         if control in (16, 24):
-            fluid.send(f"cc {chan} 91 {value}\nset synth.reverb.level {round(val_norm, 2)}")
-            print(f"[FX 1: REVERB LEVEL] -> {int(val_norm * 100)}%", flush=True)
-        elif control in (17, 25):
-            room = round(val_norm, 2)
-            fluid.send(f"set synth.reverb.room-size {room}")
-            print(f"[FX 2: REVERB ROOM] -> {int(room * 100)}%", flush=True)
-        elif control in (18, 26):
-            fluid.send(f"cc {chan} 93 {value}")
-            print(f"[FX 3: CHORUS LEVEL] -> {int(val_norm * 100)}%", flush=True)
-        elif control in (19, 27):
+            # K1: Filter Cutoff (CC 74)
             fluid.send(f"cc {chan} 74 {value}")
-            print(f"[FX 4: FILTER CUTOFF] -> {int(val_norm * 100)}%", flush=True)
-        elif control in (20, 28):
+            print(f"[FX 1: FILTER CUTOFF] -> {int(val_norm * 100)}%", flush=True)
+
+        elif control in (17, 25):
+            # K2: Filter Resonance Q (CC 71)
             fluid.send(f"cc {chan} 71 {value}")
-            print(f"[FX 5: RESONANCE Q] -> {int(val_norm * 100)}%", flush=True)
+            print(f"[FX 2: RESONANCE Q] -> {int(val_norm * 100)}%", flush=True)
+
+        elif control in (18, 26):
+            # K3: Reverb Wet Send (CC 91)
+            fluid.send(f"cc {chan} 91 {value}\nset synth.reverb.level {round(val_norm, 2)}")
+            print(f"[FX 3: REVERB SPACE] -> {int(val_norm * 100)}%", flush=True)
+
+        elif control in (19, 27):
+            # K4: Chorus & Dimension Depth (CC 93)
+            fluid.send(f"cc {chan} 93 {value}")
+            print(f"[FX 4: CHORUS DEPTH] -> {int(val_norm * 100)}%", flush=True)
+
+        elif control in (20, 28):
+            # K5: Attack Time (CC 73)
+            fluid.send(f"cc {chan} 73 {value}")
+            label = "Inmediato" if value < 10 else f"{int(val_norm * 100)}% Swell"
+            print(f"[FX 5: ATTACK TIME] -> {label}", flush=True)
+
         elif control in (21, 29):
-            fluid.send(f"cc {chan} 10 {value}")
-            pan = f"R {int((val_norm - 0.5) * 200)}%" if value > 64 else (f"L {int((0.5 - val_norm) * 200)}%" if value < 64 else "Centro")
-            print(f"[FX 6: MASTER PAN] -> {pan}", flush=True)
+            # K6: Release Time (CC 72)
+            fluid.send(f"cc {chan} 72 {value}")
+            label = "Seco (Staccato)" if value < 10 else f"{int(val_norm * 100)}% Ring-Out"
+            print(f"[FX 6: RELEASE TIME] -> {label}", flush=True)
+
         elif control in (22, 30):
+            # K7: Vibrato & LFO Modulation (CC 1)
+            fluid.send(f"cc {chan} 1 {value}")
+            print(f"[FX 7: VIBRATO / MOD] -> {int(val_norm * 100)}%", flush=True)
+
+        elif control in (23, 31):
+            # K8: Pitch Tuning / Detune (+/- 12 semitones)
             pitch_bend_val = int((val_norm - 0.5) * 16383)
             fluid.send(f"pitch_bend {chan} {pitch_bend_val}")
             st = round((val_norm - 0.5) * 24, 1)
-            print(f"[FX 7: TUNING] -> {'+' if st > 0 else ''}{st} st", flush=True)
-        elif control in (23, 31):
-            fluid.send(f"cc {chan} 7 {value}")
-            print(f"[FX 8: CHANNEL TRIM] -> {int(val_norm * 100)}%", flush=True)
+            print(f"[FX 8: PITCH TUNING] -> {'+' if st > 0 else ''}{st} st", flush=True)
 
     def handle_fader(self, control: int, value: int):
         if 48 <= control <= 55:

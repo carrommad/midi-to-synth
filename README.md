@@ -215,7 +215,15 @@ El sistema soporta la conexión concurrente del **Akai APC40 mkII** en paralelo 
   - **8 (`1/8`)**: Ambient Warm Pads & Soundscapes (Prog 88 Pad atmosférico).
 - **8 Faders de Canal + Master Fader**: Volumen independiente por columna/canal y control de volumen general.
 - **8 Knobs Superiores (Channel Strip)**: Paneo estéreo independiente por columna (L/R).
-- **8 Knobs Device Control (Multi-FX)**: Control dinámico de Reverb Level, Room Size, Chorus Send, Filter Cutoff, Resonance Q, Pan Master, Tuning (±12 semitonos) y Channel Trim.
+- **8 Knobs Device Control Derecha (Multi-FX & Síntesis en Tiempo Real)**:
+  - `K1`: **Filter Cutoff** (`CC 74`) - Frecuencia de corte / Brillo general (oscuro a cristalino).
+  - `K2`: **Resonance Q** (`CC 71`) - Resonancia y pico armónico ácido.
+  - `K3`: **Reverb Space** (`CC 91`) - Envío y nivel de reverberación espacial.
+  - `K4`: **Chorus Depth** (`CC 93`) - Grosor estéreo y modulación espacial.
+  - `K5`: **Attack Time** (`CC 73`) - Envolvente de ataque: golpe percusivo inmediato vs *slow swell* gradual.
+  - `K6`: **Release Time** (`CC 72`) - Cola de decaimiento: corte seco staccato vs *ring-out* sostenido.
+  - `K7`: **Vibrato / LFO** (`CC 1`) - Modulación analógica y vibrato para solos expresivos.
+  - `K8`: **Pitch Tuning** (`Pitch Bend`) - Afinación continua de $\pm 12$ semitonos (octava completa).
 - **Botones de Directo Dedicados**:
   - `STOP ALL CLIPS` (Note 81): **PANIC Total** (silencio instantáneo en los 16 canales).
   - `METRONOME` (Note 90): Activación/desactivación de metrónomo audible en canal aislado 15.
