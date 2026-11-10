@@ -1266,6 +1266,7 @@ class AdvancedAkaiController:
         self.keys_muted: bool = False
         self.sustain_active: bool = False
         self.portamento_active: bool = False
+        self.harmonic_fifth_active: bool = False
         self.last_sustain_press: float = 0.0
         self.last_portamento_press: float = 0.0
         self.last_drum_mute_press: float = 0.0
@@ -1407,17 +1408,17 @@ class AdvancedAkaiController:
             self.play_chime(active=False)
 
     def play_startup_sound(self):
-        """Play elegant ascending musical startup chime through Roland S-1 to signal system readiness."""
+        """Play elegant, soft ascending musical startup chime on isolated Channel 15 (Celesta)."""
         def _worker():
             try:
                 time.sleep(0.5)
+                # Usar Canal 15 (Celesta) atenuado para no sonar estridente ni saturar
+                fluid.send("prog 15 8\ncc 15 7 48\ncc 15 91 80\n")
                 chime_notes = [60, 64, 67, 72, 76, 84]
                 for n in chime_notes:
-                    fluid.send(f"noteon 0 {n} 70")
-                    time.sleep(0.12)
-                time.sleep(1.0)
-                for n in chime_notes:
-                    fluid.send(f"noteoff 0 {n}")
+                    fluid.send(f"noteon 15 {n} 50\n")
+                    time.sleep(0.09)
+                    fluid.send(f"noteoff 15 {n}\n")
                 print("[STARTUP CHIME] Sistema listo y audio activo.", flush=True)
             except Exception as e:
                 print(f"[STARTUP CHIME ERROR] {e}", flush=True)
@@ -1507,14 +1508,14 @@ class AdvancedAkaiController:
 
         # Chime sutil descendente de despedida (lo opuesto exacto a la música de inicio)
         # La música de inicio es: [60, 64, 67, 72, 76, 84] (C4 ascendente)
-        # La música de apagado es: [84, 76, 72, 67, 64, 60] suave y gradual en celesta
+        # La música de apagado es: [84, 76, 72, 67, 64, 60] suave y gradual en celesta atenuada
         try:
-            fluid.send("prog 15 8\ncc 15 91 85")
+            fluid.send("prog 15 8\ncc 15 7 45\ncc 15 91 80\n")
             shutdown_notes = [84, 76, 72, 67, 64, 60]
             for n in shutdown_notes:
-                fluid.send(f"noteon 15 {n} 80")
-                time.sleep(0.12)
-                fluid.send(f"noteoff 15 {n}")
+                fluid.send(f"noteon 15 {n} 48\n")
+                time.sleep(0.09)
+                fluid.send(f"noteoff 15 {n}\n")
             time.sleep(0.3)
         except Exception:
             pass
@@ -1685,6 +1686,13 @@ class AdvancedAkaiController:
                 decay_timer.daemon = True
                 self.active_note_timers[note] = decay_timer
                 decay_timer.start()
+
+            # Armonizador de Quinta Justa (+7 semitonos) si Pad 3 está activo:
+            if self.harmonic_fifth_active and not self.dual_pad_selection_active:
+                fifth_note = note + 7
+                if fifth_note <= 127:
+                    play_vel = 127 if self.keys_full_level else velocity
+                    fluid.send(f"noteon 0 {fifth_note} {play_vel}")
 
             # Registrar la nota para auto-detección de tempo del arpegiador
             self.looper.register_key_note(note)
@@ -1870,6 +1878,8 @@ class AdvancedAkaiController:
     def handle_note_off(self, note: int, channel: int):
         base_c = self.lowest_base_c if self.lowest_base_c is not None else 48
         if channel == 0:
+            if self.harmonic_fifth_active:
+                fluid.send(f"noteoff 0 {note + 7}")
             self.held_keyboard_notes.pop(note, None)
             self.recent_released_notes[note] = time.time()
             self.cancel_shutdown_timer()
@@ -2094,10 +2104,16 @@ class AdvancedAkaiController:
                         fluid.send("setportamentomode 0 0\ncc 0 65 0")
                         print(f"\n[PAD CC {active_bank}-2] Portamento/Glide -> DESACTIVADO (Hardware Toggle)", flush=True)
 
-            # PAD 3 (Ambos Bancos): Filter Cutoff Boost
+            # PAD 3 (Ambos Bancos): Armonizador de Quinta Justa (+7 semitonos) Toggle
             elif pad_idx == 2:
-                fluid.send(f"cc 0 74 {127 if value > 0 else 85}")
-                print(f"[PAD CC {active_bank}-3] Filter Cutoff Boost: {'100% (Brillo Máximo)' if value > 0 else 'Normal'}", flush=True)
+                if value > 0:
+                    self.harmonic_fifth_active = not self.harmonic_fifth_active
+                    status = "ACTIVADO (Voz + Quinta Justa +7 st)" if self.harmonic_fifth_active else "DESACTIVADO (Voz Única)"
+                    print(f"\n[PAD CC {active_bank}-3] Armonizador Quinta (+7 st) -> {status}", flush=True)
+                    if not self.harmonic_fifth_active:
+                        # Silenciar quintas que pudieran haber quedado sonando
+                        for n in list(self.held_keyboard_notes.keys()):
+                            fluid.send(f"noteoff 0 {n + 7}")
 
             # PAD 4 (Ambos Bancos): Reverb Kill / Mute
             elif pad_idx == 3:
