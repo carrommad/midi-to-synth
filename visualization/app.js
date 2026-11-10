@@ -164,48 +164,53 @@ function autoCorrelate(fullBuf, sampleRate) {
   return sampleRate / period;
 }
 
+const STORAGE_DEVICE_KEY = 'roland_s1_selected_device';
+
 async function populateDevices() {
   if (!navigator.mediaDevices?.enumerateDevices) return;
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const audioInputs = devices.filter(d => d.kind === 'audioinput');
-    deviceSelect.innerHTML = '<option value="">Default Input</option>';
-    // Select best candidate: priority to S-1, Roland, USB Audio, external line
-    let bestMatchIndex = -1;
-    let bestPriority = -1;
+    
+    const savedDeviceId = localStorage.getItem(STORAGE_DEVICE_KEY);
+    const previousSelected = deviceSelect.value || savedDeviceId || '';
+
+    deviceSelect.innerHTML = '<option value="">Default Input (Laptop Mic / System)</option>';
+
+    let targetIndex = 0;
 
     audioInputs.forEach((d, i) => {
       const opt = document.createElement('option');
       opt.value = d.deviceId;
-      let lbl = d.label || `Input ${i + 1}`;
+      let rawLabel = (d.label || '').trim();
+      let lbl = rawLabel || `Input ${i + 1}`;
       lbl = lbl.replace(/^default\s*-\s*/i, '').trim();
-      opt.textContent = lbl.length > 20 ? `${lbl.slice(0, 18)}…` : lbl;
-      opt.title = d.label || `Input ${i + 1}`;
-      
-      const lower = (d.label || '').toLowerCase();
-      let priority = 0;
-      if (lower.includes('s-1') || lower.includes('roland')) {
-        priority = 3;
-      } else if (lower.includes('usb')) {
-        priority = 2;
-      } else if (lower.includes('external') || lower.includes('line')) {
-        priority = 1;
-      }
 
-      if (priority > bestPriority) {
-        bestPriority = priority;
-        bestMatchIndex = i + 1; // +1 because option 0 is Default Input
-      }
+      // Clear readable labelling
+      opt.textContent = lbl;
+      opt.title = rawLabel || `Input ${i + 1}`;
 
       deviceSelect.appendChild(opt);
+
+      if (d.deviceId && d.deviceId === previousSelected) {
+        targetIndex = deviceSelect.options.length - 1;
+      }
     });
 
-    if (bestMatchIndex > 0) {
-      deviceSelect.selectedIndex = bestMatchIndex;
+    // If user previously selected an input, restore it; otherwise remain on Default Input
+    if (targetIndex > 0) {
+      deviceSelect.selectedIndex = targetIndex;
     }
   } catch (err) {
     console.warn("Could not list audio devices:", err);
   }
+}
+
+// Re-populate devices when hardware is plugged or unplugged
+if (navigator.mediaDevices) {
+  navigator.mediaDevices.addEventListener('devicechange', async () => {
+    await populateDevices();
+  });
 }
 
 function resizeCanvases() {
@@ -224,9 +229,9 @@ window.addEventListener('resize', resizeCanvases);
 
 // Audio Engine Init
 async function startAudio() {
-  if (audioCtx && audioCtx.state === 'running') {
+  // If already running, clean up existing audio context and tracks first
+  if (audioCtx) {
     stopAudio();
-    return;
   }
 
   try {
@@ -326,6 +331,9 @@ async function startAudio() {
 
     resizeCanvases();
     renderLoop();
+
+    // After permission is granted, populate devices to get full hardware labels
+    populateDevices();
   } catch (err) {
     console.error("Audio initialization failed:", err);
     alert(`Could not start audio: ${err.message}`);
@@ -1243,6 +1251,7 @@ filterWhineToggle.addEventListener('change', () => {
 });
 
 deviceSelect.addEventListener('change', () => {
+  localStorage.setItem(STORAGE_DEVICE_KEY, deviceSelect.value);
   if (audioCtx) startAudio();
 });
 
