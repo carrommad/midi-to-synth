@@ -245,12 +245,15 @@ class APC40FullSessionController:
     def update_track_select_leds(self):
         if not self.outport:
             return
-        # Track Select 1..8 notes: 56 to 63
+        # Track Select 1..8: Note 51 (0x33) on Channels 0..7
+        # Also support legacy Note 56..63 on Channel 0
         for idx in range(8):
-            note = 56 + idx
-            vel = 1 if idx == self.current_mode_idx else 0  # 1 = Green, 0 = Off
+            vel = 1 if idx == self.current_mode_idx else 0  # 1 = On, 0 = Off
             try:
-                self.outport.send(mido.Message("note_on", channel=0, note=note, velocity=vel))
+                # Primary mkII protocol: Note 51 on Channel idx
+                self.outport.send(mido.Message("note_on", channel=idx, note=51, velocity=vel))
+                # Secondary compatibility: Note 56+idx on Channel 0
+                self.outport.send(mido.Message("note_on", channel=0, note=56 + idx, velocity=vel))
             except Exception:
                 pass
 
@@ -460,14 +463,21 @@ class APC40FullSessionController:
                             # Botón TAP TEMPO (99) -> Ajuste de BPM
                             elif msg.note == 99 and msg.type == "note_on":
                                 self.handle_tap_tempo()
-                            # Track Select 1..8 (Notas 56 a 63) -> Conmutar 8 Modos Instrumentales
-                            elif 56 <= msg.note <= 63 and msg.type == "note_on" and msg.velocity > 0:
-                                self.select_mode(msg.note - 56)
+                            # Track Select 1..8:
+                            # Official APC40 mkII protocol: Note 51 (0x33) on Channels 0..7
+                            # Alternate / Generic: Notes 56 to 63 on Channel 0
+                            elif msg.note == 51 and 0 <= msg.channel <= 7:
+                                if msg.type == "note_on" and msg.velocity > 0:
+                                    self.select_mode(msg.channel)
+                            elif 56 <= msg.note <= 63:
+                                if msg.type == "note_on" and msg.velocity > 0:
+                                    self.select_mode(msg.note - 56)
                             # Scene Launch (82..87): cambio de Drum Kit (sólo en modo 0)
                             elif 82 <= msg.note <= 87 and msg.type == "note_on" and msg.velocity > 0:
                                 if self.current_mode_idx == 0:
                                     self.select_drum_kit(msg.note - 82)
-                            else:
+                            elif 0 <= msg.note <= 39:
+                                # Matriz física 5x8 de 40 pads (Notes 0..39)
                                 self.handle_pad_event(msg)
 
                         elif msg.type == "control_change":
