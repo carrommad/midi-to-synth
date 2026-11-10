@@ -642,18 +642,37 @@ class LiveMidiLooper:
 
             step_grid = 60.0 / (self.bpm * 4.0)
             with self.lock:
-                # Filtrar estrictamente las notas de la pista base
-                # Si una nota cae exactamente en el borde del compás o un delta infinitesimal, desplazarla a t=0.0
+                # Filtrar y ordenar eventos de la pista base preservando la duración natural
+                # y garantizando una duración mínima audible (gate >= 40ms) para cada nota arpegiada:
                 clean_events = []
                 step_tol = step_grid * 0.5
                 for ev in self.tracks[0]:
                     t, ch, n, v, is_on = ev[:5]
                     prg = ev[5] if len(ev) > 5 else self.track_prog[0]
                     if t < self.base_loop_duration:
-                        clean_events.append((t, ch, n, v, is_on, prg))
+                        clean_events.append([t, ch, n, v, is_on, prg])
                     elif t <= (self.base_loop_duration + step_tol) and is_on:
-                        clean_events.append((0.0, ch, n, v, is_on, prg))
-                clean_events.sort(key=lambda x: x[0])
+                        clean_events.append([0.0, ch, n, v, is_on, prg])
+
+                # Ordenar por timestamp; ante igualdad de tiempo, noteon (True -> 0) va antes que noteoff (False -> 1)
+                clean_events.sort(key=lambda x: (x[0], 0 if x[4] else 1))
+
+                # Garantizar duración mínima audible para que noteoff nunca se solape con noteon
+                min_gate = 0.040  # 40ms
+                active_ons = {}
+                for ev in clean_events:
+                    t, ch, n, v, is_on, prg = ev
+                    key = (ch, n)
+                    if is_on:
+                        active_ons[key] = t
+                    else:
+                        if key in active_ons:
+                            on_t = active_ons.pop(key)
+                            if (t - on_t) < min_gate:
+                                ev[0] = min(self.base_loop_duration - 0.005, on_t + min_gate)
+
+                clean_events = [tuple(e) for e in clean_events]
+                clean_events.sort(key=lambda x: (x[0], 0 if x[4] else 1))
                 self.tracks[0] = clean_events
                 self.state = "PLAYING"
                 self.finish_pending = False
@@ -711,10 +730,27 @@ class LiveMidiLooper:
                     t, ch, n, v, is_on = ev[:5]
                     prg = ev[5] if len(ev) > 5 else self.track_prog[trk]
                     if t < trk_dur:
-                        clean_events.append((t, ch, n, v, is_on, prg))
+                        clean_events.append([t, ch, n, v, is_on, prg])
                     elif t <= (trk_dur + step_tol) and is_on:
-                        clean_events.append((0.0, ch, n, v, is_on, prg))
-                clean_events.sort(key=lambda x: x[0])
+                        clean_events.append([0.0, ch, n, v, is_on, prg])
+
+                clean_events.sort(key=lambda x: (x[0], 0 if x[4] else 1))
+
+                min_gate = 0.040  # 40ms
+                active_ons = {}
+                for ev in clean_events:
+                    t, ch, n, v, is_on, prg = ev
+                    key = (ch, n)
+                    if is_on:
+                        active_ons[key] = t
+                    else:
+                        if key in active_ons:
+                            on_t = active_ons.pop(key)
+                            if (t - on_t) < min_gate:
+                                ev[0] = min(trk_dur - 0.005, on_t + min_gate)
+
+                clean_events = [tuple(e) for e in clean_events]
+                clean_events.sort(key=lambda x: (x[0], 0 if x[4] else 1))
                 self.tracks[trk] = clean_events
                 self.state = "PLAYING"
 
@@ -757,9 +793,6 @@ class LiveMidiLooper:
 
         elif self.state == "RECORDING":
             raw_offset = max(0.0, now - self.rec_start_time)
-            # Cuantización a rejilla musical de semicorcheas (1/16th)
-            step_grid = 60.0 / (self.bpm * 4.0)
-            quantized_offset = round(raw_offset / step_grid) * step_grid
 
             # Auto-cierre automático de grabación si se alcanzan los compases predeterminados (ej: 4 compases = 16 beats)
             beat_dur = 60.0 / self.bpm
@@ -770,17 +803,15 @@ class LiveMidiLooper:
                 return
 
             with self.lock:
-                self.tracks[0].append((quantized_offset, channel, note, velocity, is_note_on, trk_prog))
+                self.tracks[0].append((raw_offset, channel, note, velocity, is_note_on, trk_prog))
 
         elif self.state == "OVERDUBBING":
             raw_trk_offset = max(0.0, now - self.track_rec_start)
             scale = float(self.bpm) / self.base_bpm if self.base_bpm > 0 else 1.0
             base_offset = raw_trk_offset * scale
-            step_grid = 60.0 / (self.bpm * 4.0)
-            quantized_offset = round(base_offset / step_grid) * step_grid
             with self.lock:
                 trk = self.current_track
-                self.tracks[trk].append((quantized_offset, channel, note, velocity, is_note_on, trk_prog))
+                self.tracks[trk].append((base_offset, channel, note, velocity, is_note_on, trk_prog))
 
     def _run_armed_metronome(self):
         beat_dur = 60.0 / self.bpm
@@ -1262,6 +1293,7 @@ class AdvancedAkaiController:
         self.knob3_last_raw_val: Optional[int] = None
         self.knob3_base_bpm: int = 90
         self.knob3_base_raw: Optional[int] = None
+        self.recent_released_notes: Dict[int, float] = {}  # Anti-arpeggiator grace window for modifiers
         self.looper = LiveMidiLooper(fluid, controller=self)
         # Enable FluidSynth effects engines & set responsive velocity curve
         fluid.send("reverb on\nchorus on\n")
@@ -1650,9 +1682,9 @@ class AdvancedAkaiController:
             self.looper.register_key_note(note)
 
             # Grabar notas de teclado en el Looper (incluso si está en ARMED para disparar la grabación):
-            # IMPORTANTE: Las teclas modificadoras (D = 50, D# = 51) en octava neutral
+            # IMPORTANTE: Las teclas modificadoras (C, C#, D, D# en cualquier octava activa)
             # NUNCA deben grabarse en el loop ni disparar la grabación durante modo ARMED.
-            is_modifier_key = (is_neutral_octave and note in [50, 51])
+            is_modifier_key = (note in [48, 49, 50, 51]) or (base_c is not None and note in [base_c, base_c + 1, base_c + 2, base_c + 3])
             if not is_modifier_key and self.looper.state in ["ARMED", "RECORDING", "OVERDUBBING"]:
                 rec_vel = 127 if self.keys_full_level else velocity
                 self.looper.record_event(0, note, rec_vel, True)
@@ -1667,20 +1699,29 @@ class AdvancedAkaiController:
 
             pad_num = (note - 36) % 8 if note < 44 else (note - 44) % 8
 
-            # Modificadores de teclado para controlar ritmos con los pads:
-            # Funcionan ÚNICAMENTE en la octava NEUTRAL (base_c == 48):
-            # C1  (48) -> SET DE INSTRUMENTOS (Pads 1..8)
-            # D1  (50) -> LIVE LOOPER (8 pads dedicados)
-            # D#1 (51) -> 7 RITMOS PREGRABADOS + STOP
-            base_c = self.lowest_base_c
-            is_neutral_octave = (base_c == 48)
-            if self.held_keyboard_notes and is_neutral_octave and not self.mute_function_sounds:
-                is_c_held = 48 in self.held_keyboard_notes
-                is_cs_held = 49 in self.held_keyboard_notes
-                is_d_held = 50 in self.held_keyboard_notes
-                is_ds_held = 51 in self.held_keyboard_notes
+            # Modificadores de teclado para controlar ritmos y sonidos con los pads:
+            # Soportan cualquier transposición por OCT-/OCT+, arpegiador activo y Full Level.
+            # C1  (48 o base_c + 0) -> SET DE INSTRUMENTOS (Pads 1..8)
+            # C#1 (49 o base_c + 1) -> 16 DRUM KITS (Bank A / Bank B)
+            # D1  (50 o base_c + 2) -> LIVE LOOPER (8 pads dedicados)
+            # D#1 (51 o base_c + 3) -> 16 RITMOS PREGRABADOS + STOP
+            base_c = self.lowest_base_c if self.lowest_base_c is not None else 48
+            now = time.time()
+            # Conjunto de notas activas considerando ventana de gracia (0.35s) anti-corte por arpegiador:
+            active_keys = set(self.held_keyboard_notes.keys())
+            for n_rel, t_rel in list(self.recent_released_notes.items()):
+                if (now - t_rel) < 0.35:
+                    active_keys.add(n_rel)
+                else:
+                    self.recent_released_notes.pop(n_rel, None)
 
-                # MODIFICADOR [K] C2 (48) + Pads 1..8: Selecciona 8 Melodic Sets (200 sonidos)
+            is_c_held = (48 in active_keys) or (base_c in active_keys)
+            is_cs_held = (49 in active_keys) or ((base_c + 1) in active_keys)
+            is_d_held = (50 in active_keys) or ((base_c + 2) in active_keys)
+            is_ds_held = (51 in active_keys) or ((base_c + 3) in active_keys)
+
+            if active_keys:
+                # MODIFICADOR [K] C + Pads 1..8: Selecciona 8 Melodic Sets (200 sonidos)
                 if is_c_held:
                     fluid.send("cc 9 7 0\n" + f"noteoff 9 {note}")
                     self.active_library_idx = pad_num % len(LIBRARY_ORDER)
@@ -1690,10 +1731,11 @@ class AdvancedAkaiController:
                     fluid.send(f"prog 0 {first_prog}")
                     print(f"\n[SET MELÓDICO SELECCIONADO] Pad {pad_num + 1} -> {LIBRARY_NAMES[self.active_library_idx]} (1er Sonido: {first_name})", flush=True)
                     play_preview(chan=0, note=72, vel=110, duration=0.35)
-                    threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {self.current_drum_volume}")).start()
+                    vol = max(10, self.current_drum_volume)
+                    threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {vol}")).start()
                     return
 
-                # MODIFICADOR [D] C#2 (49) + Pads 1..8: Selecciona 16 Drum Sets (Bank A: 1..8 | Bank B: 9..16)
+                # MODIFICADOR [D] C# + Pads 1..8: Selecciona 16 Drum Sets (Bank A: 1..8 | Bank B: 9..16)
                 if is_cs_held:
                     fluid.send("cc 9 7 0\n" + f"noteoff 9 {note}")
                     base_idx = 0 if self.pad_bank == "A" else 8
@@ -1704,32 +1746,35 @@ class AdvancedAkaiController:
                         fluid.send(f"prog 9 {kit_num}")
                         print(f"\n[DRUM SET SELECCIONADO] Pad {pad_num + 1} (Bank {self.pad_bank}) -> Kit {kit_idx + 1}: {name} (Kit {kit_num})", flush=True)
                         play_preview(chan=9, note=36, vel=120, duration=0.35)
-                    threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {self.current_drum_volume}")).start()
+                    vol = max(10, self.current_drum_volume)
+                    threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {vol}")).start()
                     return
 
+                # MODIFICADOR [L] D + Pads 1..8: Live Looper
                 if is_d_held:
                     # Mute instantáneo del canal 9 para suprimir cualquier fuga del golpe de percusión
                     fluid.send("cc 9 7 0")
-                    # Silenciar notas colgadas pero NO eliminar 50 del diccionario para no perder el estado sostenido
-                    for h in [50]:
+                    for h in [50, base_c + 2]:
                         if h in self.held_keyboard_notes:
                             fluid.send(f"noteoff 0 {h}")
                             self.looper.remove_recent_note(0, h, window=1.0)
                     fluid.send(f"noteoff 9 {note}")
                     self.trigger_looper_pad_press(pad_num)
-                    # Restaurar volumen normal de percusión de fondo tras silenciar el golpe
-                    threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {self.current_drum_volume}")).start()
+                    vol = max(10, self.current_drum_volume)
+                    threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {vol}")).start()
                     return
 
+                # MODIFICADOR [P] D# + Pads 1..8: 16 Presets de ritmo
                 if is_ds_held:
                     fluid.send("cc 9 7 0")
-                    for h in [51]:
+                    for h in [51, base_c + 3]:
                         if h in self.held_keyboard_notes:
                             fluid.send(f"noteoff 0 {h}")
                             self.looper.remove_recent_note(0, h, window=1.0)
                     fluid.send(f"noteoff 9 {note}")
                     self.trigger_preset_pad(pad_num)
-                    threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {self.current_drum_volume}")).start()
+                    vol = max(10, self.current_drum_volume)
+                    threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {vol}")).start()
                     return
 
             # Si no hay modificador (tocar batería libremente con los pads):
@@ -1815,10 +1860,10 @@ class AdvancedAkaiController:
                 threading.Thread(target=_pad_noteoff, args=[target_note], daemon=True).start()
 
     def handle_note_off(self, note: int, channel: int):
-        base_c = self.lowest_base_c
-        is_neutral_octave = (base_c == 48)
+        base_c = self.lowest_base_c if self.lowest_base_c is not None else 48
         if channel == 0:
             self.held_keyboard_notes.pop(note, None)
+            self.recent_released_notes[note] = time.time()
             self.cancel_shutdown_timer()
             self.cancel_full_level_timer()
             if not self.sustain_active:
@@ -1826,16 +1871,14 @@ class AdvancedAkaiController:
                 if timer:
                     timer.cancel()
             # Grabar liberación de tecla para mantener duración exacta de notas
-            is_modifier_key = (is_neutral_octave and note in [50, 51])
+            is_modifier_key = (note in [48, 49, 50, 51]) or (note in [base_c, base_c + 1, base_c + 2, base_c + 3])
             if not is_modifier_key and self.looper.state in ["RECORDING", "OVERDUBBING"]:
                 self.looper.record_event(0, note, 0, False)
         elif channel == 9:
             pad_num = (note - 36) % 8 if note < 44 else (note - 44) % 8
-            # Si se suelta un pad mientras D1 (50) está sostenido en octava neutral (o estaba activo el looper):
-            d_held = (is_neutral_octave and 50 in self.held_keyboard_notes)
-            if self.held_keyboard_notes and d_held:
-                self.trigger_looper_pad_release(pad_num)
-            elif pad_num in self.looper_pad_press_times or pad_num in self.looper_pad_hold_timers:
+            # Si se suelta un pad mientras D (50 o base_c + 2) está activo:
+            d_held = (50 in self.held_keyboard_notes) or ((base_c + 2) in self.held_keyboard_notes)
+            if d_held or pad_num in self.looper_pad_press_times or pad_num in self.looper_pad_hold_timers:
                 self.trigger_looper_pad_release(pad_num)
 
             fluid.send(f"noteoff 9 {note}")

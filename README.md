@@ -106,9 +106,23 @@ Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales 
 * **`[F]` $C2$ + `[F]` $B3$ (Sostener 2s)**: Alterna el modo **FULL VOLUME / FULL LEVEL** del teclado (100% volumen fijo vs curva dinámica táctil).
 * **`[—]` $C2$ + `[—]` $C4$ (Sostener 3s)**: **Apagado Seguro** de la Raspberry Pi con chime descendente.
 * **`PROG SELECT` / `PROG CHANGE`**: Conmuta el silenciado global de chimes auxiliares.
-* **Switchable Magic Pad (`magic_pad.py`)**:
-  - *Toque de 3 dedos*: Cicla entre **Theremin Glide**, **Kaoss Pad FX** (X=Cutoff, Y=Reverb) y **Vector Morpher** (X=Pan, Y=Chorus).
-  - *Barrido horizontal de 4 dedos*: Izquierda a derecha avanza instrumento; derecha a izquierda retrocede instrumento.
+* **Magic Pad Multi-Touch Controller (`magic_pad.py` en Apple Magic Trackpad 2)**:
+  - **4 Modos Instrumentales Autónomos**:
+    1. `LINNSTRUMENT`: Matriz MPE isomorfa 4x8 en cuartas (+5 semitonos por fila) con robo de voces inteligente (máx 4 simultáneas) y modulación de filtro Y (CC 74).
+       - *16 Presets*: Warm Pad, Polysynth, Square Lead, Saw Lead, Rhodes MK1, DX7 FM, Vibraphone, Marimba, Spanish Nylon Guitar, Jazz Archtop Guitar, Solo Violin, Solo Cello, Orchestral Strings, Synth Voice (Ooohs/Aaahs), Church Pipe Organ, Hammond B3 Drawbar.
+    2. `THEREMIN`: Melodía monofónica continua sin trastes con pitch bend de 4 octavas ($\pm 24$ semitonos) en X y cutoff / brillo en Y.
+       - *8 Presets*: Sine Pure Lead, Whistle / Pan Flute, Shakuhachi Bamboo Flute, Expressive Solo Cello, Solo Violin Vibrato, Sawtooth Lead Solo, Space Atmosphere Synth, Calliope Synth.
+    3. `KAOSS_PAD`: Ribbon synth lead continuo de solos rápidos (2 octavas en notas 48 a 72) con cutoff (CC 74) y vibrato (CC 1) en Y.
+       - *8 Presets*: Sawtooth Kaossilator, Square 8-Bit Lead, Distorted Bass+Lead, Charang Rock Synth, Overdriven Guitar Solo, Distortion Guitar Lead, Calliope Arcade, Polysynth Brite.
+    4. `VECTOR_MORPHER`: Drones armónicos envolventes de quintas abiertas (2 voces) con raíz en X y paneo estéreo, chorus (CC 93) y swell de expresión en Y.
+       - *8 Presets*: Warm Analog Pad, Polysynth Strings, Space Choir / Voice Pad, Bowed Glass Atmosphere, Halo Celestial Pad, Sweep Cosmic Pad, String Ensemble Orchestral, Synth Voice Aah Pad.
+  - **Navegación 100% por Clics Físicos**:
+    - *Doble Clic Izq / Der*: Conmutación estrictamente acotada entre Modos 1 a 4 con sonido de marimba y tope acústico percusivo de pared (*Wall Bump*) en los límites.
+    - *Clic Simple Esquina Izq / Der*: Preset instrumental anterior / siguiente con previsualización tímbrica de 100ms.
+    - *Pulsación Larga Izq / Der (>0.55s)*: Ajuste progresivo de volumen con clicks dinámicos atenuados (Izq = Baja volumen / Der = Sube volumen).
+    - *Clic Dual (ambas esquinas)*: Pánico instantáneo silenciando todas las notas del pad.
+  - **Zonas Muertas Calibradas**: Cuadros exactos de $1\text{ cm}^2$ en esquinas inferiores ($Y > 0.90$, $X < 0.09$ / $X > 0.91$), manteniendo el 98% de la superficie sensible y tocable.
+  - **Auto-Reconexión Bluetooth & Chimes**: Conexión automática por centinela systemd (`bt-trackpad.service`). Arpegio ascendente suave (C5 $\rightarrow$ E5 $\rightarrow$ G5) al conectar y descendente (G5 $\rightarrow$ E5 $\rightarrow$ C5) al desconectar.
 * **Joystick 4 direcciones**:
   - *Horizontal*: Pan estéreo (CC 10).
   - *Vertical*: Modulación (CC 1) y Cutoff (CC 74).

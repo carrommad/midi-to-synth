@@ -71,24 +71,29 @@ This test suite covers every hardware function, shortcut, instrument library, lo
 
 ---
 
-## 4. Magic Pad Gestures (Apple Magic Trackpad)
-- **Action 1 (Theremin Glide Mode):**
-  - Tap with **3 fingers** until log outputs `[MAGIC PAD ✨] MODO CAMBIADO -> THEREMIN`.
-  - Place a finger down: sound triggers automatically.
-  - Slide horizontally: smooth microtonal pitch-bend across 4 octaves ($\pm 24$ semitones).
-  - Slide vertically: expression/volume swell (CC 11).
-  - Lift finger: sound stops cleanly.
-- **Action 2 (Kaoss Pad FX Mode):**
-  - Tap with **3 fingers** to switch to `KAOSS_PAD`.
-  - Play keyboard notes with right hand while sliding left hand on trackpad:
-    - X-axis sweeps Low-Pass Filter Cutoff (CC 74 from dark muffled to bright open).
-    - Y-axis swells Reverb & Chorus depth (CC 91 / CC 93 from dry to cathedral ambience).
-- **Action 3 (Vector Morpher Mode):**
-  - Tap with **3 fingers** to switch to `VECTOR_MORPHER`.
-  - Move finger between the 4 corners: dynamically crossfades stereo panning and spatial presence.
-- **Action 4 (4-Finger Swipes):**
-  - Swipe with **4 fingers** left to right: steps to next instrument preset with soft preview chime.
-  - Swipe with **4 fingers** right to left: steps to previous instrument preset.
+## 4. Magic Pad Gestures & Controls (Apple Magic Trackpad 2)
+- **Action 1 (LinnStrument MPE Grid Mode):**
+  - Tocar notas en la superficie de 4x8 casillas isomorfas en cuartas.
+  - Comprobar polifonía de hasta 4 notas simultáneas sin notas colgadas ni saturación de colas.
+  - Modulación vertical: apertura progresiva de Cutoff (CC 74).
+- **Action 2 (Theremin Glide Mode):**
+  - Hacer **doble clic en la esquina derecha** para cambiar a Modo 2 (`THEREMIN`, marimba E5).
+  - Colocar el dedo: suena melodía monofónica continua sin trastes a lo largo de 4 octavas.
+  - Levantar el dedo: corte limpio sin colas residuales.
+- **Action 3 (Kaoss Pad Lead Ribbon Mode):**
+  - Hacer **doble clic derecho** para cambiar a Modo 3 (`KAOSS_PAD`, marimba G5).
+  - Tocar solos rápidos con ribbon melódico horizontal de 2 octavas (notas 48 a 72) y modulación de filtro y vibrato en Y.
+- **Action 4 (Vector Morpher Drone Mode):**
+  - Hacer **doble clic derecho** para cambiar a Modo 4 (`VECTOR_MORPHER`, marimba B5).
+  - Verificar sonido drone de quintas abiertas de 2 voces sin choque armónico.
+  - Hacer **doble clic derecho adicional**: escuchar el golpe sordo de pared (*Wall Bump*) impidiendo ciclar fuera de rango.
+- **Action 5 (Clics de Control y Volumen):**
+  - Clic simple en esquina inferior izquierda / derecha: cambia preset instrumental emitiendo nota de previsualización (100ms) del propio instrumento.
+  - Pulsación sostenida (>0.55s) en esquina derecha: sube volumen de forma fluida (+16 cada 110ms); en esquina izquierda: baja volumen.
+  - Clic dual simultáneo (L+R): pánico instantáneo.
+- **Action 6 (Auto-Reconexión & Chimes Bluetooth):**
+  - Apagar el interruptor físico del trackpad: verificar arpegio descendente de marimba (G5 $\rightarrow$ E5 $\rightarrow$ C5).
+  - Encender el interruptor: verificar reconexión automática en <3s y arpegio ascendente de marimba (C5 $\rightarrow$ E5 $\rightarrow$ G5).
 
 ---
 
