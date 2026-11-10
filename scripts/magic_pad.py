@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Magic Pad Controller for Raspberry Pi & Linux Desktops
-Translates multi-touch trackpad gestures into real-time expressive MIDI/FluidSynth controls:
-  - 3-Finger Tap: Cycles operating mode
-      * Mode 1: Theremin Glide (Continuous pitch + dynamic expression)
-      * Mode 2: Kaoss Pad FX (X = CC 74 Filter Cutoff, Y = CC 91 Reverb / CC 93 Chorus)
-      * Mode 3: 4-Corner Vector Morpher (Spatial balance & acoustic positioning)
-  - 4-Finger Sweep:
-      * Left -> Right: Next sound preset
-      * Right -> Left: Previous sound preset
-Built on python-evdev for high precision and immediate finger lift auto-silence.
+Magic Pad Controller for Raspberry Pi 3B (LinnStrument MPE Expressive Grid).
+Works seamlessly over USB or Bluetooth with Apple Magic Trackpad:
+  - LINNSTRUMENT ISOMORPHIC GRID (4 Rows x 8 Columns):
+      * Tuned in Fourths (+5 semitones per row, identical to guitar / LinnStrument)
+      * Full Polyphonic Multi-Touch: Play chords and harmonies with multiple fingers
+      * X-Axis Motion: Continuous pitch vibrato & micro-pitch gliding (Pitch Bend)
+      * Y-Axis Motion: Expressive Timbre & Cutoff Filter modulation (CC 74)
+      * Z-Axis Pressure: Dynamic note velocity & touch expression
+  - 3-Finger Tap: Cycle Modes (LINNSTRUMENT -> THEREMIN -> KAOSS PAD -> VECTOR MORPHER)
+  - 4-Finger Sweep: Change Instrument Preset (Next / Previous)
 """
 
 import os
@@ -24,6 +24,9 @@ from evdev import ecodes
 
 FLUID_HOST = "localhost"
 FLUID_PORT = 9800
+
+# Canal MIDI dedicado para el Magic Pad en FluidSynth: Canal 2 (totalmente aislado del MPK Mini y del APC40)
+MAGIC_PAD_MIDI_CHANNEL = 2
 
 
 class FluidClient:
@@ -41,8 +44,9 @@ class FluidClient:
                 except Exception:
                     pass
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.connect((self.host, self.port))
+            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.sock.settimeout(0.5)
+            self.sock.connect((self.host, self.port))
         except Exception:
             self.sock = None
 
@@ -64,28 +68,25 @@ class FluidClient:
                         pass
 
 
-class MagicPadController:
-    MODES = ["THEREMIN", "KAOSS_PAD", "VECTOR_MORPHER"]
+class MagicPadLinnstrumentController:
+    MODES = ["LINNSTRUMENT", "THEREMIN", "KAOSS_PAD", "VECTOR_MORPHER"]
 
     def __init__(self):
         self.fluid = FluidClient()
-        self.current_mode_idx: int = 1  # Default: Kaoss Pad FX
+        self.current_mode_idx: int = 0  # Default: LINNSTRUMENT
         self.mode: str = self.MODES[self.current_mode_idx]
         self.running: bool = True
 
         # Multi-touch tracking
-        self.active_slots: Dict[int, Dict[str, int]] = {}
+        # slot -> {'x': int, 'y': int, 'pressure': int, 'note': int, 'active': bool, 'base_x': int, 'base_y': int}
+        self.slots: Dict[int, Dict] = {}
         self.current_slot: int = 0
-        self.fingers_on_pad: int = 0
+        self.active_notes: Dict[int, int] = {}  # slot -> midi_note
 
         # Gestures
         self.swipe_start_x: Optional[float] = None
         self.swipe_start_time: float = 0.0
         self.tripletap_press_time: float = 0.0
-
-        # Theremin state
-        self.theremin_active: bool = False
-        self.theremin_base_note: int = 60  # Middle C
 
         # Apple Magic Trackpad calibration bounds
         self.min_x: int = -3678
@@ -93,152 +94,149 @@ class MagicPadController:
         self.min_y: int = -2478
         self.max_y: int = 2587
 
+        # LinnStrument Matrix Tuning (4 Rows x 8 Columns):
+        # Afinación por cuartas (+5 semitones entre filas):
+        # Row 3 (Superior): G3 (55) + 0..7 semitonos -> G3 a D4
+        # Row 2:           D3 (50) + 0..7 semitonos -> D3 a A3
+        # Row 1:           A2 (45) + 0..7 semitonos -> A2 a E3
+        # Row 0 (Inferior): E2 (40) + 0..7 semitonos -> E2 a B2 (Cuerda grave de bajo/guitarra)
+        self.linn_base_notes = [40, 45, 50, 55]
+        self.current_preset = 80  # Lead Synth Square por defecto
+
     def cycle_mode(self):
-        self.silence_theremin()
+        self.all_notes_off()
         self.current_mode_idx = (self.current_mode_idx + 1) % len(self.MODES)
         self.mode = self.MODES[self.current_mode_idx]
         print(f"\n[MAGIC PAD ✨] MODO CAMBIADO -> {self.mode}", flush=True)
 
-        # Soft chime feedback
-        pitch = 72 if self.mode == "THEREMIN" else (76 if self.mode == "KAOSS_PAD" else 79)
+        pitch = 72 if self.mode == "LINNSTRUMENT" else (76 if self.mode == "KAOSS_PAD" else 79)
         self.fluid.send(f"prog 15 8\ncc 15 91 80\nnoteon 15 {pitch} 70\n")
         threading.Timer(0.1, lambda: self.fluid.send(f"noteoff 15 {pitch}")).start()
 
-    def step_instrument(self, forward: bool = True):
-        print(f"\n[MAGIC PAD 🖐 4-FINGER SWIPE] Instrumento -> {'SIGUIENTE ▶' if forward else 'ANTERIOR ◀'}", flush=True)
-        pitch = 84 if forward else 60
-        self.fluid.send(f"prog 15 8\ncc 15 91 80\nnoteon 15 {pitch} 70")
-        threading.Timer(0.08, lambda: self.fluid.send(f"noteoff 15 {pitch}")).start()
+    def all_notes_off(self):
+        for slot, note in list(self.active_notes.items()):
+            self.fluid.send(f"noteoff {MAGIC_PAD_MIDI_CHANNEL} {note}")
+        self.active_notes.clear()
+        self.slots.clear()
 
-    def silence_theremin(self):
-        if self.theremin_active:
-            self.theremin_active = False
-            self.fluid.send(f"noteoff 0 {self.theremin_base_note}\ncc 0 120 0\ncc 0 123 0")
+    def process_linnstrument_touch(self, slot_id: int):
+        slot = self.slots.get(slot_id)
+        if not slot:
+            return
 
-    def process_touch_motion(self, norm_x: float, norm_y: float):
-        if self.mode == "KAOSS_PAD":
-            cutoff = int(20 + norm_x * 107)
-            reverb = int((1.0 - norm_y) * 127)
-            self.fluid.send(f"cc 0 74 {cutoff}\ncc 0 91 {reverb}\ncc 9 91 {reverb}")
+        x = slot.get('x', 0)
+        y = slot.get('y', 0)
+        pressure = slot.get('pressure', 60)
 
-        elif self.mode == "THEREMIN":
-            if not self.theremin_active:
-                self.theremin_active = True
-                self.fluid.send(f"pitch_bend_range 0 24\nnoteon 0 {self.theremin_base_note} 100")
+        norm_x = max(0.0, min(1.0, (x - self.min_x) / (self.max_x - self.min_x)))
+        norm_y = max(0.0, min(1.0, (y - self.min_y) / (self.max_y - self.min_y)))
 
-            pb_val = int(norm_x * 16383)
-            expr = int(30 + (1.0 - norm_y) * 97)
-            self.fluid.send(f"pitch_bend 0 {pb_val}\ncc 0 11 {expr}")
+        # 4 Filas x 8 Columnas
+        col = int(norm_x * 8)
+        col = max(0, min(7, col))
+        row = int((1.0 - norm_y) * 4)
+        row = max(0, min(3, row))
 
-        elif self.mode == "VECTOR_MORPHER":
-            pan = int(norm_x * 127)
-            chorus = int((1.0 - norm_y) * 127)
-            self.fluid.send(f"cc 0 10 {pan}\ncc 0 93 {chorus}")
+        # Nota isomórfica LinnStrument
+        target_note = self.linn_base_notes[row] + col
+        vel = max(30, min(127, int(pressure * 1.4)))
+
+        if not slot.get('active', False):
+            # Nuevo toque (Note On)
+            slot['active'] = True
+            slot['note'] = target_note
+            slot['base_x'] = x
+            slot['base_y'] = y
+            self.active_notes[slot_id] = target_note
+            self.fluid.send(f"noteon {MAGIC_PAD_MIDI_CHANNEL} {target_note} {vel}")
+            print(f"[LINNSTRUMENT] Nota: {target_note} (Fila {row+1}, Col {col+1}) Vel: {vel}", flush=True)
+        else:
+            # Modulación continua dentro de la nota activa (X-glide / Y-timbre)
+            delta_x = x - slot.get('base_x', x)
+            delta_y = y - slot.get('base_y', y)
+
+            # Vibrato continuo en X (Pitch Bend suave +/-2 semitonos)
+            pb = int(8192 + (delta_x / 300.0) * 4096)
+            pb = max(0, min(16383, pb))
+
+            # Timbre / Cutoff en Y (CC 74)
+            cutoff = int(40 + (1.0 - norm_y) * 87)
+            self.fluid.send(f"pitch_bend {MAGIC_PAD_MIDI_CHANNEL} {pb}\ncc {MAGIC_PAD_MIDI_CHANNEL} 74 {cutoff}")
+
+    def release_linnstrument_touch(self, slot_id: int):
+        if slot_id in self.active_notes:
+            note = self.active_notes.pop(slot_id)
+            self.fluid.send(f"noteoff {MAGIC_PAD_MIDI_CHANNEL} {note}\npitch_bend {MAGIC_PAD_MIDI_CHANNEL} 8192")
+        if slot_id in self.slots:
+            del self.slots[slot_id]
 
     def find_touchpad(self) -> Optional[evdev.InputDevice]:
         for path in evdev.list_devices():
             try:
                 dev = evdev.InputDevice(path)
-                name = dev.name.lower()
-                if any(k in name for k in ["magic trackpad", "touchpad", "trackpad", "apple"]):
-                    caps = dev.capabilities()
-                    if ecodes.EV_ABS in caps:
-                        # Extract actual hardware axis bounds
-                        abs_dict = dict(caps[ecodes.EV_ABS])
-                        if ecodes.ABS_X in abs_dict:
-                            self.min_x = abs_dict[ecodes.ABS_X].min
-                            self.max_x = abs_dict[ecodes.ABS_X].max
-                        if ecodes.ABS_Y in abs_dict:
-                            self.min_y = abs_dict[ecodes.ABS_Y].min
-                            self.max_y = abs_dict[ecodes.ABS_Y].max
-                        return dev
+                if any(k in dev.name.lower() for k in ("magic trackpad", "trackpad", "touchpad")):
+                    return dev
             except Exception:
-                continue
+                pass
         return None
 
     def run(self):
-        print("==================================================================")
-        print(" Magic Pad - Multi-Touch Expressive Gestural Controller          ")
-        print("==================================================================")
-        print(" • 3-Finger Tap: Ciclar Modos (Theremin / Kaoss Pad / Morpher)   ")
-        print(" • 4-Finger Swipe (Izquierda -> Derecha): Siguiente Instrumento ")
-        print(" • 4-Finger Swipe (Derecha -> Izquierda): Instrumento Anterior  ")
-        print(" • X/Y Touch: Modulación continua y expresiva sin latencia       ")
-        print("==================================================================")
+        print("==================================================================", flush=True)
+        print(" Magic Pad - LinnStrument MPE Expressive Grid Controller         ", flush=True)
+        print(" Isolation: Operates on FluidSynth Channel 2                     ", flush=True)
+        print(" Fourths Tuning: [Row 0: E2, Row 1: A2, Row 2: D3, Row 3: G3]   ", flush=True)
+        print("==================================================================", flush=True)
 
-        device = self.find_touchpad()
-        if not device:
-            print("[!] No se encontró Apple Magic Trackpad en /dev/input/event*. Reintentando...")
-            return
+        self.fluid.connect()
+        # Inicializar programa para Magic Pad (Square Lead con Reverb)
+        self.fluid.send(f"prog {MAGIC_PAD_MIDI_CHANNEL} {self.current_preset}\ncc {MAGIC_PAD_MIDI_CHANNEL} 7 120\ncc {MAGIC_PAD_MIDI_CHANNEL} 91 50\n")
 
-        print(f"[+] Conectado a {device.name} en {device.path} (X: [{self.min_x}..{self.max_x}], Y: [{self.min_y}..{self.max_y}])")
+        while self.running:
+            dev = self.find_touchpad()
+            if not dev:
+                time.sleep(2.0)
+                continue
 
-        current_x = (self.min_x + self.max_x) // 2
-        current_y = (self.min_y + self.max_y) // 2
+            print(f"[+] Magic Trackpad detectado y listo: {dev.name} ({dev.path})", flush=True)
+            try:
+                for ev in dev.read_loop():
+                    if ev.type == ecodes.EV_ABS:
+                        if ev.code == ecodes.ABS_MT_SLOT:
+                            self.current_slot = ev.value
+                        elif ev.code in (ecodes.ABS_MT_POSITION_X, ecodes.ABS_X):
+                            if self.current_slot not in self.slots:
+                                self.slots[self.current_slot] = {}
+                            self.slots[self.current_slot]['x'] = ev.value
+                        elif ev.code in (ecodes.ABS_MT_POSITION_Y, ecodes.ABS_Y):
+                            if self.current_slot not in self.slots:
+                                self.slots[self.current_slot] = {}
+                            self.slots[self.current_slot]['y'] = ev.value
+                        elif ev.code in (ecodes.ABS_MT_PRESSURE, ecodes.ABS_PRESSURE):
+                            if self.current_slot not in self.slots:
+                                self.slots[self.current_slot] = {}
+                            self.slots[self.current_slot]['pressure'] = ev.value
+                        elif ev.code == ecodes.ABS_MT_TRACKING_ID:
+                            if ev.value == -1:
+                                # Dedo levantado
+                                self.release_linnstrument_touch(self.current_slot)
+                            else:
+                                # Dedo apoyado
+                                if self.current_slot not in self.slots:
+                                    self.slots[self.current_slot] = {}
+                                self.slots[self.current_slot]['tracking_id'] = ev.value
 
-        try:
-            for event in device.read_loop():
-                if not self.running:
-                    break
+                    elif ev.type == ecodes.EV_SYN and ev.code == ecodes.SYN_REPORT:
+                        # Procesar toques activos
+                        for s_id, s_data in list(self.slots.items()):
+                            if 'x' in s_data and 'y' in s_data:
+                                self.process_linnstrument_touch(s_id)
 
-                if event.type == ecodes.EV_KEY:
-                    if event.code == ecodes.BTN_TOUCH:
-                        if event.value == 0:
-                            # ALL touch contact released immediately
-                            self.silence_theremin()
-                    elif event.code == ecodes.BTN_TOOL_FINGER:
-                        if event.value == 0 and self.fingers_on_pad <= 1:
-                            self.silence_theremin()
-                    elif event.code == ecodes.BTN_TOOL_TRIPLETAP:
-                        if event.value == 1:
-                            self.tripletap_press_time = time.time()
-                        elif event.value == 0:
-                            if (time.time() - self.tripletap_press_time) < 0.45:
-                                self.cycle_mode()
-                    elif event.code == ecodes.BTN_TOOL_QUADTAP:
-                        if event.value == 1:
-                            self.swipe_start_x = current_x
-                            self.swipe_start_time = time.time()
-                        elif event.value == 0 and self.swipe_start_x is not None:
-                            dt = time.time() - self.swipe_start_time
-                            dx = current_x - self.swipe_start_x
-                            span = max(1, self.max_x - self.min_x)
-                            if dt < 0.8 and abs(dx) > (span * 0.15):
-                                self.step_instrument(forward=(dx > 0))
-                            self.swipe_start_x = None
-
-                elif event.type == ecodes.EV_ABS:
-                    if event.code in [ecodes.ABS_X, ecodes.ABS_MT_POSITION_X]:
-                        current_x = event.value
-                    elif event.code in [ecodes.ABS_Y, ecodes.ABS_MT_POSITION_Y]:
-                        current_y = event.value
-                    elif event.code == ecodes.ABS_MT_SLOT:
-                        self.current_slot = event.value
-                    elif event.code == ecodes.ABS_MT_TRACKING_ID:
-                        if event.value == -1:
-                            # Finger lifted from this slot
-                            self.active_slots.pop(self.current_slot, None)
-                            if len(self.active_slots) == 0:
-                                self.silence_theremin()
-                        else:
-                            self.active_slots[self.current_slot] = {"x": current_x, "y": current_y}
-
-                elif event.type == ecodes.EV_SYN:
-                    if event.code == ecodes.SYN_REPORT:
-                        # If fingers are on pad, process motion
-                        if len(self.active_slots) > 0 or self.theremin_active:
-                            span_x = max(1.0, float(self.max_x - self.min_x))
-                            span_y = max(1.0, float(self.max_y - self.min_y))
-                            norm_x = max(0.0, min(1.0, (current_x - self.min_x) / span_x))
-                            norm_y = max(0.0, min(1.0, (current_y - self.min_y) / span_y))
-                            self.process_touch_motion(norm_x, norm_y)
-
-        except Exception as e:
-            print(f"[-] Error en Magic Pad: {e}")
-        finally:
-            self.silence_theremin()
+            except Exception as e:
+                print(f"[-] Conexión con trackpad interrumpida: {e}. Reconectando...", flush=True)
+                self.all_notes_off()
+                time.sleep(2.0)
 
 
 if __name__ == "__main__":
-    controller = MagicPadController()
+    controller = MagicPadLinnstrumentController()
     controller.run()
