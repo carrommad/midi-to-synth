@@ -363,7 +363,9 @@ class LiveMidiLooper:
         self.cycle_start_time: float = 0.0
         self.finish_pending: bool = False
         self.stop_event = threading.Event()
+        self.preset_stop_event = threading.Event()
         self.play_thread: Optional[threading.Thread] = None
+        self.preset_thread: Optional[threading.Thread] = None
         self.metro_thread: Optional[threading.Thread] = None
         self.lock = threading.Lock()
         self.last_tap_times: list = []
@@ -597,8 +599,6 @@ class LiveMidiLooper:
         3. Cierre Inteligente / Auto-Cierre: Redondeo exacto a compases musicales (o auto-cierre a los 4 compases).
         4. Overdub: Asigna dinámicamente el menor slot libre disponible entre 1 y 7 (0-indexed).
         """
-        self.preset_idx = None
-
         if self.state in ["IDLE", "PAUSED"]:
             # ENTRAR EN MODO ARMED (8 pistas limpias)
             with self.lock:
@@ -1017,10 +1017,12 @@ class LiveMidiLooper:
     def play_preset(self, idx: int):
         if idx >= len(self.preset_patterns):
             return
-        if self.state == "PRESET" and self.preset_idx == idx:
-            self.stop_all()
+        # Si se vuelve a pulsar el mismo preset activo, se detiene únicamente el ritmo preset
+        if self.preset_idx == idx:
+            self.stop_preset()
             return
-        self.stop_all()
+
+        self.stop_preset()
         self.preset_idx = idx
 
         # Always honor the user's active/detected BPM if set, or fall back to preset default
@@ -1035,21 +1037,25 @@ class LiveMidiLooper:
             self.bpm = self.preset_patterns[idx]["bpm"]
             bpm_source = f"Preset Default ({self.bpm} BPM)"
 
-        self.state = "PRESET"
-        self.stop_event.clear()
-        self.play_thread = threading.Thread(target=self._run_preset_loop, daemon=True)
-        self.play_thread.start()
+        self.preset_stop_event.clear()
+        self.preset_thread = threading.Thread(target=self._run_preset_loop, daemon=True)
+        self.preset_thread.start()
         name = self.preset_patterns[idx]["name"]
-        print(f"\n[PRESET BEAT ▶] '{name}' a {self.bpm} BPM [{bpm_source}]", flush=True)
+        print(f"\n[PRESET BEAT ▶] '{name}' a {self.bpm} BPM [{bpm_source}] (Looper libre para grabar/reproducir encima)", flush=True)
+
+    def stop_preset(self):
+        self.preset_stop_event.set()
+        self.preset_idx = None
+        self.fluid.send("cc 9 123 0\ncc 9 120 0")
 
     def stop_all(self):
+        self.stop_preset()
         self.stop_internal()
-        if self.state == "PRESET":
-            self.state = "IDLE"
-            self.preset_idx = None
-        elif self.state in ["RECORDING", "OVERDUBBING", "PLAYING"]:
+        if self.state in ["RECORDING", "OVERDUBBING", "PLAYING"]:
             self.state = "PAUSED"
-        print("\n[LOOPER ⏹ STOP] Todo detenido.", flush=True)
+        elif self.state == "ARMED":
+            self.state = "IDLE"
+        print("\n[LOOPER & PRESET ⏹ STOP] Todo detenido.", flush=True)
 
     def stop_internal(self):
         self.stop_event.set()
@@ -1153,19 +1159,21 @@ class LiveMidiLooper:
             self.fluid.send(f"noteoff {ch} {n}")
 
     def _run_preset_loop(self):
-        pat = self.preset_patterns[self.preset_idx]["steps"]
         step_idx = 0
         next_step_time = time.perf_counter()
-        while not self.stop_event.is_set() and self.state == "PRESET":
+        while not self.preset_stop_event.is_set():
+            if self.preset_idx is None or self.preset_idx >= len(self.preset_patterns):
+                break
+            pat = self.preset_patterns[self.preset_idx]["steps"]
             step_dur = (60.0 / self.bpm) / 4.0
             notes = pat[step_idx]
             for note, vel in notes:
                 self.fluid.send(f"noteon 9 {note} {vel}")
-            step_idx = (step_idx + 1) % 16
+            step_idx = (step_idx + 1) % len(pat)
             next_step_time += step_dur
             delay = next_step_time - time.perf_counter()
             if delay > 0:
-                if self.stop_event.wait(delay):
+                if self.preset_stop_event.wait(delay):
                     break
             else:
                 next_step_time = time.perf_counter()
