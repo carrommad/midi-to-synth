@@ -233,8 +233,9 @@ class APC40FullSessionController:
     def init_apc_hardware(self):
         if not self.outport:
             return
-        # SysEx for APC40 mkII Ableton Alternate Mode 1 (0x41)
-        sysex = mido.Message("sysex", data=[0x47, 0x7F, 0x29, 0x60, 0x00, 0x04, 0x41, 0x08, 0x02, 0x01])
+        # SysEx for APC40 mkII Generic Mode (0x40):
+        # In Generic Mode, all 40 pads reliably send standard Notes 0 to 39 on Channel 0
+        sysex = mido.Message("sysex", data=[0x47, 0x7F, 0x29, 0x60, 0x00, 0x04, 0x40, 0x08, 0x02, 0x01])
         try:
             self.outport.send(sysex)
         except Exception:
@@ -268,11 +269,13 @@ class APC40FullSessionController:
             cfg = MODES_CONFIG[mode_idx]
             self.update_track_select_leds()
 
-            # Asegurar programa cargado en el canal correspondiente
+            # Asegurar programa cargado y parámetros limpios en el canal correspondiente
+            chan = cfg.get("chan", 9)
+            prog = cfg.get("prog", 0)
             if cfg["type"] == "melodic":
-                fluid.send(f"prog {cfg['chan']} {cfg['prog']}\ncc {cfg['chan']} 7 127\ncc {cfg['chan']} 10 64\n")
+                fluid.send(f"prog {chan} {prog}\ncc {chan} 7 127\ncc {chan} 11 127\ncc {chan} 10 64\ncc {chan} 74 127\ncc {chan} 71 64\ncc {chan} 73 0\ncc {chan} 72 40\n")
             elif cfg["type"] in ("drum", "world"):
-                fluid.send("prog 9 0\ncc 9 7 127\ncc 9 10 64\n")
+                fluid.send(f"prog 9 {self.current_kit_idx if cfg['type'] == 'drum' else 0}\ncc 9 7 127\ncc 9 11 127\ncc 9 10 64\ncc 9 74 127\ncc 9 71 64\ncc 9 73 0\ncc 9 72 40\n")
 
             labels = ["NONE", "8 BARS", "4 BARS", "2 BARS", "1 BAR", "1/2", "1/4", "1/8"]
             label = labels[mode_idx] if mode_idx < len(labels) else f"T{mode_idx+1}"
@@ -356,8 +359,17 @@ class APC40FullSessionController:
 
     def handle_pad_event(self, msg):
         col = msg.note % 8
-        fader_scale = self.col_volumes[col] / 127.0
-        effective_vel = max(1, min(127, int(msg.velocity * fader_scale)))
+        cfg = MODES_CONFIG[self.current_mode_idx]
+        mode_type = cfg["type"]
+
+        # En modo Drum, los faders de canal pueden atenuar columnas; en modos melódicos,
+        # cada pad responde con dinámica directa (msg.velocity) sin ser silenciado por faders caídos
+        if mode_type in ("drum", "world"):
+            fader_scale = self.col_volumes[col] / 127.0
+            effective_vel = max(20, min(127, int(msg.velocity * max(0.2, fader_scale))))
+        else:
+            effective_vel = max(30, min(127, msg.velocity))
+
         chan, target_note = self.compute_target_note_and_channel(msg.note)
 
         if msg.type == "note_on" and msg.velocity > 0:
