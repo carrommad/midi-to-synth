@@ -2,8 +2,7 @@
 """
 Akai APC40 MKII Full Drum Workstation & Multi-FX Performance Controller for Raspberry Pi 3.
 Direct note-to-drum mapping with instant FluidSynth sound routing (Channel 9).
-- Desconecta el enlace directo por defecto de ALSA (Canal 0 Yamaha Piano) para que
-  los pads suenen EXCLUSIVAMENTE a batería y percusión en el Canal 9.
+Prevents ANY connection of APC40 to FluidSynth ALSA Sequencer (avoiding piano passthrough).
 """
 
 import time
@@ -139,14 +138,11 @@ class APC40FullSessionController:
                 break
         return in_p, out_p
 
-    def disconnect_raw_alsa_passthrough(self):
-        # Desconectar el puerto hardware raw de ALSA hacia FluidSynth para evitar que
-        # las notas físicas del APC40 se envíen en paralelo al Canal 0 (Yamaha Grand Piano)
-        try:
-            subprocess.run("aconnect -d 'APC40 mkII':0 'FLUID Synth':0 2>/dev/null || true", shell=True)
-            print("[+] Enlace crudo ALSA de APC40 a FluidSynth (Canal 0 Piano) anulado correctamente.", flush=True)
-        except Exception:
-            pass
+    def ensure_no_piano_passthrough(self):
+        # Desconectar cualquier enlace de ALSA Sequencer desde APC40 o RtMidi hacia FluidSynth
+        subprocess.run("aconnect -d 'APC40 mkII':0 'FLUID Synth':0 2>/dev/null || true", shell=True)
+        # Desconectar cualquier salida creada por RtMidi hacia FluidSynth
+        subprocess.run("aconnect -l | grep 'RtMidi output' -B 1 | grep client | awk '{print $2}' | tr -d ':' | while read id; do aconnect -d ${id}:0 'FLUID Synth':0 2>/dev/null || true; done", shell=True)
 
     def init_apc_hardware(self):
         if not self.outport:
@@ -156,7 +152,7 @@ class APC40FullSessionController:
             self.outport.send(sysex)
         except Exception:
             pass
-        self.disconnect_raw_alsa_passthrough()
+        self.ensure_no_piano_passthrough()
 
     def select_drum_kit(self, kit_idx: int):
         if 0 <= kit_idx < len(DRUM_KITS):
@@ -285,7 +281,6 @@ class APC40FullSessionController:
                 continue
 
             try:
-                self.disconnect_raw_alsa_passthrough()
                 self.inport = mido.open_input(in_name)
                 if out_name:
                     try:
@@ -294,6 +289,7 @@ class APC40FullSessionController:
                     except Exception:
                         pass
 
+                self.ensure_no_piano_passthrough()
                 print(f"[+] Conectado y listo en {in_name}.", flush=True)
 
                 while self.running:
