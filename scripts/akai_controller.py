@@ -1834,14 +1834,13 @@ class AdvancedAkaiController:
                 self.looper.set_bpm(bpm)
                 print(f"[KNOB 3 - TEMPO LOOPER] BPM: {bpm} (Paso entero 1 BPM | Base: {self.knob3_base_bpm} BPM)", flush=True)
 
-            elif knob_idx == 3:  # K4: Drum & Looper Volume Balance (Volumen Mezcla Batería / Looper)
+            elif knob_idx == 3:  # K4: Drum & Loop Beats Volume (Solo Batería y Loops de Percusión)
                 self.drum_knob_val = value
-                # El volumen máximo de K4 queda estrictamente acotado por el estado actual de Knob 8 (Master)
+                # El volumen de K4 afecta EXCLUSIVAMENTE a la batería y ritmo (Canal 9), acotado por Master (K8)
                 effective_vol = int((value / 127.0) * self.master_knob_val)
                 self.current_drum_volume = effective_vol
-                # Paridad total de volumen: Canal 10 (batería) y Canal 1 (teclado / looper)
-                fluid.send(f"cc 9 7 {effective_vol}\ncc 0 7 {effective_vol}")
-                print(f"[KNOB 4 - BATERÍA/LOOP] Mezcla Batería/Loop: {int((value/127)*100)}% (Tope Master K8: {self.master_knob_val} -> CC 7: {effective_vol})", flush=True)
+                fluid.send(f"cc 9 7 {effective_vol}")
+                print(f"[KNOB 4 - BATERÍA/LOOP] Volumen Batería: {int((value/127)*100)}% (Tope Master K8: {self.master_knob_val} -> CC 9 7: {effective_vol})", flush=True)
 
             # --- FILA INFERIOR: TECLADO & MASTER (KEYS & OUTPUT) ---
             elif knob_idx == 4:  # K5: Keyboard Reverb Echo (Reverb en Teclado)
@@ -1902,12 +1901,12 @@ class AdvancedAkaiController:
                 gain = (norm ** 1.25) * 2.50
                 fluid.send(f"set synth.gain {gain:.3f}")
 
-                # Actualizar dinámicamente el tope de volumen en los canales para respetar el límite de K8 sobre K4
+                # Actualizar dinámicamente el tope de volumen en el canal de batería respetando K8
                 effective_vol = int((self.drum_knob_val / 127.0) * self.master_knob_val)
                 self.current_drum_volume = effective_vol
-                fluid.send(f"cc 9 7 {effective_vol}\ncc 0 7 {effective_vol}")
+                fluid.send(f"cc 9 7 {effective_vol}")
 
-                print(f"[KNOB 8 - MASTER] Volumen General: {int(norm * 100)}% (synth.gain {gain:.2f} | Tope K4: {effective_vol})", flush=True)
+                print(f"[KNOB 8 - MASTER] Volumen General: {int(norm * 100)}% (synth.gain {gain:.2f} | Batería K4: {effective_vol})", flush=True)
 
             return
 
