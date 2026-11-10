@@ -203,12 +203,19 @@ midi-to-synth/
 
 El sistema soporta la conexión concurrente del **Akai APC40 mkII** en paralelo con el **Akai MPK Mini**, permitiendo sesiones de directo a dos músicos con separación absoluta de canales:
 
-- **Canales MIDI Aislados**: El MPK Mini conserva el canal 0 (melódico) y canal 9 (batería MPK), mientras el APC40 mkII opera sobre los canales 1 al 8 (pistas de sintetizadores/bajos) y canal 9 (percusión).
-- **Matriz de 40 Pads**: 40 sonidos de percusión acústica y electrónica GM directos (Bombos, Cajas, Hi-Hats, Toms, Platos, Congas, Bongós y percusión menor).
-- **6 Drum Kits al Vuelo (Scene Launch 1..6)**: Conmutación instantánea entre Standard, TR-808 Trap, Electronic 909, Power Rock, Jazz Brush y Orchestral Timpani.
-- **8 Faders de Canal + Master Fader**: Volumen independiente para cada columna de pads y control de volumen general.
+- **Canales MIDI Aislados**: El MPK Mini conserva el canal 0 (melódico) y canal 9 (batería MPK), mientras el APC40 mkII opera sobre los canales 1 al 7 (instrumentos melódicos/bajos) y canal 9 (percusión/baterías).
+- **8 Modos Instrumentales en la Matriz 5x8 (Track Select 1..8 con iluminación LED)**:
+  - **1 (`NONE`)**: Full Drum Station (40 pads de batería acústica/electrónica con 6 kits en Scene Launch).
+  - **2 (`8 BARS`)**: World & Latin Percussion (40 percusiones étnicas: Surdos, Cuícas, Apito Whistles, Congas, Bongós, Batá, Taiko, Castañuelas).
+  - **3 (`4 BARS`)**: Deep Basses & Synth Subs (Prog 38 Synth Bass, escala de cuartas isomorfa).
+  - **4 (`2 BARS`)**: Pianos, Rhodes & Keys (Prog 4 Rhodes MK1 / Wurlitzer / Órganos).
+  - **5 (`1 BAR`)**: Guitars & Ethnic Plucks (Prog 24 Guitarra Española / Strat / Sitar).
+  - **6 (`1/2`)**: Orchestral Strings & Brass (Prog 48 Cuerdas y Metales).
+  - **7 (`1/4`)**: Synth Leads & 8-Bit Chiptune (Prog 80 Lead Saw / Square).
+  - **8 (`1/8`)**: Ambient Warm Pads & Soundscapes (Prog 88 Pad atmosférico).
+- **8 Faders de Canal + Master Fader**: Volumen independiente por columna/canal y control de volumen general.
 - **8 Knobs Superiores (Channel Strip)**: Paneo estéreo independiente por columna (L/R).
-- **8 Knobs Device Control (Multi-FX)**: Control dinámico de Reverb Level, Room Size, Chorus Send, Filter Cutoff, Resonance Q, Pan Master, Drum Tuning (±12 semitonos) y Drum Trim.
+- **8 Knobs Device Control (Multi-FX)**: Control dinámico de Reverb Level, Room Size, Chorus Send, Filter Cutoff, Resonance Q, Pan Master, Tuning (±12 semitonos) y Channel Trim.
 - **Botones de Directo Dedicados**:
   - `STOP ALL CLIPS` (Note 81): **PANIC Total** (silencio instantáneo en los 16 canales).
   - `METRONOME` (Note 90): Activación/desactivación de metrónomo audible en canal aislado 15.

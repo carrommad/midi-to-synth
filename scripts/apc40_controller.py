@@ -1,8 +1,24 @@
 #!/usr/bin/env python3
 """
-Akai APC40 MKII Full Drum Workstation & Multi-FX Performance Controller for Raspberry Pi 3.
-Direct note-to-drum mapping with instant FluidSynth sound routing (Channel 9).
-Prevents ANY connection of APC40 to FluidSynth ALSA Sequencer (avoiding piano passthrough).
+Akai APC40 MKII Multi-Instrument Workstation & Multi-FX Performance Controller for Raspberry Pi 3.
+8 Switchable Modes across the full 5x8 Matrix (40 Pads) via Track Select Buttons 1-8:
+- Mode 0 ("NONE", Note 56): Full Acoustic & Electronic Drum Station (Channel 9, 6 Scene Launch kits)
+- Mode 1 ("8 BARS", Note 57): World & Latin Percussion (Channel 9, 40 distinct ethnic/percussion sounds)
+- Mode 2 ("4 BARS", Note 58): Deep Basses & Synth Subs (Channel 1, Prog 38 Synth Bass 1)
+- Mode 3 ("2 BARS", Note 59): Pianos, Rhodes & Keys (Channel 3, Prog 4 Rhodes MK1)
+- Mode 4 ("1 BAR", Note 60): Guitars & Plucks (Channel 4, Prog 24 Nylon Spanish Guitar / Sitar)
+- Mode 5 ("1/2", Note 61): Orchestral Strings & Brass (Channel 5, Prog 48 Orchestral Strings)
+- Mode 6 ("1/4", Note 62): Synth Leads & 8-Bit Chiptune (Channel 6, Prog 80 Square / Saw Lead)
+- Mode 7 ("1/8", Note 63): Ambient Warm Pads & Soundscapes (Channel 7, Prog 88 Warm Space Pad)
+
+Controls:
+- Channel Faders 1-8: Individual volume per column in drum mode; channel volume in melodic mode.
+- Master Fader: Overall Master Volume (FluidSynth gain).
+- 8 Channel Strip Knobs: Independent Pan per column.
+- 8 Device Control Knobs: Real-Time Multi-FX (Reverb, Room, Chorus, Cutoff, Resonance, Pan, Pitch Tuning, Master Trim).
+- STOP ALL CLIPS (Note 81): Instant Panic on all channels.
+- METRONOME (Note 90): Metronome on isolated Channel 15.
+- TAP TEMPO (Note 99): Real-time Jam BPM detection.
 """
 
 import time
@@ -15,6 +31,7 @@ import mido
 FLUID_HOST = "localhost"
 FLUID_PORT = 9800
 
+# 6 Drum Kits for Mode 0 (Scene Launch 1..6)
 DRUM_KITS = [
     (0, "Standard Acoustic Drum Kit"),
     (25, "Roland TR-808 Classic Trap Kit"),
@@ -24,6 +41,7 @@ DRUM_KITS = [
     (48, "Orchestral Percussion & Timpani Kit")
 ]
 
+# Mode 0: Standard & Electronic Drum Kit (40 sounds)
 DRUM_SOUND_MAP = {
     0: 36,   # Kick 1
     1: 37,   # Side Stick
@@ -67,6 +85,75 @@ DRUM_SOUND_MAP = {
     39: 75,  # Claves
 }
 
+# Mode 1: World & Latin Percussion (40 distinct ethnic percussion instruments)
+WORLD_PERCUSSION_MAP = {
+    # Fila 0 (Pads 0..7): Percusión Brasileña y Samba
+    0: 86,   # Surdo Mudo
+    1: 87,   # Surdo Abierto
+    2: 40,   # Caixa / Tamborim
+    3: 38,   # Repinique / Snare
+    4: 67,   # Agogô Agudo
+    5: 68,   # Agogô Grave
+    6: 71,   # Apito Silbato Corto
+    7: 72,   # Apito Silbato Largo
+    # Fila 1 (Pads 8..15): Percusión Menor y Efectos
+    8: 78,   # Cuíca Muda
+    9: 79,   # Cuíca Abierta
+    10: 54,  # Pandeiro / Pandereta
+    11: 69,  # Cabasa
+    12: 70,  # Maracas
+    13: 82,  # Shaker
+    14: 73,  # Güiro Corto
+    15: 74,  # Güiro Largo
+    # Fila 2 (Pads 16..23): Madera, Campanas y Metal
+    16: 75,  # Claves de Madera
+    17: 76,  # Woodblock Agudo
+    18: 77,  # Woodblock Grave
+    19: 56,  # Cencerro / Cowbell
+    20: 80,  # Triángulo Mudo
+    21: 81,  # Triángulo Abierto
+    22: 85,  # Castañuelas Flamencas
+    23: 83,  # Cascabeles / Jingle Bell
+    # Fila 3 (Pads 24..31): Congas, Bongós y Timbales
+    24: 62,  # Conga Muda
+    25: 63,  # Conga Abierta
+    26: 64,  # Conga Grave
+    27: 60,  # Bongó Agudo
+    28: 61,  # Bongó Grave
+    29: 65,  # Timbale Agudo
+    30: 66,  # Timbale Grave
+    31: 58,  # Vibraslap
+    # Fila 4 (Pads 32..39): Percusión Oriental y Épica
+    32: 116, # Taiko Drum Japonés
+    33: 117, # Melodic Tom Oriental
+    34: 118, # Synth Drum Electrónico
+    35: 119, # Reverse Cymbal Whoosh
+    36: 84,  # Belltree Resonante
+    37: 52,  # Gong / Chinese Cymbal
+    38: 55,  # Splash Cymbal
+    39: 39,  # Hand Clap / Palmas
+}
+
+# 8 Modes Definition: (Name, MIDI Channel, Initial Program, Base Note, Step per row)
+MODES_CONFIG = [
+    # 0: Track 1 ("NONE") -> Full Drum Station
+    {"name": "Drums & Beats", "type": "drum", "chan": 9, "prog": 0, "color": 1},
+    # 1: Track 2 ("8 BARS") -> World & Latin Percussion
+    {"name": "World & Latin Percussion", "type": "world", "chan": 9, "prog": 0, "color": 1},
+    # 2: Track 3 ("4 BARS") -> Deep Basses & Synth Subs
+    {"name": "Deep Basses & Subs", "type": "melodic", "chan": 1, "prog": 38, "base_note": 24, "color": 3},
+    # 3: Track 4 ("2 BARS") -> Pianos, Rhodes & Organs
+    {"name": "Pianos & Keys", "type": "melodic", "chan": 3, "prog": 4, "base_note": 48, "color": 1},
+    # 4: Track 5 ("1 BAR") -> Guitars & Ethnic Plucks
+    {"name": "Guitars & Ethnic Plucks", "type": "melodic", "chan": 4, "prog": 24, "base_note": 45, "color": 1},
+    # 5: Track 6 ("1/2") -> Orchestral Strings & Brass
+    {"name": "Orchestral Strings & Brass", "type": "melodic", "chan": 5, "prog": 48, "base_note": 48, "color": 1},
+    # 6: Track 7 ("1/4") -> Synth Leads & Chiptune
+    {"name": "Synth Leads & Chiptune", "type": "melodic", "chan": 6, "prog": 80, "base_note": 57, "color": 3},
+    # 7: Track 8 ("1/8") -> Ambient Warm Pads & Soundscapes
+    {"name": "Ambient Pads & Soundscapes", "type": "melodic", "chan": 7, "prog": 88, "base_note": 48, "color": 1},
+]
+
 
 class FluidClient:
     def __init__(self, host=FLUID_HOST, port=FLUID_PORT):
@@ -83,8 +170,7 @@ class FluidClient:
                 except Exception:
                     pass
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            self.sock.settimeout(1.0)
+            self.sock.settimeout(2.0)
             self.sock.connect((self.host, self.port))
             return True
         except Exception:
@@ -115,10 +201,12 @@ class APC40FullSessionController:
         self.running = True
         self.inport: Optional[mido.ports.BaseInput] = None
         self.outport: Optional[mido.ports.BaseOutput] = None
-        self.active_pads: Dict[int, int] = {}
+        self.active_pads: Dict[int, tuple] = {}  # pad_note -> (chan, target_note)
+        self.current_mode_idx: int = 0
         self.current_kit_idx: int = 0
-        self.drum_col_volumes = [127] * 8
-        self.drum_col_pans = [64] * 8
+
+        self.col_volumes = [127] * 8
+        self.col_pans = [64] * 8
 
         self.metronome_active = False
         self.current_bpm = 120.0
@@ -139,20 +227,53 @@ class APC40FullSessionController:
         return in_p, out_p
 
     def ensure_no_piano_passthrough(self):
-        # Desconectar cualquier enlace de ALSA Sequencer desde APC40 o RtMidi hacia FluidSynth
         subprocess.run("aconnect -d 'APC40 mkII':0 'FLUID Synth':0 2>/dev/null || true", shell=True)
-        # Desconectar cualquier salida creada por RtMidi hacia FluidSynth
         subprocess.run("aconnect -l | grep 'RtMidi output' -B 1 | grep client | awk '{print $2}' | tr -d ':' | while read id; do aconnect -d ${id}:0 'FLUID Synth':0 2>/dev/null || true; done", shell=True)
 
     def init_apc_hardware(self):
         if not self.outport:
             return
-        sysex = mido.Message("sysex", data=[0x47, 0x7F, 0x29, 0x60, 0x00, 0x04, 0x40, 0x08, 0x02, 0x01])
+        # SysEx for APC40 mkII Ableton Alternate Mode 1 (0x41)
+        sysex = mido.Message("sysex", data=[0x47, 0x7F, 0x29, 0x60, 0x00, 0x04, 0x41, 0x08, 0x02, 0x01])
         try:
             self.outport.send(sysex)
         except Exception:
             pass
         self.ensure_no_piano_passthrough()
+        self.update_track_select_leds()
+
+    def update_track_select_leds(self):
+        if not self.outport:
+            return
+        # Track Select 1..8 notes: 56 to 63
+        for idx in range(8):
+            note = 56 + idx
+            vel = 1 if idx == self.current_mode_idx else 0  # 1 = Green, 0 = Off
+            try:
+                self.outport.send(mido.Message("note_on", channel=0, note=note, velocity=vel))
+            except Exception:
+                pass
+
+    def select_mode(self, mode_idx: int):
+        if 0 <= mode_idx < len(MODES_CONFIG):
+            # Silenciar notas activas antes de conmutar
+            for pad_note, (chan, target_note) in list(self.active_pads.items()):
+                fluid.send(f"noteoff {chan} {target_note}")
+            self.active_pads.clear()
+
+            self.current_mode_idx = mode_idx
+            cfg = MODES_CONFIG[mode_idx]
+            self.update_track_select_leds()
+
+            # Asegurar programa cargado en el canal correspondiente
+            if cfg["type"] == "melodic":
+                fluid.send(f"prog {cfg['chan']} {cfg['prog']}\ncc {cfg['chan']} 7 127\ncc {cfg['chan']} 10 64\n")
+            elif cfg["type"] in ("drum", "world"):
+                fluid.send("prog 9 0\ncc 9 7 127\ncc 9 10 64\n")
+
+            labels = ["NONE", "8 BARS", "4 BARS", "2 BARS", "1 BAR", "1/2", "1/4", "1/8"]
+            label = labels[mode_idx] if mode_idx < len(labels) else f"T{mode_idx+1}"
+            print(f"\n[APC40 MODE {mode_idx + 1}: {label}] -> {cfg['name']} (Channel {cfg.get('chan', 9)})", flush=True)
 
     def select_drum_kit(self, kit_idx: int):
         if 0 <= kit_idx < len(DRUM_KITS):
@@ -204,62 +325,93 @@ class APC40FullSessionController:
                 self.current_bpm = max(40.0, min(220.0, calc_bpm))
                 print(f"\n[TAP TEMPO] -> {self.current_bpm} BPM", flush=True)
 
+    def compute_target_note_and_channel(self, pad_note: int):
+        cfg = MODES_CONFIG[self.current_mode_idx]
+        mode_type = cfg["type"]
+
+        if mode_type == "drum":
+            # Mode 0: Drums
+            target = DRUM_SOUND_MAP.get(pad_note, 36 + (pad_note % 36))
+            return 9, target
+
+        elif mode_type == "world":
+            # Mode 1: World & Latin Percussion
+            target = WORLD_PERCUSSION_MAP.get(pad_note, 36 + (pad_note % 40))
+            return 9, target
+
+        elif mode_type == "melodic":
+            # Modes 2..7: Melodic grid (Isomorphic Fourths Grid: +5 semitones per row, +1 per col)
+            chan = cfg["chan"]
+            base = cfg["base_note"]
+            row = pad_note // 8
+            col = pad_note % 8
+            target = base + (row * 5) + col
+            target = max(0, min(127, target))
+            return chan, target
+
+        return 9, pad_note
+
     def handle_pad_event(self, msg):
-        drum_note = DRUM_SOUND_MAP.get(msg.note, 36 + (msg.note % 36))
         col = msg.note % 8
-        fader_scale = self.drum_col_volumes[col] / 127.0
+        fader_scale = self.col_volumes[col] / 127.0
         effective_vel = max(1, min(127, int(msg.velocity * fader_scale)))
+        chan, target_note = self.compute_target_note_and_channel(msg.note)
 
         if msg.type == "note_on" and msg.velocity > 0:
-            col_pan = self.drum_col_pans[col]
-            fluid.send(f"cc 9 10 {col_pan}\nnoteon 9 {drum_note} {effective_vel}")
-            self.active_pads[msg.note] = drum_note
+            col_pan = self.col_pans[col]
+            fluid.send(f"cc {chan} 10 {col_pan}\nnoteon {chan} {target_note} {effective_vel}")
+            self.active_pads[msg.note] = (chan, target_note)
         else:
-            d_note = self.active_pads.pop(msg.note, drum_note)
-            fluid.send(f"noteoff 9 {d_note}")
+            active_info = self.active_pads.pop(msg.note, (chan, target_note))
+            c, t = active_info
+            fluid.send(f"noteoff {c} {t}")
 
     def handle_channel_strip_knob(self, col_idx: int, value: int):
-        self.drum_col_pans[col_idx] = value
-        fluid.send(f"cc 9 10 {value}")
+        self.col_pans[col_idx] = value
+        cfg = MODES_CONFIG[self.current_mode_idx]
+        chan = cfg.get("chan", 9)
+        fluid.send(f"cc {chan} 10 {value}")
         pan = f"R {int(((value - 64) / 64.0) * 100)}%" if value > 64 else (f"L {int(((64 - value) / 64.0) * 100)}%" if value < 64 else "Centro")
         print(f"[COL {col_idx + 1} STEREO PAN] -> {pan}", flush=True)
 
     def handle_device_control_fx(self, control: int, value: int):
         val_norm = value / 127.0
+        cfg = MODES_CONFIG[self.current_mode_idx]
+        chan = cfg.get("chan", 9)
 
         if control in (16, 24):
-            fluid.send(f"cc 9 91 {value}\nset synth.reverb.level {round(val_norm, 2)}")
+            fluid.send(f"cc {chan} 91 {value}\nset synth.reverb.level {round(val_norm, 2)}")
             print(f"[FX 1: REVERB LEVEL] -> {int(val_norm * 100)}%", flush=True)
         elif control in (17, 25):
             room = round(val_norm, 2)
             fluid.send(f"set synth.reverb.room-size {room}")
             print(f"[FX 2: REVERB ROOM] -> {int(room * 100)}%", flush=True)
         elif control in (18, 26):
-            fluid.send(f"cc 9 93 {value}")
+            fluid.send(f"cc {chan} 93 {value}")
             print(f"[FX 3: CHORUS LEVEL] -> {int(val_norm * 100)}%", flush=True)
         elif control in (19, 27):
-            fluid.send(f"cc 9 74 {value}")
+            fluid.send(f"cc {chan} 74 {value}")
             print(f"[FX 4: FILTER CUTOFF] -> {int(val_norm * 100)}%", flush=True)
         elif control in (20, 28):
-            fluid.send(f"cc 9 71 {value}")
+            fluid.send(f"cc {chan} 71 {value}")
             print(f"[FX 5: RESONANCE Q] -> {int(val_norm * 100)}%", flush=True)
         elif control in (21, 29):
-            fluid.send(f"cc 9 10 {value}")
+            fluid.send(f"cc {chan} 10 {value}")
             pan = f"R {int((val_norm - 0.5) * 200)}%" if value > 64 else (f"L {int((0.5 - val_norm) * 200)}%" if value < 64 else "Centro")
-            print(f"[FX 6: MASTER DRUM PAN] -> {pan}", flush=True)
+            print(f"[FX 6: MASTER PAN] -> {pan}", flush=True)
         elif control in (22, 30):
             pitch_bend_val = int((val_norm - 0.5) * 16383)
-            fluid.send(f"pitch_bend 9 {pitch_bend_val}")
+            fluid.send(f"pitch_bend {chan} {pitch_bend_val}")
             st = round((val_norm - 0.5) * 24, 1)
-            print(f"[FX 7: DRUM TUNING] -> {'+' if st > 0 else ''}{st} st", flush=True)
+            print(f"[FX 7: TUNING] -> {'+' if st > 0 else ''}{st} st", flush=True)
         elif control in (23, 31):
-            fluid.send(f"cc 9 7 {value}")
-            print(f"[FX 8: DRUM TRIM] -> {int(val_norm * 100)}%", flush=True)
+            fluid.send(f"cc {chan} 7 {value}")
+            print(f"[FX 8: CHANNEL TRIM] -> {int(val_norm * 100)}%", flush=True)
 
     def handle_fader(self, control: int, value: int):
         if 48 <= control <= 55:
             col_idx = control - 48
-            self.drum_col_volumes[col_idx] = value
+            self.col_volumes[col_idx] = value
             print(f"[FADER {col_idx + 1} PAD VOLUME] -> {int((value / 127.0) * 100)}%", flush=True)
         elif control == 14:
             gain = round((value / 127.0) * 2.5, 2)
@@ -268,10 +420,14 @@ class APC40FullSessionController:
 
     def run(self):
         print("==================================================================", flush=True)
-        print(" Akai APC40 mkII - Dedicated Drum & FX Station                   ", flush=True)
+        print(" Akai APC40 mkII - 8-Mode Multi-Instrument & Multi-FX Station    ", flush=True)
         print("==================================================================", flush=True)
 
         fluid.connect()
+        # Inicializar canales 1 a 7 con los programas asignados a cada modo
+        for idx, cfg in enumerate(MODES_CONFIG):
+            if cfg["type"] == "melodic":
+                fluid.send(f"prog {cfg['chan']} {cfg['prog']}\ncc {cfg['chan']} 7 127\ncc {cfg['chan']} 10 64\n")
         fluid.send("prog 9 0\ncc 9 7 127\ncc 9 10 64\ncc 9 91 30\nset synth.gain 1.25\n")
 
         while self.running:
@@ -295,21 +451,29 @@ class APC40FullSessionController:
                 while self.running:
                     for msg in self.inport.iter_pending():
                         if msg.type in ("note_on", "note_off"):
+                            # Botón STOP ALL CLIPS (81) -> Panic
                             if msg.note == 81 and msg.type == "note_on":
                                 self.trigger_panic()
+                            # Botón METRONOME (90) -> Toggle Click
                             elif msg.note == 90 and msg.type == "note_on":
                                 self.toggle_metronome()
+                            # Botón TAP TEMPO (99) -> Ajuste de BPM
                             elif msg.note == 99 and msg.type == "note_on":
                                 self.handle_tap_tempo()
+                            # Track Select 1..8 (Notas 56 a 63) -> Conmutar 8 Modos Instrumentales
+                            elif 56 <= msg.note <= 63 and msg.type == "note_on" and msg.velocity > 0:
+                                self.select_mode(msg.note - 56)
+                            # Scene Launch (82..87): cambio de Drum Kit (sólo en modo 0)
                             elif 82 <= msg.note <= 87 and msg.type == "note_on" and msg.velocity > 0:
-                                self.select_drum_kit(msg.note - 82)
+                                if self.current_mode_idx == 0:
+                                    self.select_drum_kit(msg.note - 82)
                             else:
                                 self.handle_pad_event(msg)
 
                         elif msg.type == "control_change":
                             if 16 <= msg.control <= 31:
                                 self.handle_device_control_fx(msg.control, msg.value)
-                            elif (48 <= msg.control <= 55):
+                            elif 48 <= msg.control <= 55:
                                 if msg.channel == 0:
                                     self.handle_fader(msg.control, msg.value)
                                 else:
