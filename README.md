@@ -177,6 +177,7 @@ midi-to-synth/
 │   ├── akai_controller.py         # Daemon principal (Looper, modificadores, routing, apagado)
 │   ├── start-synth.sh             # Script de arranque del servicio FluidSynth
 │   ├── synth.service              # Unidad de servicio Systemd para boot headless
+│   ├── apc40_controller.py        # Controlador multi-dispositivo y estación de percusión/FX para Akai APC40 mkII
 │   ├── install_fluidsynth.sh      # Script de aprovisionamiento de dependencias
 │   └── select_sound.sh            # Utilidad CLI para selección por terminal
 └── visualization/
@@ -189,6 +190,24 @@ midi-to-synth/
 
 
 ---
+
+---
+
+## 🎛️ Integración Simultánea Multi-Dispositivo: Akai APC40 mkII (Jam Station)
+
+El sistema soporta la conexión concurrente del **Akai APC40 mkII** en paralelo con el **Akai MPK Mini**, permitiendo sesiones de directo a dos músicos con separación absoluta de canales:
+
+- **Canales MIDI Aislados**: El MPK Mini conserva el canal 0 (melódico) y canal 9 (batería MPK), mientras el APC40 mkII opera sobre los canales 1 al 8 (pistas de sintetizadores/bajos) y canal 9 (percusión).
+- **Matriz de 40 Pads**: 40 sonidos de percusión acústica y electrónica GM directos (Bombos, Cajas, Hi-Hats, Toms, Platos, Congas, Bongós y percusión menor).
+- **6 Drum Kits al Vuelo (Scene Launch 1..6)**: Conmutación instantánea entre Standard, TR-808 Trap, Electronic 909, Power Rock, Jazz Brush y Orchestral Timpani.
+- **8 Faders de Canal + Master Fader**: Volumen independiente para cada columna de pads y control de volumen general.
+- **8 Knobs Superiores (Channel Strip)**: Paneo estéreo independiente por columna (L/R).
+- **8 Knobs Device Control (Multi-FX)**: Control dinámico de Reverb Level, Room Size, Chorus Send, Filter Cutoff, Resonance Q, Pan Master, Drum Tuning (±12 semitonos) y Drum Trim.
+- **Botones de Directo Dedicados**:
+  - `STOP ALL CLIPS` (Note 81): **PANIC Total** (silencio instantáneo en los 16 canales).
+  - `METRONOME` (Note 90): Activación/desactivación de metrónomo audible en canal aislado 15.
+  - `TAP TEMPO` (Note 99): Calibración de BPM por pulsación rítmica sucesiva.
+- **Robustez en Directo**: Prioridad de planificación Real-Time del Kernel (`CPUSchedulingPolicy=rr`, prioridad 80) y reconexión automática instantánea por regla `udev` (`90-midi-hotplug.rules`).
 
 ---
 
