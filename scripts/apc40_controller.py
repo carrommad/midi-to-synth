@@ -2,19 +2,14 @@
 """
 Akai APC40 MKII Full Drum Workstation & Multi-FX Performance Controller for Raspberry Pi 3.
 Direct note-to-drum mapping with instant FluidSynth sound routing (Channel 9).
-- Channel Strip Knobs 1-8: Independent Stereo Pan per column.
-- Device Control Knobs 1-8: Real-time Multi-FX (Reverb, Room, Chorus, Cutoff, Resonance, Pitch Tuning, Master Drum Trim).
-- Channel Faders 1-8: Independent Volume per column.
-- Master Fader: Overall Master Volume.
-- Scene Launch 1-6: Instant Drum Kit switching.
-- STOP ALL CLIPS (Note 81): Instant Panic / Silence on all 16 channels.
-- METRONOME (Note 90): Toggle audible click on isolated Channel 15.
-- TAP TEMPO (Note 99): Tap to calculate & set jam tempo in real time.
+- Desconecta el enlace directo por defecto de ALSA (Canal 0 Yamaha Piano) para que
+  los pads suenen EXCLUSIVAMENTE a batería y percusión en el Canal 9.
 """
 
 import time
 import socket
 import threading
+import subprocess
 from typing import Optional, Dict
 import mido
 
@@ -126,7 +121,6 @@ class APC40FullSessionController:
         self.drum_col_volumes = [127] * 8
         self.drum_col_pans = [64] * 8
 
-        # Metrónomo & Tap Tempo
         self.metronome_active = False
         self.current_bpm = 120.0
         self.metronome_thread: Optional[threading.Thread] = None
@@ -145,6 +139,15 @@ class APC40FullSessionController:
                 break
         return in_p, out_p
 
+    def disconnect_raw_alsa_passthrough(self):
+        # Desconectar el puerto hardware raw de ALSA hacia FluidSynth para evitar que
+        # las notas físicas del APC40 se envíen en paralelo al Canal 0 (Yamaha Grand Piano)
+        try:
+            subprocess.run("aconnect -d 'APC40 mkII':0 'FLUID Synth':0 2>/dev/null || true", shell=True)
+            print("[+] Enlace crudo ALSA de APC40 a FluidSynth (Canal 0 Piano) anulado correctamente.", flush=True)
+        except Exception:
+            pass
+
     def init_apc_hardware(self):
         if not self.outport:
             return
@@ -153,6 +156,7 @@ class APC40FullSessionController:
             self.outport.send(sysex)
         except Exception:
             pass
+        self.disconnect_raw_alsa_passthrough()
 
     def select_drum_kit(self, kit_idx: int):
         if 0 <= kit_idx < len(DRUM_KITS):
@@ -162,21 +166,13 @@ class APC40FullSessionController:
             print(f"[DRUM KIT] -> Kit #{kit_num}: {kit_name}", flush=True)
 
     def trigger_panic(self):
-        # Corte instantáneo en todos los 16 canales
         cmds = []
         for c in range(16):
             cmds.append(f"cc {c} 123 0\ncc {c} 120 0")
         cmds.append("set synth.chorus.active False")
         fluid.send("\n".join(cmds))
         self.active_pads.clear()
-        print("\n[STOP ALL CLIPS / PANIC] ¡Silencio absoluto en los 16 canales!", flush=True)
-        if self.outport:
-            try:
-                self.outport.send(mido.Message("note_on", channel=0, note=81, velocity=15))
-                time.sleep(0.1)
-                self.outport.send(mido.Message("note_on", channel=0, note=81, velocity=1))
-            except Exception:
-                pass
+        print("\n[STOP ALL CLIPS / PANIC] ¡Silencio absoluto!", flush=True)
 
     def toggle_metronome(self):
         self.metronome_active = not self.metronome_active
@@ -186,20 +182,13 @@ class APC40FullSessionController:
             if not self.metronome_thread or not self.metronome_thread.is_alive():
                 self.metronome_thread = threading.Thread(target=self._metronome_loop, daemon=True)
                 self.metronome_thread.start()
-        if self.outport:
-            try:
-                vel = 3 if self.metronome_active else 0
-                self.outport.send(mido.Message("note_on", channel=0, note=90, velocity=vel))
-            except Exception:
-                pass
 
     def _metronome_loop(self):
-        # Click limpio en canal 15 usando Woodblock (115)
         fluid.send("prog 15 115\ncc 15 7 100\n")
         beat = 0
         while self.metronome_active and self.running:
             interval = 60.0 / max(30.0, min(240.0, self.current_bpm))
-            pitch = 77 if (beat % 4 == 0) else 76  # Primer pulso agudo
+            pitch = 77 if (beat % 4 == 0) else 76
             vel = 115 if (beat % 4 == 0) else 85
             fluid.send(f"noteon 15 {pitch} {vel}\n")
             time.sleep(0.06)
@@ -210,7 +199,6 @@ class APC40FullSessionController:
     def handle_tap_tempo(self):
         now = time.time()
         self.tap_times.append(now)
-        # Mantener solo los últimos 4 taps en una ventana máxima de 3 segundos
         self.tap_times = [t for t in self.tap_times if now - t <= 3.0]
         if len(self.tap_times) >= 2:
             diffs = [self.tap_times[i] - self.tap_times[i - 1] for i in range(1, len(self.tap_times))]
@@ -284,7 +272,7 @@ class APC40FullSessionController:
 
     def run(self):
         print("==================================================================", flush=True)
-        print(" Akai APC40 mkII - Robust Live Performance Engine Active         ", flush=True)
+        print(" Akai APC40 mkII - Dedicated Drum & FX Station                   ", flush=True)
         print("==================================================================", flush=True)
 
         fluid.connect()
@@ -297,6 +285,7 @@ class APC40FullSessionController:
                 continue
 
             try:
+                self.disconnect_raw_alsa_passthrough()
                 self.inport = mido.open_input(in_name)
                 if out_name:
                     try:
@@ -310,16 +299,12 @@ class APC40FullSessionController:
                 while self.running:
                     for msg in self.inport.iter_pending():
                         if msg.type in ("note_on", "note_off"):
-                            # Botón STOP ALL CLIPS (81) -> Panic
                             if msg.note == 81 and msg.type == "note_on":
                                 self.trigger_panic()
-                            # Botón METRONOME (90) -> Toggle Click
                             elif msg.note == 90 and msg.type == "note_on":
                                 self.toggle_metronome()
-                            # Botón TAP TEMPO (99) -> Ajuste de BPM
                             elif msg.note == 99 and msg.type == "note_on":
                                 self.handle_tap_tempo()
-                            # Scene Launch (82..87): cambio de Drum Kit
                             elif 82 <= msg.note <= 87 and msg.type == "note_on" and msg.velocity > 0:
                                 self.select_drum_kit(msg.note - 82)
                             else:
