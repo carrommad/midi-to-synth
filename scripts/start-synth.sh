@@ -18,10 +18,10 @@ echo "Iniciando FluidSynth con SoundFont: $SOUNDFONT"
 # -a alsa: Driver de audio nativo Linux ALSA
 # -m alsa_seq: Driver MIDI ALSA Sequencer
 # -g 1.25: Ganancia equilibrada por defecto al punto medio (0.0 a 5.0)
-# -o midi.autoconnect=1: Conexión automática inmediata a cualquier teclado MIDI USB conectado
+# -o midi.autoconnect=0: Desactivado para conectar selectivamente MPK Mini y evitar que APC40 dispare el piano
 # -o audio.period-size=128 -o audio.periods=3: Optimización para latencia ultrabaja (<10ms)
 fluidsynth -s -i -a alsa -m alsa_seq -g 1.25 \
-    -o midi.autoconnect=1 \
+    -o midi.autoconnect=0 \
     -o audio.period-size=128 \
     -o audio.periods=3 \
     "$SOUNDFONT" &
@@ -41,6 +41,9 @@ done
 
 # Pausa para asegurar que el driver PCM de audio ALSA está completamente abierto
 sleep 2
+
+# Conectar explícitamente el MPK Mini a FluidSynth (aislando el APC40 del canal 0)
+aconnect 'MPK mini 3':0 'FLUID Synth':0 2>/dev/null || aconnect 'MPK mini':0 'FLUID Synth':0 2>/dev/null || true
 
 # Iniciar el controlador inteligente de teclas y sonidos
 python3 -u "$(dirname "$0")/akai_controller.py" &
