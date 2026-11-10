@@ -263,26 +263,34 @@ LIBRARY_NAMES = [
 MELODIC_INSTRUMENTS = OCTAVE_INSTRUMENT_LIBRARIES[0]
 
 # 16 Drum Kits (Mapped to Pads 1..8 while holding [D] C#2 modifier: Bank A 1..8, Bank B 9..16)
-# Pad 8 (Bank A) = Flamenco Cajón & Palmas Kit (Dedicated acoustic mapping)
+# Full Symmetric Architecture: Bank A (Acoustic/Classic) <-> Bank B (World/Exotic Counterpart)
+# Pad 1: Acoustic Rock & Pop (Standard vs Room Rock)
+# Pad 2: Electronic Dance (909 Techno vs TR-808 Trap)
+# Pad 3: Jazz & Sticks (Jazz Drum vs Brush Escobillas)
+# Pad 4: Orchestral & Cinematic (Orchestra Timpani vs Cinematic Taiko & Asian Drums)
+# Pad 5: African Percussion (Afro-Tribal Djembe/Dunun vs Afro-Cuban Batá/Shakers)
+# Pad 6: Asian & Middle East (East Asian Percussion vs Middle Eastern Derbake/Darbuka)
+# Pad 7: Latin & Tropical (Latin Salsa/Congas vs Carnaval Samba & Whistles)
+# Pad 8: Flamenco (Flamenco Cajón & Palmas 1 vs Flamenco Castañuelas & Taconeo 2)
 DRUM_KITS = [
-    # Bank A: 8 Core & Signature Kits (Pads 1..8)
-    (0,  "Standard Drum Kit"),               # Pad 1
-    (8,  "Room Rock Drum Kit"),              # Pad 2
-    (24, "Electronic Kit (909 / Techno)"),  # Pad 3
-    (25, "Roland TR-808 Classic Trap Kit"), # Pad 4
-    (16, "Power Heavy Gated Rock Kit"),     # Pad 5
-    (32, "Jazz Drum Kit"),                  # Pad 6
-    (40, "Brush Drum Kit (Escobillas)"),    # Pad 7
-    (0,  "Flamenco Cajón & Palmas Kit"),    # Pad 8 (Dedicated acoustic mapping)
-    # Bank B: 8 Specialized & Alternative Kits (Pads 1..8 -> Kits 9..16)
-    (48, "Orchestra Percussion Kit"),       # Pad 9 (Bank B Pad 1)
-    (1,  "Standard Kit 1"),                 # Pad 10 (Bank B Pad 2)
-    (2,  "Standard Kit 2"),                 # Pad 11 (Bank B Pad 3)
-    (3,  "Standard Kit 3"),                 # Pad 12 (Bank B Pad 4)
-    (9,  "Room Kit 1"),                     # Pad 13 (Bank B Pad 5)
-    (10, "Room Kit 2"),                     # Pad 14 (Bank B Pad 6)
-    (17, "Power Kit 1"),                    # Pad 15 (Bank B Pad 7)
-    (0,  "Latin & World Percussion Kit")    # Pad 16 (Bank B Pad 8: Congas, Bongós, Timbales, Cowbell)
+    # Bank A: 8 Core & Classic Kits (Pads 1..8)
+    (0,  "Standard Acoustic Drum Kit"),             # Pad 1 (A1)
+    (24, "Electronic 909 Dance Kit"),               # Pad 2 (A2)
+    (32, "Jazz Drum Kit"),                          # Pad 3 (A3)
+    (48, "Orchestra Percussion & Timpani"),         # Pad 4 (A4)
+    (0,  "Afro-Tribal Djembe & Dunun Kit"),         # Pad 5 (A5: Dedicated acoustic mapping)
+    (0,  "East Asian Taiko & Bells Kit"),           # Pad 6 (A6: Dedicated acoustic mapping)
+    (0,  "Latin & Salsa Percussion Kit"),           # Pad 7 (A7: Congas, Bongós, Timbales, Cowbell)
+    (0,  "Flamenco Cajón & Palmas Kit 1"),          # Pad 8 (A8: Cajón grave/agudo, Palmas)
+    # Bank B: 8 Exotic & World Counterparts (Pads 1..8 -> Kits 9..16)
+    (8,  "Room Rock & Gated Drum Kit"),             # Pad 9  (B1)
+    (25, "Roland TR-808 Classic Trap Kit"),         # Pad 10 (B2)
+    (40, "Brush Drum Kit (Escobillas)"),            # Pad 11 (B3)
+    (48, "Cinematic Taiko & Asian Gongs"),          # Pad 12 (B4: Dedicated acoustic mapping)
+    (0,  "Afro-Cuban Batá & Shakers Kit"),          # Pad 13 (B5: Dedicated acoustic mapping)
+    (0,  "Middle Eastern Derbake & Riq Kit"),       # Pad 14 (B6: Dedicated acoustic mapping)
+    (0,  "Carnaval & Samba Percussion Kit"),        # Pad 15 (B7: Apito Whistles, Cuíca, Agogô, Surdo)
+    (0,  "Flamenco Castañuelas & Fusión Kit 2")     # Pad 16 (B8: Castañuelas, Taconeo, Bastón)
 ]
 
 class FluidClient:
@@ -1725,44 +1733,75 @@ class AdvancedAkaiController:
                     return
 
             # Si no hay modificador (tocar batería libremente con los pads):
-            # 1. Mapeo Flamenco dedicado en Kit 8 (Flamenco Cajón & Palmas - Pad 8 Bank A, idx 7)
-            # 2. Mapeo Latin & World Percussion en Kit 16 (Pad 8 Bank B, idx 15)
+            # Mapeos dedicados de percusión simétrica (Bank A <-> Bank B):
+            # Pad 4 (idx 11): Cinematic Taiko & Asian Gongs
+            # Pad 5 (idx 4 & 12): Afro-Tribal Djembe / Afro-Cuban Batá & Shakers
+            # Pad 6 (idx 5 & 13): East Asian Taiko / Middle Eastern Derbake
+            # Pad 7 (idx 6 & 14): Latin Salsa / Carnaval Samba & Whistles
+            # Pad 8 (idx 7 & 15): Flamenco Cajón 1 / Flamenco Castañuelas 2
             target_note = note
             if self.current_drum_idx == 7:
-                # Banco A (Pads 1..8): Compás y Percusión Principal
-                flamenco_map_a = {36: 36, 37: 38, 38: 37, 39: 39, 40: 75, 41: 76, 42: 77, 43: 67}
-                # Banco B (Pads 9..16): Percusiones y Acentos Complementarios Diferentes
-                flamenco_map_b = {44: 44, 45: 54, 46: 69, 47: 70, 48: 80, 49: 81, 50: 73, 51: 74}
-                if self.pad_bank == "A":
-                    target_note = flamenco_map_a.get(note, note)
-                else:
-                    target_note = flamenco_map_b.get(note, note)
+                # Kit 8 (Pad 8 Bank A): Flamenco Cajón & Palmas 1
+                flamenco1_map_a = {36: 36, 37: 38, 38: 37, 39: 39, 40: 75, 41: 76, 42: 77, 43: 67}
+                flamenco1_map_b = {44: 44, 45: 54, 46: 69, 47: 70, 48: 80, 49: 81, 50: 73, 51: 74}
+                target_note = flamenco1_map_a.get(note, note) if self.pad_bank == "A" else flamenco1_map_b.get(note, note)
             elif self.current_drum_idx == 15:
-                # Kit 16 (Pad 8 Bank B): Latin & World Percussion
+                # Kit 16 (Pad 8 Bank B): Flamenco Castañuelas & Fusión 2
+                # Banco A: Castañuelas, Taconeo, Palmas agudas y Bastón
+                # 85: Castanets, 35: Bass Drum / Taconeo, 37: Side Stick / Bastón, 39: Palmas / Clap
+                flamenco2_map_a = {36: 35, 37: 37, 38: 85, 39: 39, 40: 75, 41: 76, 42: 54, 43: 58}
+                # Banco B: Efectos percusivos, Pandereta, Campana y Jaleos
+                flamenco2_map_b = {44: 54, 45: 85, 46: 80, 47: 81, 48: 69, 49: 70, 50: 67, 51: 68}
+                target_note = flamenco2_map_a.get(note, note) if self.pad_bank == "A" else flamenco2_map_b.get(note, note)
+            elif self.current_drum_idx == 6:
+                # Kit 7 (Pad 7 Bank A): Latin & Salsa Percussion
                 # Banco A: Congas, Bongós, Timbales y Cencerro
-                # P1 (36): Conga Abierta (63)
-                # P2 (37): Conga Muda (62)
-                # P3 (38): Conga Grave (64)
-                # P4 (39): Cowbell / Cencerro (56)
-                # P5 (40): Bongó Agudo (60)
-                # P6 (41): Bongó Grave (61)
-                # P7 (42): Timbale Agudo (65)
-                # P8 (43): Timbale Grave (66)
                 latin_map_a = {36: 63, 37: 62, 38: 64, 39: 56, 40: 60, 41: 61, 42: 65, 43: 66}
-                # Banco B: Percusión Menor y Efectos
-                # P9  (44): Pandereta (54)
-                # P10 (45): Maracas (70)
-                # P11 (46): Cabasa (69)
-                # P12 (47): Güiro Corto (73)
-                # P13 (48): Güiro Largo (74)
-                # P14 (49): Claves de Madera (75)
-                # P15 (50): Agogô Agudo (67)
-                # P16 (51): Agogô Grave (68)
+                # Banco B: Percusión Menor y Efectos (Pandereta, Maracas, Cabasa, Güiro, Claves)
                 latin_map_b = {44: 54, 45: 70, 46: 69, 47: 73, 48: 74, 49: 75, 50: 67, 51: 68}
-                if self.pad_bank == "A":
-                    target_note = latin_map_a.get(note, note)
-                else:
-                    target_note = latin_map_b.get(note, note)
+                target_note = latin_map_a.get(note, note) if self.pad_bank == "A" else latin_map_b.get(note, note)
+            elif self.current_drum_idx == 14:
+                # Kit 15 (Pad 7 Bank B): Carnaval & Samba Percussion (Whistles, Cuíca, Agogô, Surdo)
+                # Banco A: Surdo grave/mudo, Tamborim/Caixa, Silbato Apito (Short 71 / Long 72), Agogô (67/68)
+                samba_map_a = {36: 87, 37: 86, 38: 40, 39: 39, 40: 71, 41: 72, 42: 67, 43: 68}
+                # Banco B: Cuíca (78 mute / 79 open), Pandeiro/Tambourine (54), Maracas (70), Cabasa (69), Güiro (74), Triángulo (80/81)
+                samba_map_b = {44: 78, 45: 79, 46: 54, 47: 70, 48: 69, 49: 74, 50: 80, 51: 81}
+                target_note = samba_map_a.get(note, note) if self.pad_bank == "A" else samba_map_b.get(note, note)
+            elif self.current_drum_idx == 4:
+                # Kit 5 (Pad 5 Bank A): Afro-Tribal Djembe & Dunun
+                # Banco A: Dunun grave (35), Djembe bass (36), Djembe tone (41), Djembe slap (28), Woodblocks (76/77), Shaker (82)
+                afro1_map_a = {36: 35, 37: 36, 38: 41, 39: 28, 40: 76, 41: 77, 42: 82, 43: 56}
+                # Banco B: Toms tribales, Slap mute, Bell (34/83), Tambores africanos
+                afro1_map_b = {44: 43, 45: 45, 46: 47, 47: 48, 48: 27, 49: 75, 50: 67, 51: 68}
+                target_note = afro1_map_a.get(note, note) if self.pad_bank == "A" else afro1_map_b.get(note, note)
+            elif self.current_drum_idx == 12:
+                # Kit 13 (Pad 5 Bank B): Afro-Cuban Batá & Shakers
+                # Banco A: Batá Iyá (Low 64), Itótele (Mid 63), Okónkolo (High 62), Cabasa (69), Maracas (70), Shaker (82), Claves (75), Cowbell (56)
+                afro2_map_a = {36: 64, 37: 63, 38: 62, 39: 56, 40: 69, 41: 70, 42: 82, 43: 75}
+                # Banco B: Vibraslap (58), Güiro (73/74), Agogô (67/68), Bongó (60/61), Slap (28)
+                afro2_map_b = {44: 58, 45: 73, 46: 74, 47: 67, 48: 68, 49: 60, 50: 61, 51: 28}
+                target_note = afro2_map_a.get(note, note) if self.pad_bank == "A" else afro2_map_b.get(note, note)
+            elif self.current_drum_idx == 5:
+                # Kit 6 (Pad 6 Bank A): East Asian Taiko & Bells
+                # Banco A: Taiko Deep (116), Taiko Rim (37), Woodblocks (76/77), Temple Bells / Triangle (80/81), Chinese Cymbal (52), Gong
+                asian1_map_a = {36: 116, 37: 37, 38: 76, 39: 77, 40: 80, 41: 81, 42: 52, 43: 55}
+                # Banco B: Melodic Tom (117), Low/High Wood percussion, Finger Snap (31), Reverse Cymbal (119), Belltree (84)
+                asian1_map_b = {44: 117, 45: 118, 46: 31, 47: 84, 48: 119, 49: 75, 50: 34, 51: 53}
+                target_note = asian1_map_a.get(note, note) if self.pad_bank == "A" else asian1_map_b.get(note, note)
+            elif self.current_drum_idx == 13:
+                # Kit 14 (Pad 6 Bank B): Middle Eastern Derbake & Riq
+                # Banco A: Derbake Dum (Low 36), Tak (High rim 38), Sak (Slap 28), Riq / Def (Tambourine 54), Finger Cymbals / Zills (80/81)
+                mideast_map_a = {36: 36, 37: 38, 38: 28, 39: 54, 40: 80, 41: 81, 42: 60, 43: 61}
+                # Banco B: Bongós orientales, Shakers (82), Claves (75), Campana (53), Acentos
+                mideast_map_b = {44: 54, 45: 82, 46: 62, 47: 63, 48: 69, 49: 70, 50: 67, 51: 68}
+                target_note = mideast_map_a.get(note, note) if self.pad_bank == "A" else mideast_map_b.get(note, note)
+            elif self.current_drum_idx == 11:
+                # Kit 12 (Pad 4 Bank B): Cinematic Taiko & Asian Gongs
+                # Banco A: Heavy Taiko (116), Melodic Heavy Tom (117), Synth Impact (118), Chinese Gong Cymbal (52), Splash (55), Crash (49), Ride Bell (53), Reverse Cymbal (119)
+                cinematic_map_a = {36: 116, 37: 117, 38: 118, 39: 52, 40: 55, 41: 49, 42: 53, 43: 119}
+                # Banco B: Belltree (84), Timpani Low/High, Orchestral Crash, Gong FX
+                cinematic_map_b = {44: 84, 45: 80, 46: 81, 47: 119, 48: 57, 49: 58, 50: 34, 51: 28}
+                target_note = cinematic_map_a.get(note, note) if self.pad_bank == "A" else cinematic_map_b.get(note, note)
 
             fluid.send(f"noteon 9 {target_note} {velocity}")
             # Grabar golpe de pad en el Looper (incluso si está en ARMED para disparar la grabación):

@@ -82,9 +82,15 @@ Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales 
   - `Set 6`: Cuerdas orquestales, metales, vientos y maderas.
   - `Set 7`: Chiptune retro de 8 bits (NES/C64) y efectos Sci-Fi.
   - `Set 8`: Solistas acústicos y expresivos (Sax, Flauta, Violín, Armónica).
-* **`[D]` ($C\#2$, 1ª Negra) + Pads (1 a 8)**: Elige entre **16 Drum Sets** (Bank A: 1..8, Bank B: 9..16) con prueba sonora inmediata al soltar la tecla:
-  - **Bank A**: 1. Standard, 2. Room Rock, 3. Electronic 909, 4. Roland TR-808, 5. Power Rock, 6. Jazz, 7. Brush (Escobillas), **8. Flamenco Cajón & Palmas Kit**.
-  - **Bank B**: 9. Orchestra Percussion, 10. Standard 1, 11. Standard 2, 12. Standard 3, 13. Room 1, 14. Room 2, 15. Power 1, 16. Analog Dance / Electro 808.
+* **`[D]` ($C\#2$, 1ª Negra) + Pads (1 a 8)**: Elige entre **16 Drum Sets Simétricos** (Bank A: 1..8, Bank B: 9..16) con prueba sonora inmediata al soltar la tecla:
+  - **Pad 1 (Rock/Pop)**: Bank A: Standard Acoustic Drum Kit (`prog 0`) ↔ Bank B: Room Rock & Gated Kit (`prog 8`)
+  - **Pad 2 (Electronic)**: Bank A: Electronic 909 Dance Kit (`prog 24`) ↔ Bank B: Roland TR-808 Classic Trap (`prog 25`)
+  - **Pad 3 (Jazz/Sticks)**: Bank A: Jazz Drum Kit (`prog 32`) ↔ Bank B: Brush Drum Kit Escobillas (`prog 40`)
+  - **Pad 4 (Cinematic)**: Bank A: Orchestra Timpani & Percussion (`prog 48`) ↔ Bank B: Cinematic Taiko & Asian Gongs (`prog 48`)
+  - **Pad 5 (African)**: Bank A: Afro-Tribal Djembe & Dunun ↔ Bank B: Afro-Cuban Batá & Shakers
+  - **Pad 6 (Asian/Oriental)**: Bank A: East Asian Taiko & Temple Bells ↔ Bank B: Middle Eastern Derbake & Riq
+  - **Pad 7 (Latin/Tropical)**: Bank A: Latin Salsa Congas, Bongos & Timbales ↔ Bank B: Carnaval Samba, Apito Whistles & Cuíca
+  - **Pad 8 (Flamenco)**: Bank A: Flamenco Cajón & Palmas Kit 1 ↔ Bank B: Flamenco Castañuelas & Taconeo Kit 2
 * **`[L]` ($D2$, 2ª Blanca) + Pads (1 a 8)**: Control completo del **LIVE BEAT LOOPER (8 Pistas)**:
   - `Pad 1`: Armar metrónomo / Cuantización / Auto-cierre de 4 compases / Overdub.
   - `Pad 2`: Conmutar modo **Re-Voice** (Bloqueo de instrumento por pista vs Re-Voice global).
