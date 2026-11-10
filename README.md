@@ -120,14 +120,14 @@ Puedes consultar o imprimir el manual visual maquetado con esquemas vectoriales 
   - `K1`: **Drum Reverb Splash** (CC 91 caja y platos).
   - `K2`: **Drum Pitch Tuning** (Afinación &plusmn;12 semitonos).
   - `K3`: **Looper Tempo** (Control de velocidad en vivo de 30 a 210 BPM).
-  - `K4`: **Drum Volume** (Volumen de batería y pads en CC 7 Ch 10).
-* **Fila Inferior (Teclado y Master)**:
+  - `K4`: **Drum & Loops Volume** (Volumen independiente de batería y ritmos, CC 7 Ch 9: 0 a 127).
+* **Fila Inferior (Teclado y Modulación)**:
   - `K5`: **Keys Reverb Eco** (Reverberación catedral en teclado).
   - `K6`: **Keys Chorus Lush** (Grosor vintage Roland Juno).
   - `K7`: **Dual Mode: Sustain Decay / Rotary Vibrato**:
     - *Con Sustain ON* (`Pad CC 1` o pedal activo): Control de **Tiempo de Caída/Sustain** (1s a 60s en pianos y acústicos para resonancia natural completa; 1s a 35s en órganos y sintes continuos para evitar drones colgados).
     - *Con Sustain OFF*: **Velocidad de Giro Rotary / Vibrato Leslie** (0.2 Hz a 5.0 Hz con enganche automático de profundidad y modulación).
-  - `K8`: **Master Volume** (Volumen general de todo el sistema).
+  - `K8`: **Keys Volume** (Volumen independiente de teclado, CC 7 Ch 0: 0 a 127). Ambos K4 y K8 alcanzan el mismo nivel máximo.
 
 ---
 

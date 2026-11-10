@@ -4,7 +4,12 @@
 # ==============================================================================
 
 # Breve espera para asegurar la enumeración de tarjetas ALSA y puertos USB
-sleep 4
+sleep 2
+
+# Liberar cualquier conexión residual en puerto 9800 antes de levantar el servidor
+fuser -k 9800/tcp 2>/dev/null || true
+ss -K dport = 9800 2>/dev/null || true
+sleep 1
 
 SOUNDFONT="/usr/share/sounds/sf2/FluidR3_GM.sf2"
 
