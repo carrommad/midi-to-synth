@@ -282,7 +282,7 @@ DRUM_KITS = [
     (9,  "Room Kit 1"),                     # Pad 13 (Bank B Pad 5)
     (10, "Room Kit 2"),                     # Pad 14 (Bank B Pad 6)
     (17, "Power Kit 1"),                    # Pad 15 (Bank B Pad 7)
-    (26, "Analog Dance / TR-808 Electro Kit 2") # Pad 16 (Bank B Pad 8)
+    (0,  "Latin & World Percussion Kit")    # Pad 16 (Bank B Pad 8: Congas, Bongós, Timbales, Cowbell)
 ]
 
 class FluidClient:
@@ -1725,34 +1725,44 @@ class AdvancedAkaiController:
                     return
 
             # Si no hay modificador (tocar batería libremente con los pads):
-            # Mapeo Flamenco dedicado en Kit 8 (Flamenco Cajón & Palmas - Pad 8 Bank A, idx 7):
-            # Asigna cajón, palmas, castañuelas, tacón y percusión acústica a los pads
+            # 1. Mapeo Flamenco dedicado en Kit 8 (Flamenco Cajón & Palmas - Pad 8 Bank A, idx 7)
+            # 2. Mapeo Latin & World Percussion en Kit 16 (Pad 8 Bank B, idx 15)
             target_note = note
             if self.current_drum_idx == 7:
                 # Banco A (Pads 1..8): Compás y Percusión Principal
-                # P1 (36): Cajón Grave (36, Bass Drum 1)
-                # P2 (37): Cajón Golpe Seco (38, Acoustic Snare)
-                # P3 (38): Cajón Tapa Aguda (37, Side Stick)
-                # P4 (39): Palmas Sordas (39, Hand Clap)
-                # P5 (40): Castañuelas Clack (75, Claves)
-                # P6 (41): Castañuela Alta (76, Hi Woodblock)
-                # P7 (42): Castañuela Baja (77, Low Woodblock)
-                # P8 (43): Zapateado / Pitos (67, High Agogo)
                 flamenco_map_a = {36: 36, 37: 38, 38: 37, 39: 39, 40: 75, 41: 76, 42: 77, 43: 67}
                 # Banco B (Pads 9..16): Percusiones y Acentos Complementarios Diferentes
-                # P9  (44): Tacón Sordo (44, Pedal Hi-Hat)
-                # P10 (45): Pandereta Flamenca (54, Tambourine)
-                # P11 (46): Shaker / Cabasa Rítmica (69, Cabasa)
-                # P12 (47): Maracas Acento (70, Maracas)
-                # P13 (48): Triángulo Cerrado Mudo (80, Mute Triangle)
-                # P14 (49): Triángulo Abierto Brillante (81, Open Triangle)
-                # P15 (50): Raspado Corto (73, Short Guiro)
-                # P16 (51): Raspado Largo (74, Long Guiro)
                 flamenco_map_b = {44: 44, 45: 54, 46: 69, 47: 70, 48: 80, 49: 81, 50: 73, 51: 74}
                 if self.pad_bank == "A":
                     target_note = flamenco_map_a.get(note, note)
                 else:
                     target_note = flamenco_map_b.get(note, note)
+            elif self.current_drum_idx == 15:
+                # Kit 16 (Pad 8 Bank B): Latin & World Percussion
+                # Banco A: Congas, Bongós, Timbales y Cencerro
+                # P1 (36): Conga Abierta (63)
+                # P2 (37): Conga Muda (62)
+                # P3 (38): Conga Grave (64)
+                # P4 (39): Cowbell / Cencerro (56)
+                # P5 (40): Bongó Agudo (60)
+                # P6 (41): Bongó Grave (61)
+                # P7 (42): Timbale Agudo (65)
+                # P8 (43): Timbale Grave (66)
+                latin_map_a = {36: 63, 37: 62, 38: 64, 39: 56, 40: 60, 41: 61, 42: 65, 43: 66}
+                # Banco B: Percusión Menor y Efectos
+                # P9  (44): Pandereta (54)
+                # P10 (45): Maracas (70)
+                # P11 (46): Cabasa (69)
+                # P12 (47): Güiro Corto (73)
+                # P13 (48): Güiro Largo (74)
+                # P14 (49): Claves de Madera (75)
+                # P15 (50): Agogô Agudo (67)
+                # P16 (51): Agogô Grave (68)
+                latin_map_b = {44: 54, 45: 70, 46: 69, 47: 73, 48: 74, 49: 75, 50: 67, 51: 68}
+                if self.pad_bank == "A":
+                    target_note = latin_map_a.get(note, note)
+                else:
+                    target_note = latin_map_b.get(note, note)
 
             fluid.send(f"noteon 9 {target_note} {velocity}")
             # Grabar golpe de pad en el Looper (incluso si está en ARMED para disparar la grabación):
