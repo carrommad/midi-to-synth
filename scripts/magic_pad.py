@@ -91,42 +91,42 @@ VECTOR_PRESETS = [
 # Estandariza la sonoridad acústica percibida para que órganos y sintes estridentes
 # no suenen desproporcionadamente más fuertes que guitarras, pianos o cuerdas.
 PROGRAM_GAIN_TRIM: Dict[int, float] = {
-    # Órganos (alta energía sostenida sin capas de velocidad): atenuar a 70%
-    16: 0.70,  # Drawbar Organ
-    19: 0.68,  # Church Pipe Organ
-    # Guitarras eléctricas saturadas: atenuar a 65%
-    29: 0.65,  # Overdriven Guitar
-    30: 0.65,  # Distortion Guitar
-    # Sintetizadores Lead digitales (ondas cuadradas/sierra plenas): atenuar a 75%
-    80: 0.75,  # Synth Lead Square
-    81: 0.75,  # Synth Lead Sawtooth
-    82: 0.75,  # Calliope Lead
-    84: 0.70,  # Charang Rock Lead
-    87: 0.68,  # Bass + Lead Distorted
-    90: 0.75,  # Polysynth Lead
-    # Instrumentos acústicos de cuerda pulsada (menor energía RMS): realzar a 115%
-    24: 1.15,  # Nylon Spanish Guitar
-    26: 1.15,  # Jazz Electric Guitar
-    # Percusión melódica y pianos
-    2:  1.00,  # Rhodes MK1
-    4:  1.00,  # FM DX7
-    11: 0.95,  # Vibraphone
-    12: 0.95,  # Marimba
+    # Órganos (alta energía sostenida sin capas de velocidad): atenuar a 58%
+    16: 0.58,  # Drawbar Organ
+    19: 0.55,  # Church Pipe Organ
+    # Guitarras eléctricas saturadas: atenuar a 55%
+    29: 0.55,  # Overdriven Guitar
+    30: 0.55,  # Distortion Guitar
+    # Sintetizadores Lead digitales (ondas cuadradas/sierra plenas): atenuar a 65%
+    80: 0.65,  # Synth Lead Square
+    81: 0.65,  # Synth Lead Sawtooth
+    82: 0.65,  # Calliope Lead
+    84: 0.60,  # Charang Rock Lead
+    87: 0.60,  # Bass + Lead Distorted
+    90: 0.65,  # Polysynth Lead
+    # Instrumentos acústicos de cuerda pulsada (menor energía RMS): realzar a 135%
+    24: 1.35,  # Nylon Spanish Guitar
+    26: 1.30,  # Jazz Electric Guitar
+    # Percusión melódica y pianos: realzar pianos acústicos/eléctricos
+    2:  1.25,  # Rhodes MK1
+    4:  1.20,  # FM DX7
+    11: 1.10,  # Vibraphone
+    12: 1.10,  # Marimba
     # Cuerdas y vientos solo
-    40: 1.00,  # Violin
-    42: 1.00,  # Cello
-    77: 1.00,  # Shakuhachi
-    78: 1.00,  # Whistle / Pan Flute
+    40: 1.25,  # Violin
+    42: 1.25,  # Cello
+    77: 1.20,  # Shakuhachi
+    78: 1.20,  # Whistle / Pan Flute
     # Conjuntos y coros
-    48: 0.88,  # String Ensemble
-    54: 0.88,  # Synth Voice
+    48: 1.00,  # String Ensemble
+    54: 1.05,  # Synth Voice
     # Pads atmosféricos
-    88: 1.05,  # Synth Pad 1 Warm
-    89: 1.05,  # Synth Pad 2 Polysynth
-    91: 1.00,  # Space Choir
-    92: 1.00,  # Bowed Glass
-    94: 1.00,  # Halo Pad
-    95: 0.95,  # Sweep Pad
+    88: 1.15,  # Synth Pad 1 Warm
+    89: 1.15,  # Synth Pad 2 Polysynth
+    91: 1.10,  # Space Choir
+    92: 1.10,  # Bowed Glass
+    94: 1.10,  # Halo Pad
+    95: 1.05,  # Sweep Pad
 }
 
 
@@ -183,8 +183,8 @@ class MagicPadLinnstrumentController:
         self.active_notes: Dict[int, int] = {}
 
         # Volume state for Magic Pad (Channel 2)
-        # Nivel normal por defecto al encender / iniciar sesión
-        self.DEFAULT_SESSION_VOLUME: int = 100
+        # Nivel normal por defecto al encender / iniciar sesión (60% de 127 = 76)
+        self.DEFAULT_SESSION_VOLUME: int = 76
         self.current_volume: int = self.DEFAULT_SESSION_VOLUME
 
         # Click handling state
@@ -194,6 +194,14 @@ class MagicPadLinnstrumentController:
         self.pending_single_click_timer: Optional[threading.Timer] = None
         self.volume_hold_timer: Optional[threading.Timer] = None
         self.volume_hold_active: bool = False
+
+        # Octave shifting state (-2, -1, 0, +1, +2):
+        self.octave_shift: int = 0
+
+        # Gesture tracking for 4-finger lateral swipes
+        self.gesture_start_x: Optional[float] = None
+        self.gesture_start_time: float = 0.0
+        self.gesture_processed: bool = False
 
         # Calibración bounds Apple Magic Trackpad 2
         self.min_x: int = -3678
@@ -299,22 +307,48 @@ class MagicPadLinnstrumentController:
         inst_trim = PROGRAM_GAIN_TRIM.get(prog_num, 1.0)
 
         if self.mode == "LINNSTRUMENT":
-            # 1 a 3 notas polifónicas: 85% de current_volume * trim
-            vol = int(self.current_volume * 0.85 * inst_trim)
+            # 1 a 3 notas polifónicas: 100% de current_volume * trim
+            vol = int(self.current_volume * 1.00 * inst_trim)
         elif self.mode == "THEREMIN":
-            # 1 voz senoidal continua: 70% de current_volume * trim
-            vol = int(self.current_volume * 0.70 * inst_trim)
+            # 1 voz senoidal continua: 90% de current_volume * trim
+            vol = int(self.current_volume * 0.90 * inst_trim)
         elif self.mode == "KAOSS_PAD":
-            # 1 voz lead brillante: 65% de current_volume * trim
-            vol = int(self.current_volume * 0.65 * inst_trim)
+            # 1 voz lead brillante: 85% de current_volume * trim
+            vol = int(self.current_volume * 0.85 * inst_trim)
         elif self.mode == "VECTOR_MORPHER":
-            # 4 voces simultáneas (acorde drone): 42% de current_volume * trim
-            vol = int(self.current_volume * 0.42 * inst_trim)
+            # 2 voces simultáneas (acorde drone quintas): 65% de current_volume * trim
+            vol = int(self.current_volume * 0.65 * inst_trim)
         else:
             vol = int(self.current_volume * inst_trim)
 
         vol = max(0, min(127, vol))
         self.fluid.send(f"cc {MAGIC_PAD_MIDI_CHANNEL} 7 {vol}")
+
+    def change_octave(self, up: bool = True):
+        """Transpone las octavas del Magic Trackpad entre 5 niveles (-2 a +2).
+        Derecha a Izquierda (<-) = Sube octava (+1).
+        Izquierda a Derecha (->) = Baja octava (-1)."""
+        if up:
+            if self.octave_shift >= 2:
+                self.play_wall_sound()
+                return
+            self.octave_shift += 1
+        else:
+            if self.octave_shift <= -2:
+                self.play_wall_sound()
+                return
+            self.octave_shift -= 1
+
+        self.all_notes_off()
+        sign = f"+{self.octave_shift}" if self.octave_shift > 0 else str(self.octave_shift)
+        print(f"\n[MAGIC PAD 🖐️🖐️ SWIPE 4 DEDOS] Octava -> {sign} ({'Agudo' if up else 'Grave'})", flush=True)
+
+        # Chime acústico suave indicando el cambio de octava
+        fb_vol, fb_vel = self.get_function_sound_volume(base_percentage=0.60)
+        chime_note = 72 + self.octave_shift * 12
+        chime_note = max(24, min(108, chime_note))
+        self.fluid.send(f"prog 15 12\ncc 15 7 {fb_vol}\ncc 15 91 40\nnoteon 15 {chime_note} {fb_vel}\n")
+        threading.Timer(0.10, lambda: self.fluid.send(f"noteoff 15 {chime_note}")).start()
 
     def change_mode(self, forward: bool = True):
         # NAVEGACIÓN ESTRICTAMENTE ACOTADA (No cíclica):
@@ -475,7 +509,7 @@ class MagicPadLinnstrumentController:
 
         side = "RIGHT" if self.last_touch_x >= 0 else "LEFT"
 
-        # Ajustar volumen en pasos más marcados (+/- 16) con auto-repeat a 110ms
+        # Ajustar volumen en pasos suaves (+/- 8) con auto-repeat ralentizado a 300ms
         def _volume_hold_loop():
             self.volume_hold_active = True
             if self.pending_single_click_timer:
@@ -484,16 +518,16 @@ class MagicPadLinnstrumentController:
 
             # Leer la posición real dinámica en el momento de la pulsación
             current_side = "RIGHT" if self.last_touch_x >= 0 else "LEFT"
-            step = 16 if current_side == "RIGHT" else -16
+            step = 8 if current_side == "RIGHT" else -8
             self.adjust_volume(step)
 
             # Auto-repeat mientras se mantenga presionado
             while self.volume_hold_active and self.running:
-                time.sleep(0.11)
+                time.sleep(0.30)
                 if not self.volume_hold_active:
                     break
                 current_side = "RIGHT" if self.last_touch_x >= 0 else "LEFT"
-                step = 16 if current_side == "RIGHT" else -16
+                step = 8 if current_side == "RIGHT" else -8
                 self.adjust_volume(step)
 
         self.volume_hold_timer = threading.Timer(0.55, _volume_hold_loop)
@@ -566,6 +600,37 @@ class MagicPadLinnstrumentController:
             return
 
         # -------------------------------------------------------------
+        # 1. DETECCIÓN DE GESTO: SWIPE LATERAL DE 4 DEDOS (OCTAVAS)
+        # -------------------------------------------------------------
+        active_slots_with_coords = [s for s in self.slots.values() if 'x' in s and 'y' in s]
+        num_fingers = len(active_slots_with_coords)
+
+        if num_fingers >= 4:
+            avg_x = sum(s['x'] for s in active_slots_with_coords) / num_fingers
+            now = time.time()
+            if self.gesture_start_x is None:
+                self.gesture_start_x = avg_x
+                self.gesture_start_time = now
+                self.gesture_processed = False
+            else:
+                delta_x = avg_x - self.gesture_start_x
+                elapsed = now - self.gesture_start_time
+                # Umbral de desplazamiento de swipe (> 1200 unidades en trackpad)
+                if not self.gesture_processed and elapsed < 0.6:
+                    if delta_x < -1200:
+                        # Derecha a Izquierda (<-): Sube octava
+                        self.change_octave(up=True)
+                        self.gesture_processed = True
+                    elif delta_x > 1200:
+                        # Izquierda a Derecha (->): Baja octava
+                        self.change_octave(up=False)
+                        self.gesture_processed = True
+            return
+        else:
+            self.gesture_start_x = None
+            self.gesture_processed = False
+
+        # -------------------------------------------------------------
         # PROCESAMIENTO SEGÚN MODO ACTIVO (Superficie 100% pura para tocar)
         # -------------------------------------------------------------
         if self.mode == "LINNSTRUMENT":
@@ -579,10 +644,12 @@ class MagicPadLinnstrumentController:
                 norm_y = max(0.0, min(1.0, (first_slot['y'] - self.min_y) / (self.max_y - self.min_y)))
                 if self.is_in_click_corner(norm_x, norm_y):
                     return
+                # Theremin: centro en C5 (nota 72) + octave_shift * 12
+                center_pitch = max(24, min(96, 60 + self.octave_shift * 12))
                 pb_val = int(norm_x * 16383)
                 # Eje Y: Filtro cutoff/brillo y modulación, manteniendo CC 11 en rango audible pleno
                 inst_trim = PROGRAM_GAIN_TRIM.get(self.get_current_prog_number(), 1.0)
-                theremin_vol = int(self.current_volume * 0.70 * inst_trim)
+                theremin_vol = int(self.current_volume * 0.90 * inst_trim)
                 expr = int(70 + (1.0 - norm_y) * 57)
                 cutoff = int(35 + (1.0 - norm_y) * 92)
                 if not self.theremin_active:
@@ -593,7 +660,7 @@ class MagicPadLinnstrumentController:
                         f"cc {MAGIC_PAD_MIDI_CHANNEL} 7 {theremin_vol}\n"
                         f"cc {MAGIC_PAD_MIDI_CHANNEL} 11 {expr}\n"
                         f"cc {MAGIC_PAD_MIDI_CHANNEL} 74 {cutoff}\n"
-                        f"noteon {MAGIC_PAD_MIDI_CHANNEL} 60 85"
+                        f"noteon {MAGIC_PAD_MIDI_CHANNEL} {center_pitch} 88"
                     )
                 else:
                     self.fluid.send(
@@ -610,12 +677,13 @@ class MagicPadLinnstrumentController:
                 norm_y = max(0.0, min(1.0, (first_slot['y'] - self.min_y) / (self.max_y - self.min_y)))
                 if self.is_in_click_corner(norm_x, norm_y):
                     return
-                # Escala cromática / pentatónica rápida (2 octavas: notas 48 a 72)
-                target_note = int(48 + norm_x * 24)
+                # Escala cromática / pentatónica rápida (2 octavas: notas base 48 + octave_shift*12 a +24)
+                base_kaoss = max(24, min(96, 48 + self.octave_shift * 12))
+                target_note = int(base_kaoss + norm_x * 24)
                 cutoff = int(30 + (1.0 - norm_y) * 97)
                 mod_depth = int((1.0 - norm_y) * 127)
                 inst_trim = PROGRAM_GAIN_TRIM.get(self.get_current_prog_number(), 1.0)
-                kaoss_vol = int(self.current_volume * 0.65 * inst_trim)
+                kaoss_vol = int(self.current_volume * 0.85 * inst_trim)
 
                 now = time.time()
                 if not self.kaoss_active:
@@ -627,7 +695,7 @@ class MagicPadLinnstrumentController:
                         f"cc {MAGIC_PAD_MIDI_CHANNEL} 7 {kaoss_vol}\n"
                         f"cc {MAGIC_PAD_MIDI_CHANNEL} 74 {cutoff}\n"
                         f"cc {MAGIC_PAD_MIDI_CHANNEL} 1 {mod_depth}\n"
-                        f"noteon {MAGIC_PAD_MIDI_CHANNEL} {target_note} 78"
+                        f"noteon {MAGIC_PAD_MIDI_CHANNEL} {target_note} 82"
                     )
                 else:
                     if self.kaoss_current_note != target_note:
@@ -635,7 +703,7 @@ class MagicPadLinnstrumentController:
                         self.kaoss_current_note = target_note
                         # Disparo con transición suave Legato (noteon antes de noteoff para evitar vacío acústico)
                         self.fluid.send(
-                            f"noteon {MAGIC_PAD_MIDI_CHANNEL} {target_note} 72\n"
+                            f"noteon {MAGIC_PAD_MIDI_CHANNEL} {target_note} 78\n"
                             f"noteoff {MAGIC_PAD_MIDI_CHANNEL} {old_note}"
                         )
                     # Throttling de modulación continua (35 Hz máx y solo si el valor CC ha cambiado)
@@ -658,11 +726,11 @@ class MagicPadLinnstrumentController:
                 norm_y = max(0.0, min(1.0, (first_slot['y'] - self.min_y) / (self.max_y - self.min_y)))
                 if self.is_in_click_corner(norm_x, norm_y):
                     return
-                # Acordes abiertos / Pad etéreo de 2 voces (Fundamental + Quinta armónica):
-                # Elimina el embarre de frecuencias y la saturación acumulativa de 4 voces
+                # Acordes abiertos / Pad etéreo de 2 voces (Fundamental + Quinta armónica) adaptados a octave_shift:
                 root_offsets = [0, 2, 4, 5, 7, 9, 11, 12]
                 chord_idx = max(0, min(7, int(norm_x * 8)))
-                root = 48 + root_offsets[chord_idx]
+                base_root = max(24, min(84, 48 + self.octave_shift * 12))
+                root = base_root + root_offsets[chord_idx]
                 target_chord = [root, root + 7]
 
                 pan = int(norm_x * 127)
@@ -735,8 +803,9 @@ class MagicPadLinnstrumentController:
 
         col = max(0, min(7, int(norm_x * 8)))
         row = max(0, min(3, int((1.0 - norm_y) * 4)))
-        target_note = self.linn_base_notes[row] + col
-        vel = max(30, min(127, int(pressure * 1.4)))
+        base_octave_offset = self.octave_shift * 12
+        target_note = max(12, min(120, self.linn_base_notes[row] + col + base_octave_offset))
+        vel = max(35, min(127, int(pressure * 1.5)))
 
         if not slot.get('active', False):
             # Limitar polifonía máxima simultánea a 4 voces para evitar saturación acústica por notas apiladas

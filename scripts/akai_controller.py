@@ -354,8 +354,12 @@ class LiveMidiLooper:
         self.track_duration: list = [0.0 for _ in range(8)]  # Duración individual por pista (loops independientes)
         self.base_track_duration: list = [0.0 for _ in range(8)]
         self.track_rec_start: float = 0.0
-        self.revoice_mode: bool = False  # False: Lock instrument to track | True: Re-voice all melodic tracks to current
-        self.auto_close_bars: int = 4  # Auto-close loop at boundary (4 bars default)
+        self.revoice_mode: bool = True  # True: Re-voice all melodic tracks to current active instrument by default
+        self.fixed_4_bars: bool = True  # True: Auto-close strictly at 4 bars | False: Free manual close
+        self.auto_close_bars: int = 4   # 4 compases
+        self.overdub_pending: bool = False
+        self.overdub_start_bar: int = 0
+        self.current_playback_beat: int = 0
         self.current_track: int = 0
         self.first_note_time: Optional[float] = None
         self.loop_duration: float = 0.0
@@ -570,15 +574,12 @@ class LiveMidiLooper:
         if self.state in ["PLAYING", "OVERDUBBING"]:
             print(f"[LOOPER] BPM ajustado en vivo: {self.bpm} BPM (Duración Pista 1: {self.track_duration[0]:.2f}s)", flush=True)
 
-    def toggle_revoice_mode(self):
-        """Conmuta el modo de re-instrumentación de las pistas grabadas:
-        - Modo Bloqueo (False): Cada pista conserva el instrumento con el que se grabó.
-        - Modo Re-Voice Global (True): Todas las pistas de teclado cambian en tiempo real al instrumento activo.
-        """
-        self.revoice_mode = not self.revoice_mode
-        st = "RE-VOICE ALL (Todas las capas siguen instrumento activo)" if self.revoice_mode else "MULTI-INSTRUMENT LOCK (Cada capa bloqueada a su instrumento)"
-        print(f"\n[LOOPER 🔀 RE-VOICE MODE] -> {st}", flush=True)
-        self._play_chime("play" if self.revoice_mode else "pause")
+    def toggle_fixed_4_bars(self):
+        """Conmuta entre Auto-Cierre Fijo a 4 Compases y Modo Cierre Libre."""
+        self.fixed_4_bars = not self.fixed_4_bars
+        st = "FIJO A 4 COMPASES (Auto-cierre activo)" if self.fixed_4_bars else "LIBRE / MANUAL (Cierre con Pad 1)"
+        print(f"\n[LOOPER ⏱ DURACIÓN BUCLE] -> {st}", flush=True)
+        self._play_chime("armed" if self.fixed_4_bars else "pause")
 
     def remove_recent_note(self, channel: int, note: int, window: float = 1.0):
         with self.lock:
@@ -596,8 +597,8 @@ class LiveMidiLooper:
         """Workflow profesional HÍBRIDO con Auto-Cierre & Multi-Pista 8 Slots:
         1. Estado ARMED: Suena claqueta a BPM de K3.
         2. Disparo por Primera Nota: Comienza t=0.0.
-        3. Cierre Inteligente / Auto-Cierre: Redondeo exacto a compases musicales (o auto-cierre a los 4 compases).
-        4. Overdub: Asigna dinámicamente el menor slot libre disponible entre 1 y 7 (0-indexed).
+        3. Cierre Inteligente / Auto-Cierre: Si fixed_4_bars está activo, se fija exactamente a 4 compases.
+        4. Overdub con Pre-Roll: Espera al tiempo 1 del Compás 1 garantizando >= 1 compás entero de claqueta.
         """
         if self.state in ["IDLE", "PAUSED"]:
             # ENTRAR EN MODO ARMED (8 pistas limpias)
@@ -610,6 +611,7 @@ class LiveMidiLooper:
                     self.base_track_duration[i] = 0.0
                 self.current_track = 0
                 self.state = "ARMED"
+                self.overdub_pending = False
                 self.loop_duration = 0.0
                 self.base_loop_duration = 0.0
                 self.stop_event.clear()
@@ -630,7 +632,7 @@ class LiveMidiLooper:
             bar_dur = 4.0 * beat_dur
 
             raw_bars = elapsed / bar_dur
-            bars = max(1, round(raw_bars))
+            bars = 4 if self.fixed_4_bars else max(1, round(raw_bars))
             self.base_loop_duration = bars * bar_dur
             self.loop_duration = self.base_loop_duration
             self.base_track_duration[0] = self.base_loop_duration
@@ -642,8 +644,6 @@ class LiveMidiLooper:
 
             step_grid = 60.0 / (self.bpm * 4.0)
             with self.lock:
-                # Filtrar y ordenar eventos de la pista base preservando la duración natural
-                # y garantizando una duración mínima audible (gate >= 40ms) para cada nota arpegiada:
                 clean_events = []
                 step_tol = step_grid * 0.5
                 for ev in self.tracks[0]:
@@ -654,10 +654,8 @@ class LiveMidiLooper:
                     elif t <= (self.base_loop_duration + step_tol) and is_on:
                         clean_events.append([0.0, ch, n, v, is_on, prg])
 
-                # Ordenar por timestamp; ante igualdad de tiempo, noteon (True -> 0) va antes que noteoff (False -> 1)
                 clean_events.sort(key=lambda x: (x[0], 0 if x[4] else 1))
 
-                # Garantizar duración mínima audible para que noteoff nunca se solape con noteon
                 min_gate = 0.040  # 40ms
                 active_ons = {}
                 for ev in clean_events:
@@ -667,15 +665,15 @@ class LiveMidiLooper:
                         active_ons[key] = t
                     else:
                         if key in active_ons:
-                            on_t = active_ons.pop(key)
-                            if (t - on_t) < min_gate:
-                                ev[0] = min(self.base_loop_duration - 0.005, on_t + min_gate)
+                            start_t = active_ons.pop(key)
+                            if (t - start_t) < min_gate:
+                                ev[0] = start_t + min_gate
 
                 clean_events = [tuple(e) for e in clean_events]
                 clean_events.sort(key=lambda x: (x[0], 0 if x[4] else 1))
                 self.tracks[0] = clean_events
                 self.state = "PLAYING"
-                self.finish_pending = False
+                self.overdub_pending = False
 
             total_evs = len(self.tracks[0])
             total_beats = bars * 4
@@ -684,79 +682,107 @@ class LiveMidiLooper:
             self._start_playback_thread()
 
         elif self.state == "PLAYING":
-            # ENTER OVERDUB MODE: Asignar dinámicamente el menor slot disponible entre 1 y 7
-            self._push_history()
-            next_trk = None
-            for idx in range(1, 8):
-                if len(self.tracks[idx]) == 0:
-                    next_trk = idx
-                    break
-            if next_trk is None:
-                # Si las 8 pistas están ocupadas, reutilizar el slot de overdub actual
-                next_trk = (self.current_track + 1) % 8
-                if next_trk == 0:
-                    next_trk = 1
+            if self.overdub_pending:
+                self.overdub_pending = False
+                print(f"\n[LOOPER] Overdub pendiente cancelado.", flush=True)
+                self._play_chime("pause")
+                return
 
-            self.current_track = next_trk
-            self.track_muted[self.current_track] = False
-            self.track_duration[self.current_track] = 0.0
-            self.base_track_duration[self.current_track] = 0.0
-            self.track_rec_start = time.perf_counter()
-            self.tracks[self.current_track].clear()
-            if self.controller:
-                self.track_prog[self.current_track] = self.controller.get_current_melodic_program()
-            self.state = "OVERDUBBING"
-            print(f"\n[LOOPER 🟠 OVERDUB] ¡Grabando en Pista {self.current_track + 1} de 8! Pulsa D1+Pad 1 para cerrar.", flush=True)
-            self._play_chime("overdub")
+            # ENTER OVERDUB PENDING (Esperando al Compás 1 con mínimo 1 compás entero de pre-roll)
+            self.overdub_pending = True
+            print(f"\n[LOOPER ⏱ OVERDUB EN ESPERA] Preparando claqueta previa (mínimo 1 compás entero). La grabación arrancará exactamente en el Compás 1...", flush=True)
+            self._play_chime("armed")
 
         elif self.state == "OVERDUBBING":
-            # FINISH OVERDUB -> RETURN TO PLAY (Duración de pista independiente)
-            now = time.perf_counter()
-            elapsed_trk = max(0.01, now - self.track_rec_start)
-            beat_dur = 60.0 / self.bpm
-            bar_dur = 4.0 * beat_dur
-            raw_bars = elapsed_trk / bar_dur
-            bars = max(1, round(raw_bars))
-            trk_dur = bars * bar_dur
+            self._finish_overdub()
 
-            with self.lock:
-                trk = self.current_track
-                self.base_track_duration[trk] = trk_dur
-                self.track_duration[trk] = trk_dur
-                step_grid = 60.0 / (self.bpm * 4.0)
-                step_tol = step_grid * 0.5
-                clean_events = []
-                for ev in self.tracks[trk]:
-                    t, ch, n, v, is_on = ev[:5]
-                    prg = ev[5] if len(ev) > 5 else self.track_prog[trk]
-                    if t < trk_dur:
-                        clean_events.append([t, ch, n, v, is_on, prg])
-                    elif t <= (trk_dur + step_tol) and is_on:
-                        clean_events.append([0.0, ch, n, v, is_on, prg])
+    def _start_actual_overdub(self):
+        """Inicia físicamente la grabación de la capa de overdub justo en el Compás 1."""
+        self._push_history()
+        next_trk = None
+        for idx in range(1, 8):
+            if len(self.tracks[idx]) == 0:
+                next_trk = idx
+                break
+        if next_trk is None:
+            next_trk = (self.current_track + 1) % 8
+            if next_trk == 0:
+                next_trk = 1
 
-                clean_events.sort(key=lambda x: (x[0], 0 if x[4] else 1))
+        self.current_track = next_trk
+        self.track_muted[self.current_track] = False
+        self.track_duration[self.current_track] = 0.0
+        self.base_track_duration[self.current_track] = 0.0
+        self.track_rec_start = time.perf_counter()
+        self.tracks[self.current_track].clear()
+        if self.controller:
+            self.track_prog[self.current_track] = self.controller.get_current_melodic_program()
+        self.state = "OVERDUBBING"
+        self.overdub_pending = False
+        print(f"\n[LOOPER 🔴 OVERDUB ACTIVO] ¡Grabando en Pista {self.current_track + 1} de 8 sincronizado al Compás 1!", flush=True)
+        self._play_chime("start_rec")
 
-                min_gate = 0.040  # 40ms
-                active_ons = {}
-                for ev in clean_events:
-                    t, ch, n, v, is_on, prg = ev
-                    key = (ch, n)
-                    if is_on:
-                        active_ons[key] = t
-                    else:
-                        if key in active_ons:
-                            on_t = active_ons.pop(key)
-                            if (t - on_t) < min_gate:
-                                ev[0] = min(trk_dur - 0.005, on_t + min_gate)
+        # Si fixed_4_bars está activo, auto-cerrar overdub exactamente al completar los 4 compases
+        if self.fixed_4_bars:
+            def _watchdog_overdub_autoclose(start_t: float, trk_num: int):
+                beat_dur = 60.0 / self.bpm
+                dur = 4.0 * 4.0 * beat_dur
+                time.sleep(dur)
+                if self.state == "OVERDUBBING" and self.track_rec_start == start_t and self.current_track == trk_num:
+                    print(f"\n[LOOPER ⏱ AUTO-CIERRE OVERDUB] Completados 4 compases de Overdub. Uniendo al loop maestro...", flush=True)
+                    self._finish_overdub()
 
-                clean_events = [tuple(e) for e in clean_events]
-                clean_events.sort(key=lambda x: (x[0], 0 if x[4] else 1))
-                self.tracks[trk] = clean_events
-                self.state = "PLAYING"
+            threading.Thread(target=_watchdog_overdub_autoclose, args=[self.track_rec_start, self.current_track], daemon=True).start()
 
-            n_notes = len(self.tracks[self.current_track])
-            print(f"\n[LOOPER ▶ PLAY] Pista {self.current_track + 1} completada: {bars} compás(es) ({trk_dur:.2f}s, {n_notes} notas).", flush=True)
-            self._play_chime("play")
+    def _finish_overdub(self):
+        """Cierra la capa de overdub y pasa a PLAYING con duración cuantizada."""
+        now = time.perf_counter()
+        elapsed_trk = max(0.01, now - self.track_rec_start)
+        beat_dur = 60.0 / self.bpm
+        bar_dur = 4.0 * beat_dur
+        raw_bars = elapsed_trk / bar_dur
+        bars = 4 if self.fixed_4_bars else max(1, round(raw_bars))
+        trk_dur = bars * bar_dur
+
+        with self.lock:
+            trk = self.current_track
+            self.base_track_duration[trk] = trk_dur
+            self.track_duration[trk] = trk_dur
+            step_grid = 60.0 / (self.bpm * 4.0)
+            step_tol = step_grid * 0.5
+            clean_events = []
+            for ev in self.tracks[trk]:
+                t, ch, n, v, is_on = ev[:5]
+                prg = ev[5] if len(ev) > 5 else self.track_prog[trk]
+                if t < trk_dur:
+                    clean_events.append([t, ch, n, v, is_on, prg])
+                elif t <= (trk_dur + step_tol) and is_on:
+                    clean_events.append([0.0, ch, n, v, is_on, prg])
+
+            clean_events.sort(key=lambda x: (x[0], 0 if x[4] else 1))
+
+            min_gate = 0.040  # 40ms
+            active_ons = {}
+            for ev in clean_events:
+                t, ch, n, v, is_on, prg = ev
+                key = (ch, n)
+                if is_on:
+                    active_ons[key] = t
+                else:
+                    if key in active_ons:
+                        on_t = active_ons.pop(key)
+                        if (t - on_t) < min_gate:
+                            ev[0] = min(trk_dur - 0.005, on_t + min_gate)
+
+            clean_events = [tuple(e) for e in clean_events]
+            clean_events.sort(key=lambda x: (x[0], 0 if x[4] else 1))
+            self.tracks[trk] = clean_events
+            self.state = "PLAYING"
+            self.overdub_pending = False
+
+        n_notes = len(self.tracks[self.current_track])
+        print(f"\n[LOOPER ▶ PLAY] Pista {self.current_track + 1} completada: {bars} compás(es) ({trk_dur:.2f}s, {n_notes} notas).", flush=True)
+        self._play_chime("play")
 
     def record_event(self, channel: int, note: int, velocity: int, is_note_on: bool):
         now = time.perf_counter()
@@ -1088,19 +1114,58 @@ class LiveMidiLooper:
             beat_idx += 1
 
     def _run_playback(self):
-        last_played_prog = None
         # Rastrear notas activas e índice de eventos por pista de forma independiente
         active_sounding_notes = set()
         track_next_idx = [0 for _ in range(8)]
         track_cycle_start = [time.perf_counter() for _ in range(8)]
 
-        # Inicializar tiempos de ciclo
+        # Inicializar tiempos de ciclo y claqueta de metrónomo sincronizada
         now_init = time.perf_counter()
         for i in range(8):
             track_cycle_start[i] = now_init
 
+        metro_beat_idx = 0
+        metro_next_time = now_init
+
         while not self.stop_event.is_set() and self.state in ["PLAYING", "OVERDUBBING"]:
             now = time.perf_counter()
+            beat_dur = 60.0 / self.bpm
+
+            # ------------------------------------------------------------------
+            # METRÓNOMO AUDIBLE SINCRONIZADO AL BUCLE BASE (Si está activado)
+            # ------------------------------------------------------------------
+            if now >= metro_next_time:
+                base_len = self.track_duration[0] if self.track_duration[0] > 0 else (4.0 * beat_dur)
+                total_beats_loop = max(4, int(round(base_len / beat_dur)))
+                current_loop_beat = metro_beat_idx % total_beats_loop
+
+                # Disparar click si metrónomo está activo
+                if self.metronome_active:
+                    is_downbeat = (current_loop_beat == 0)
+                    click_note = 76 if is_downbeat else 77
+                    click_vel = 85 if is_downbeat else 55
+                    self.fluid.send(f"prog 15 115\ncc 15 7 80\nnoteon 15 {click_note} {click_vel}\n")
+                    def _play_click_off(cn: int):
+                        time.sleep(0.04)
+                        self.fluid.send(f"noteoff 15 {cn}\n")
+                    threading.Thread(target=_play_click_off, args=[click_note], daemon=True).start()
+
+                # GESTIÓN DE PRE-ROLL DE OVERDUB (Al menos 1 compás entero de claqueta antes de Compás 1):
+                # Si overdub_pending está activo y llegamos al tiempo 4 previo al compás 1 (current_loop_beat == total_beats_loop - 1):
+                if self.overdub_pending and self.state == "PLAYING":
+                    # Si acabamos de entrar y estamos a menos de 4 tiempos de terminar el loop, dejamos pasar esta vuelta
+                    # Comprobamos si el siguiente beat es el tiempo 0 (Compás 1):
+                    if (current_loop_beat == total_beats_loop - 1):
+                        # Chime suave avisando que en el próximo tiempo arranca la grabación
+                        self.fluid.send("prog 15 8\ncc 15 7 60\nnoteon 15 84 60\n")
+                        threading.Timer(0.08, lambda: self.fluid.send("noteoff 15 84\n")).start()
+                    elif (current_loop_beat == 0):
+                        # ¡Llegamos al tiempo 1 del Compás 1! Arrancar overdub
+                        self._start_actual_overdub()
+
+                metro_beat_idx += 1
+                metro_next_time += beat_dur
+
             scale = (self.base_bpm / float(self.bpm)) if (self.base_bpm > 0 and self.bpm > 0) else 1.0
             is_full = bool(self.controller and getattr(self.controller, "keys_full_level", False))
 
@@ -1271,7 +1336,7 @@ class AdvancedAkaiController:
         self.last_portamento_press: float = 0.0
         self.last_drum_mute_press: float = 0.0
         self.last_keys_mute_press: float = 0.0
-        self.shutdown_timer: Optional[threading.Timer] = None
+        self.reset_default_timer: Optional[threading.Timer] = None
         self.full_level_timer: Optional[threading.Timer] = None
         self.modifier_timer: Optional[threading.Timer] = None
         self.modifier_active_mode: Optional[str] = None
@@ -1424,9 +1489,9 @@ class AdvancedAkaiController:
                 print(f"[STARTUP CHIME ERROR] {e}", flush=True)
         threading.Thread(target=_worker, daemon=True).start()
 
-    def start_shutdown_timer(self):
-        if self.shutdown_timer is None:
-            # Silenciar de inmediato las notas extremas C1 y C3 en el piano para evitar el choque sonoro estridente
+    def start_reset_default_timer(self):
+        if self.reset_default_timer is None:
+            # Silenciar de inmediato las notas extremas en el piano para evitar choque sonoro
             try:
                 active = sorted(list(self.held_keyboard_notes.keys()))
                 if len(active) >= 2:
@@ -1434,9 +1499,8 @@ class AdvancedAkaiController:
             except Exception:
                 pass
 
-            print("\n[AVISO APAGADO] Mantén pulsadas ambas teclas C1 y C3 durante 2 segundos para apagar el sistema...", flush=True)
+            print("\n[AVISO RESET DEFAULT] Mantén pulsadas ambas teclas C extremo izquierdo y C extremo derecho durante 2s para resetear todo a default...", flush=True)
 
-            # Toque sutil de aviso (Do central apagado en canal 15 Celesta)
             def _subtle_warning():
                 if getattr(self, "mute_function_sounds", False):
                     return
@@ -1448,80 +1512,54 @@ class AdvancedAkaiController:
                     pass
             threading.Thread(target=_subtle_warning, daemon=True).start()
 
-            self.shutdown_timer = threading.Timer(2.0, self.execute_safe_shutdown)
-            self.shutdown_timer.daemon = True
-            self.shutdown_timer.start()
+            self.reset_default_timer = threading.Timer(2.0, self.execute_reset_default)
+            self.reset_default_timer.daemon = True
+            self.reset_default_timer.start()
 
-    def cancel_shutdown_timer(self):
-        if self.shutdown_timer is not None:
-            self.shutdown_timer.cancel()
-            self.shutdown_timer = None
+    def cancel_reset_default_timer(self):
+        if self.reset_default_timer is not None:
+            self.reset_default_timer.cancel()
+            self.reset_default_timer = None
 
-    def start_full_level_timer(self, base_c: int):
-        if self.full_level_timer is None:
-            def _toggle():
-                self.toggle_keys_full_level(base_c)
-                self.full_level_timer = None
-
-            self.full_level_timer = threading.Timer(2.0, _toggle)
-            self.full_level_timer.daemon = True
-            self.full_level_timer.start()
-
-    def cancel_full_level_timer(self):
-        if self.full_level_timer is not None:
-            self.full_level_timer.cancel()
-            self.full_level_timer = None
-
-    def start_modifier_timer(self, key_type: str, note: int):
-        if self.modifier_timer is None:
-            def _on_selection_ready():
-                self.modifier_active_mode = key_type
-                # Silenciar de inmediato en FluidSynth la nota que se estaba manteniendo para dejar paso limpio al chime
-                try:
-                    fluid.send(f"noteoff 0 {note}\ncc 0 120 0\ncc 0 123 0")
-                except Exception:
-                    pass
-                # Sonido de confirmación: chime cristalino notificando que está en Modo Selección
-                if key_type == "melodic":
-                    print("\n[MODO SELECCIÓN ACTIVADO] Teclado -> Toca cualquier tecla para elegir Instrumento Melódico", flush=True)
-                    self.play_chime(active=True)
-                else:
-                    print("\n[MODO SELECCIÓN ACTIVADO] Batería -> Toca cualquier tecla para elegir Kit de Batería", flush=True)
-                    self.play_chime(active=True)
-                self.modifier_timer = None
-
-            self.modifier_timer = threading.Timer(2.0, _on_selection_ready)
-            self.modifier_timer.daemon = True
-            self.modifier_timer.start()
-
-    def cancel_modifier_timer(self):
-        if self.modifier_timer is not None:
-            self.modifier_timer.cancel()
-            self.modifier_timer = None
-        self.modifier_active_mode = None
-
-    def execute_safe_shutdown(self):
+    def execute_reset_default(self):
         print("\n" + "="*65, flush=True)
-        print(" [APAGADO SEGURO] Secuencia de apagado confirmada desde el Akai", flush=True)
-        print(" Guardando datos y cerrando sistema operativo...", flush=True)
+        print(" [RESET DEFAULT] Restaurando sintetizador y controlador a valores por defecto", flush=True)
         print("="*65, flush=True)
 
-        # Chime sutil descendente de despedida (lo opuesto exacto a la música de inicio)
-        # La música de inicio es: [60, 64, 67, 72, 76, 84] (C4 ascendente)
-        # La música de apagado es: [84, 76, 72, 67, 64, 60] suave y gradual en celesta atenuada
+        # 1. Silenciar todas las notas y parar looper y presets
+        self.looper.stop_all()
+        fluid.send("cc 0 120 0\ncc 0 123 0\ncc 9 120 0\ncc 9 123 0")
+
+        # 2. Desactivar todos los efectos (Reverb normal, Chorus OFF, Sustain OFF, Portamento OFF, Quinta OFF)
+        self.sustain_active = False
+        self.portamento_active = False
+        self.harmonic_fifth_active = False
+        self.keys_full_level = False
+        fluid.send("cc 0 64 0\ncc 0 65 0\nsetportamentomode 0 0\n")
+        fluid.send("set synth.chorus.active False\ncc 0 93 0\ncc 0 1 0\n")
+        fluid.send("set synth.reverb.active True\ncc 0 91 50\ncc 9 91 50\n")
+
+        # 3. Restablecer instrumentos melódicos y batería a Set 1 Prog 1
+        self.active_library_idx = 0  # Set 1 (Grand Piano & Keys)
+        self.current_melodic_idx = 0
+        first_prog, first_name = OCTAVE_INSTRUMENT_LIBRARIES[LIBRARY_ORDER[0]][0]
+        fluid.send(f"prog 0 {first_prog}\nprog 9 0\n")
+
+        # 4. Volúmenes al 100%
+        self.current_keys_volume = 127
+        self.current_drum_volume = 127
+        fluid.send("cc 0 7 127\ncc 9 7 127\n")
+
+        # Chime cristalino de confirmación de Reset Total (Do-Mi-Sol-Do mayor)
         try:
-            fluid.send("prog 15 8\ncc 15 7 45\ncc 15 91 80\n")
-            shutdown_notes = [84, 76, 72, 67, 64, 60]
-            for n in shutdown_notes:
-                fluid.send(f"noteon 15 {n} 48\n")
-                time.sleep(0.09)
+            fluid.send("prog 15 8\ncc 15 7 50\ncc 15 91 80\n")
+            for n in [72, 76, 79, 84]:
+                fluid.send(f"noteon 15 {n} 55\n")
+                time.sleep(0.06)
                 fluid.send(f"noteoff 15 {n}\n")
-            time.sleep(0.3)
         except Exception:
             pass
-
-        # Ejecutar apagado ordenado del sistema Linux (protegiendo la tarjeta SD)
-        subprocess.run(["sudo", "systemctl", "poweroff"])
+        print(f"[RESET DEFAULT COMPLETADO] 1er Instrumento: {first_name} | Efectos limpios | Vol 100%", flush=True)
 
     def find_mpk_port(self) -> Optional[str]:
         try:
@@ -1540,9 +1578,17 @@ class AdvancedAkaiController:
         # PAD 2: Re-Voice Mode Toggle (Multi-Instrument Lock vs Re-Voice All)
         elif pad_num == 1:
             self.looper.toggle_revoice_mode()
-        # PAD 3: Metronome Toggle (Mute/Unmute)
+        # PAD 3: Metronome Toggle (Tap < 2.0s) / Hold >= 2.0s: Conmutar Bucle Fijo a 4 Compases
         elif pad_num == 2:
-            self.looper.toggle_metronome()
+            now = time.time()
+            def _hold_toggle_fixed_4_bars():
+                self.looper.toggle_fixed_4_bars()
+                self.looper_pad_press_times.pop(2, None)
+
+            timer = threading.Timer(2.0, _hold_toggle_fixed_4_bars)
+            timer.daemon = True
+            self.looper_pad_hold_timers[pad_num] = timer
+            timer.start()
         # PAD 4: Play/Pause (Tap) / Hold > 1.5s: Clear All Tracks
         elif pad_num == 3:
             now = time.time()
@@ -1580,7 +1626,10 @@ class AdvancedAkaiController:
 
         press_t = self.looper_pad_press_times.pop(pad_num, None)
         if press_t is not None:
-            if pad_num == 3:
+            if pad_num == 2:
+                # Pulsación corta (< 2.0s) en Pad 3: Conmutar Silencio / Activación Metrónomo
+                self.looper.toggle_metronome()
+            elif pad_num == 3:
                 # Pulsación corta (< 1.5s) en Pad 4: Conmutar Play / Pause
                 self.looper.toggle_play_pause()
             elif pad_num in [4, 5, 6, 7]:
@@ -1634,12 +1683,14 @@ class AdvancedAkaiController:
                 self.reverb_muted_by_panic = False
                 fluid.send(f"set synth.reverb.active True\ncc 0 91 {self.reverb_knob_val}\ncc 9 91 60\ncc 15 91 80")
 
-            # Check for Safe Shutdown Key Combo & Full Level:
+            # Check for Reset Default Key Combo & Full Level:
             # (Anulados por completo si mute_function_sounds / Performance Lock está activo)
             active_notes = sorted(list(self.held_keyboard_notes.keys()))
             if len(active_notes) >= 2 and not self.mute_function_sounds:
+                # Comprobar Tecla 1 (Do más grave del teclado físico) y Tecla 25 (Do más agudo, 2 octavas arriba = +24 semitonos)
+                is_lowest_c = any((k % 12 == base_c % 12 and (k - base_c) in [0, -24, 24]) or k == base_c for k in active_notes)
                 if (base_c in self.held_keyboard_notes) and ((base_c + 24) in self.held_keyboard_notes):
-                    self.start_shutdown_timer()
+                    self.start_reset_default_timer()
                 # SHORTCUT FULL LEVEL: Mantener pulsado Lowest C (C1) y High B (B3, base_c + 23) a la vez durante 2.0s
                 elif (base_c in self.held_keyboard_notes) and ((base_c + 23) in self.held_keyboard_notes):
                     self.start_full_level_timer(base_c)
@@ -1731,10 +1782,23 @@ class AdvancedAkaiController:
                 else:
                     self.recent_released_notes.pop(n_rel, None)
 
-            is_c_held = (48 in active_keys) or (base_c in active_keys)
-            is_cs_held = (49 in active_keys) or ((base_c + 1) in active_keys)
-            is_d_held = (50 in active_keys) or ((base_c + 2) in active_keys)
-            is_ds_held = (51 in active_keys) or ((base_c + 3) in active_keys)
+            # Determinar si alguna tecla física de las 4 primeras (C, C#, D, D#) está pulsada
+            # en cualquier octava transpuesta (OCT- / neutral / OCT+):
+            def _is_physical_key_held(key_index_0_to_3: int) -> bool:
+                # Comprobar en base neutral (48 + offset) o base actual transpuesta (base_c + offset)
+                target_pitch_mod = (48 + key_index_0_to_3) % 12
+                for k in active_keys:
+                    if k % 12 == target_pitch_mod:
+                        # Si está en el rango de 2 octavas de las 25 teclas
+                        if (base_c <= k <= base_c + 24) or (48 <= k <= 72):
+                            if (k - base_c) == key_index_0_to_3 or (k - 48) == key_index_0_to_3:
+                                return True
+                return False
+
+            is_c_held = _is_physical_key_held(0)
+            is_cs_held = _is_physical_key_held(1)
+            is_d_held = _is_physical_key_held(2)
+            is_ds_held = _is_physical_key_held(3)
 
             if active_keys:
                 # MODIFICADOR [K] C + Pads 1..8: Selecciona 8 Melodic Sets (200 sonidos)
@@ -1864,10 +1928,11 @@ class AdvancedAkaiController:
                 cinematic_map_b = {44: 84, 45: 80, 46: 81, 47: 119, 48: 57, 49: 58, 50: 34, 51: 28}
                 target_note = cinematic_map_a.get(note, note) if self.pad_bank == "A" else cinematic_map_b.get(note, note)
 
-            fluid.send(f"noteon 9 {target_note} {velocity}")
+            effective_vel = max(45, velocity)
+            fluid.send(f"noteon 9 {target_note} {effective_vel}")
             # Grabar golpe de pad en el Looper (incluso si está en ARMED para disparar la grabación):
             if self.looper.state in ["ARMED", "RECORDING", "OVERDUBBING"]:
-                self.looper.record_event(9, target_note, velocity, True)
+                self.looper.record_event(9, target_note, effective_vel, True)
                 # Duración uniforme para percusión de pad (120ms)
                 def _pad_noteoff(p_note: int):
                     time.sleep(0.12)
@@ -1882,7 +1947,7 @@ class AdvancedAkaiController:
                 fluid.send(f"noteoff 0 {note + 7}")
             self.held_keyboard_notes.pop(note, None)
             self.recent_released_notes[note] = time.time()
-            self.cancel_shutdown_timer()
+            self.cancel_reset_default_timer()
             self.cancel_full_level_timer()
             if not self.sustain_active:
                 timer = self.active_note_timers.pop(note, None)
@@ -2288,7 +2353,7 @@ class AdvancedAkaiController:
         print(" Akai MPK Mini - Live Beat Looper & Standalone Synth Workstation  ")
         print("==================================================================")
         print(" • ● (Big Dot Full Volume): Mantén [●] C2 + [●] B3 (2s) -> 100% vs dinámico")
-        print(" • — (Line Shutdown): Mantén [—] C2 + [—] C4 (3s) -> Apagado Pi")
+        print(" • — (Line Reset Default): Mantén [—] C2 + [—] C4 (2s) -> Reset fábrica sintetizador")
         print(" • K (Keys - Melodic Sets): Mantén [K] C2 + Pads 1..8 -> 8 Sets Melódicos (200 sonidos)")
         print(" • D (Drums - Drum Sets): Mantén [D] C#2 + Pads 1..8 -> 16 Drum Sets (P8 Bank A: Flamenco)")
         print(" • L (Looper): Mantén [L] D2 + Pads 1..8 -> 8-Track Beat Looper")

@@ -10,7 +10,7 @@ This test suite covers every hardware function, shortcut, instrument library, lo
 | **`[L]`** | **$D2$** (2ª blanca izquierda) | **Looper**: Mantén `[L]` + Pads 1..8 para control del Live Looper de 8 pistas |
 | **`[P]`** | **$D\#2$** (2ª negra izquierda) | **Presets**: Mantén `[P]` + Pads 1..8 para disparar los 16 Ritmos pregrabados |
 | **`[●]`** | **$C2$** + **$B3$** (ambas a la vez) | **Big Dot Full Volume**: Mantén 2s `[●]` $C2$ (blanca izq) + `[●]` $B3$ (penúltima blanca der) para 100% volumen |
-| **`[—]`** | **$C2$** + **$C4$** (ambas a la vez) | **Line Shutdown**: Mantén 3s los dos extremos `[—]` $C2$ + `[—]` $C4$ para apagar la Raspberry Pi |
+| **`[—]`** | **$C2$** + **$C4$** (ambas a la vez) | **Line Reset Default**: Mantén 2s los dos extremos `[—]` $C2$ + `[—]` $C4$ para restaurar valores por defecto |
 
 ---
 
