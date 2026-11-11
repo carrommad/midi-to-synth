@@ -1455,6 +1455,20 @@ class AdvancedAkaiController:
         except Exception:
             return 0
 
+    def start_full_level_timer(self, base_c: int):
+        if self.full_level_timer is None:
+            def _trigger():
+                self.toggle_keys_full_level(base_c)
+                self.full_level_timer = None
+            self.full_level_timer = threading.Timer(2.0, _trigger)
+            self.full_level_timer.daemon = True
+            self.full_level_timer.start()
+
+    def cancel_full_level_timer(self):
+        if self.full_level_timer is not None:
+            self.full_level_timer.cancel()
+            self.full_level_timer = None
+
     def toggle_keys_full_level(self, base_c: int):
         self.keys_full_level = not self.keys_full_level
         self.apply_key_velocity_router()
@@ -2199,7 +2213,7 @@ class AdvancedAkaiController:
                 if value > 0:
                     self.pad_cc_press_times[5] = now
                     def _hold_pad6_action():
-                        if 6 in self.held_cc_pads:
+                        if 6 in self.held_cc_pads or self.dual_pad_selection_active:
                             return  # Si Pad 7 también está pulsado, no disparar acción de pad individual
                         self.active_library_idx = (self.active_library_idx - 1) % len(LIBRARY_ORDER)
                         self.current_melodic_idx = 0
@@ -2210,16 +2224,22 @@ class AdvancedAkaiController:
                         play_preview(chan=0, note=60, vel=110, duration=0.35)
                         self.pad_cc_press_times.pop(5, None)
 
-                    timer = threading.Timer(0.5, _hold_pad6_action)
-                    timer.daemon = True
-                    self.pad_cc_hold_timers[5] = timer
-                    timer.start()
+                    # Si el Pad 7 ya está pulsado, cancelar cualquier timer pendiente de Pad 6/7
+                    if 6 in self.held_cc_pads:
+                        timer7 = self.pad_cc_hold_timers.pop(6, None)
+                        if timer7:
+                            timer7.cancel()
+                    else:
+                        timer = threading.Timer(0.5, _hold_pad6_action)
+                        timer.daemon = True
+                        self.pad_cc_hold_timers[5] = timer
+                        timer.start()
                 else:
                     timer = self.pad_cc_hold_timers.pop(5, None)
                     if timer:
                         timer.cancel()
                     press_t = self.pad_cc_press_times.pop(5, None)
-                    if press_t is not None and not self.dual_pad_selection_active:
+                    if press_t is not None and not self.dual_pad_selection_active and 6 not in self.held_cc_pads:
                         fluid.send("cc 0 123 0")
                         lib_key = LIBRARY_ORDER[self.active_library_idx]
                         active_lib = OCTAVE_INSTRUMENT_LIBRARIES.get(lib_key, OCTAVE_INSTRUMENT_LIBRARIES[0])
@@ -2234,7 +2254,7 @@ class AdvancedAkaiController:
                 if value > 0:
                     self.pad_cc_press_times[6] = now
                     def _hold_pad7_action():
-                        if 5 in self.held_cc_pads:
+                        if 5 in self.held_cc_pads or self.dual_pad_selection_active:
                             return  # Si Pad 6 también está pulsado, no disparar acción de pad individual
                         self.active_library_idx = (self.active_library_idx + 1) % len(LIBRARY_ORDER)
                         self.current_melodic_idx = 0
@@ -2245,16 +2265,22 @@ class AdvancedAkaiController:
                         play_preview(chan=0, note=84, vel=110, duration=0.35)
                         self.pad_cc_press_times.pop(6, None)
 
-                    timer = threading.Timer(0.5, _hold_pad7_action)
-                    timer.daemon = True
-                    self.pad_cc_hold_timers[6] = timer
-                    timer.start()
+                    # Si el Pad 6 ya está pulsado, cancelar cualquier timer pendiente de Pad 6/7
+                    if 5 in self.held_cc_pads:
+                        timer6 = self.pad_cc_hold_timers.pop(5, None)
+                        if timer6:
+                            timer6.cancel()
+                    else:
+                        timer = threading.Timer(0.5, _hold_pad7_action)
+                        timer.daemon = True
+                        self.pad_cc_hold_timers[6] = timer
+                        timer.start()
                 else:
                     timer = self.pad_cc_hold_timers.pop(6, None)
                     if timer:
                         timer.cancel()
                     press_t = self.pad_cc_press_times.pop(6, None)
-                    if press_t is not None and not self.dual_pad_selection_active:
+                    if press_t is not None and not self.dual_pad_selection_active and 5 not in self.held_cc_pads:
                         fluid.send("cc 0 123 0")
                         lib_key = LIBRARY_ORDER[self.active_library_idx]
                         active_lib = OCTAVE_INSTRUMENT_LIBRARIES.get(lib_key, OCTAVE_INSTRUMENT_LIBRARIES[0])
