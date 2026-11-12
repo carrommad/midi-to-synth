@@ -1686,37 +1686,9 @@ class AdvancedAkaiController:
     def trigger_looper_pad_press(self, pad_num: int):
         self.looper_pad_press_times[pad_num] = time.time()
 
-        # PAD 4: Play/Pause inmediato (Tap) / Hold > 1.5s: Clear All Tracks
-        # Se procesa prioritariamente sin ser bloqueado por la selección de compases
-        if pad_num == 3:
-            now = time.time()
-            self.last_undo_tap_time = now
-            self.looper.bar_selection_ready = False
-            print("\n[PAD 4 ⏯/🗑] Pulsado (Tap: Play/Pause | Mantén >1.5s: Borrar Todo)", flush=True)
-
-            def _clear_all_action():
-                self.looper.clear()
-                self.looper_pad_press_times.pop(pad_num, None)
-
-            timer = threading.Timer(1.5, _clear_all_action)
-            timer.daemon = True
-            self.looper_pad_hold_timers[pad_num] = timer
-            timer.start()
-            return
-
-        # PAD 3: Metronome Toggle (Tap inmediato limpio)
-        elif pad_num == 2:
-            self.looper.bar_selection_ready = False
-            self.looper.toggle_metronome()
-            return
-
-        # PAD 2: Re-Voice Mode Toggle (Multi-Instrument Lock vs Re-Voice All)
-        elif pad_num == 1 and not self.looper.bar_selection_ready:
-            self.looper.toggle_revoice_mode()
-            return
-
-        # Si bar_selection_ready está activo y se pulsa un Pad 1..8 con [L] sostenido:
-        # Pad 1 -> 1 bar, Pad 2 -> 2 bars, ..., Pad 8 -> 8 bars
+        # CASO 1: SELECCIÓN DE COMPASES (1..8) ACTIVA
+        # Si bar_selection_ready está activo tras pulsar Pad 1 con [L] sostenido:
+        # Los 8 pads físicos seleccionan estrictamente de 1 a 8 compases (sin activar metrónomo ni pause)
         if self.looper.bar_selection_ready:
             bars_chosen = pad_num + 1
 
@@ -1735,13 +1707,39 @@ class AdvancedAkaiController:
             self.looper_pad_hold_timers[pad_num] = timer
             timer.start()
 
-            # Si es Pad 1 la primera vez que se entra en ARMED/OVERDUB:
-            if pad_num == 0 and self.looper.state in ["IDLE", "PAUSED", "PLAYING"]:
-                self.looper.tap_rec_button()
+            # Asignar preliminarmente los compases para esta toma (se confirman al soltar [L])
+            self.looper.select_bar_count(bars_chosen, hold_persistent=False)
+            return
+
+        # CASO 2: CONTROLES GENERALES DEL LOOPER (cuando NO se están eligiendo compases)
+        # PAD 4: Play/Pause inmediato (Tap) / Hold > 1.5s: Clear All Tracks
+        if pad_num == 3:
+            now = time.time()
+            self.last_undo_tap_time = now
+            print("\n[PAD 4 ⏯/🗑] Pulsado (Tap: Play/Pause | Mantén >1.5s: Borrar Todo)", flush=True)
+
+            def _clear_all_action():
+                self.looper.clear()
+                self.looper_pad_press_times.pop(pad_num, None)
+
+            timer = threading.Timer(1.5, _clear_all_action)
+            timer.daemon = True
+            self.looper_pad_hold_timers[pad_num] = timer
+            timer.start()
+            return
+
+        # PAD 3: Metronome Toggle (Tap inmediato limpio)
+        elif pad_num == 2:
+            self.looper.toggle_metronome()
+            return
+
+        # PAD 2: Re-Voice Mode Toggle (Multi-Instrument Lock vs Re-Voice All)
+        elif pad_num == 1:
+            self.looper.toggle_revoice_mode()
             return
 
         # PAD 1: Rec / Play / Overdub (RPO) / Hold >= 2.0s: Reset permanente a Modo Libre
-        if pad_num == 0:
+        elif pad_num == 0:
             def _hold_pad1_reset_free():
                 self.looper.clear_persistent_fixed_bars()
                 self.looper_pad_press_times.pop(0, None)
@@ -1752,10 +1750,6 @@ class AdvancedAkaiController:
             timer.start()
 
             self.looper.tap_rec_button()
-
-        # PAD 2: Re-Voice Mode Toggle
-        elif pad_num == 1:
-            self.looper.toggle_revoice_mode()
 
         elif pad_num in [4, 5, 6, 7]:  # Pads 5..8: Capas (Bank A: 1..4 | Bank B: 5..8)
             base_slot = 0 if self.pad_bank == "A" else 4
