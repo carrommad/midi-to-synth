@@ -858,7 +858,9 @@ class LiveMidiLooper:
             print(f"\n[LOOPER 🔴 REC] ¡Primera nota detectada! Grabación iniciada a {self.bpm} BPM...", flush=True)
             self._play_chime("start_rec")
 
-            # Iniciar vigilante en segundo plano para auto-cierre si hay compases fijados o elegidos
+            # Disparo por primera nota:
+            # IMPORTANTE: El metrónomo sonará como guía mientras se mantenga [L] o tras soltarlo.
+            # En Modo Libre (target_b is None), NO existe auto-cierre: graba hasta pulsar [L]+Pad 1.
             target_b = self.selected_loop_bars or self.persistent_fixed_bars
             if target_b is not None:
                 def _watchdog_autoclose(gen_id: float, b_count: int):
@@ -1203,21 +1205,35 @@ class LiveMidiLooper:
                 total_beats_loop = max(4, int(round(base_len / beat_dur)))
                 current_loop_beat = metro_beat_idx % total_beats_loop
 
-                # GESTIÓN DE PRE-ROLL DE OVERDUB: Cuenta atrás de 4 clics agudos (1 compás)
+                # GESTIÓN DE PRE-ROLL DE OVERDUB:
+                # Solo emitir la cuenta atrás de 4 clics en los 4 beats EXACTOS antes de volver al Compás 1
                 if self.overdub_pending and self.state == "PLAYING":
-                    # Disparar clic de cuenta atrás diferenciado (clic de madera agudo y brillante)
-                    countdown_note = 84  # Nota alta y clara de aviso
-                    countdown_vel = 95
-                    self.fluid.send(f"prog 15 115\ncc 15 7 90\nnoteon 15 {countdown_note} {countdown_vel}\n")
-                    def _play_cd_off(cn: int):
-                        time.sleep(0.04)
-                        self.fluid.send(f"noteoff 15 {cn}\n")
-                    threading.Thread(target=_play_cd_off, args=[countdown_note], daemon=True).start()
+                    # ¿Estamos en los últimos 4 beats del ciclo base? (desde total_beats_loop - 4 hasta total_beats_loop - 1)
+                    beats_until_loop_restart = (total_beats_loop - current_loop_beat) % total_beats_loop
+                    if 0 < beats_until_loop_restart <= 4:
+                        # Disparar clic de cuenta atrás diferenciado (clic de madera agudo y brillante)
+                        countdown_note = 84  # Nota alta y clara de aviso
+                        countdown_vel = 95
+                        self.fluid.send(f"prog 15 115\ncc 15 7 90\nnoteon 15 {countdown_note} {countdown_vel}\n")
+                        def _play_cd_off(cn: int):
+                            time.sleep(0.04)
+                            self.fluid.send(f"noteoff 15 {cn}\n")
+                        threading.Thread(target=_play_cd_off, args=[countdown_note], daemon=True).start()
 
-                    self.overdub_countdown_beats -= 1
-                    if self.overdub_countdown_beats <= 0:
-                        # Al consumir los 4 clics del pre-roll, arrancar overdub sincronizado al pulso 1
-                        self._start_actual_overdub()
+                        if beats_until_loop_restart == 1:
+                            # En el siguiente beat entramos exactamente al Compás 1: programar inicio inmediato
+                            threading.Timer(beat_dur * 0.95, self._start_actual_overdub).start()
+                    else:
+                        # Si aún no estamos en los últimos 4 beats, suena el metrónomo normal
+                        if self.metronome_active:
+                            is_downbeat = (current_loop_beat == 0)
+                            click_note = 76 if is_downbeat else 77
+                            click_vel = 85 if is_downbeat else 55
+                            self.fluid.send(f"prog 15 115\ncc 15 7 80\nnoteon 15 {click_note} {click_vel}\n")
+                            def _play_click_off(cn: int):
+                                time.sleep(0.04)
+                                self.fluid.send(f"noteoff 15 {cn}\n")
+                            threading.Thread(target=_play_click_off, args=[click_note], daemon=True).start()
                 else:
                     # Metrónomo estándar durante reproducción normal
                     if self.metronome_active:
