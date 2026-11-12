@@ -1486,6 +1486,7 @@ class AdvancedAkaiController:
         self.knob3_base_bpm: int = 90
         self.knob3_base_raw: Optional[int] = None
         self.recent_released_notes: Dict[int, float] = {}  # Anti-arpeggiator grace window for modifiers
+        self.l_note_consumed: set = set()  # Teclas [L] usadas como modificador (no grabar su noteoff)
         self.looper = LiveMidiLooper(fluid, controller=self)
         # Enable FluidSynth effects engines & set responsive velocity curve
         fluid.send("reverb on\nchorus on\n")
@@ -1926,7 +1927,14 @@ class AdvancedAkaiController:
             # IMPORTANTE: Las teclas modificadoras (C, C#, D, D# en cualquier octava activa)
             # NUNCA deben grabarse en el loop ni disparar la grabación durante modo ARMED.
             is_modifier_key = (note in [48, 49, 50, 51]) or (base_c is not None and note in [base_c, base_c + 1, base_c + 2, base_c + 3])
-            if not is_modifier_key and self.looper.state in ["ARMED", "RECORDING", "OVERDUBBING"]:
+            # Tecla [L] (D): se graba como nota musical durante RECORDING/OVERDUBBING.
+            # Si después se pulsa un Pad con [L] sostenido, se elimina del loop (remove_recent_note).
+            is_l_key = (note == 50) or (base_c is not None and note == base_c + 2)
+            if is_l_key and self.looper.state in ["RECORDING", "OVERDUBBING"]:
+                self.l_note_consumed.discard(note)
+                rec_vel = 127 if self.keys_full_level else velocity
+                self.looper.record_event(0, note, rec_vel, True)
+            elif not is_modifier_key and self.looper.state in ["ARMED", "RECORDING", "OVERDUBBING"]:
                 rec_vel = 127 if self.keys_full_level else velocity
                 self.looper.record_event(0, note, rec_vel, True)
 
@@ -2012,6 +2020,7 @@ class AdvancedAkaiController:
                         if h in self.held_keyboard_notes:
                             fluid.send(f"noteoff 0 {h}")
                             self.looper.remove_recent_note(0, h, window=1.0)
+                            self.l_note_consumed.add(h)
                     fluid.send(f"noteoff 9 {note}")
                     self.trigger_looper_pad_press(pad_num)
                     vol = max(10, self.current_drum_volume)
@@ -2147,7 +2156,13 @@ class AdvancedAkaiController:
                     timer.cancel()
             # Grabar liberación de tecla para mantener duración exacta de notas
             is_modifier_key = (note in [48, 49, 50, 51]) or (note in [base_c, base_c + 1, base_c + 2, base_c + 3])
-            if not is_modifier_key and self.looper.state in ["RECORDING", "OVERDUBBING"]:
+            is_l_key = note in [50, base_c + 2]
+            if is_l_key and self.looper.state in ["RECORDING", "OVERDUBBING"]:
+                # Grabar liberación de [L] solo si no fue usada como modificador con un Pad
+                if note not in self.l_note_consumed:
+                    self.looper.record_event(0, note, 0, False)
+                self.l_note_consumed.discard(note)
+            elif not is_modifier_key and self.looper.state in ["RECORDING", "OVERDUBBING"]:
                 self.looper.record_event(0, note, 0, False)
         elif channel == 9:
             pad_num = (note - 36) % 8 if note < 44 else (note - 44) % 8
