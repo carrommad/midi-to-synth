@@ -354,7 +354,7 @@ class LiveMidiLooper:
         self.track_duration: list = [0.0 for _ in range(8)]  # Duración individual por pista (loops independientes)
         self.base_track_duration: list = [0.0 for _ in range(8)]
         self.track_rec_start: float = 0.0
-        self.revoice_mode: bool = True  # True: Re-voice all melodic tracks to current active instrument by default
+        self.revoice_mode: bool = False  # False: Multi-Instrument Lock per track (default) | True: Re-voice all melodic tracks to current
         self.selected_loop_bars: Optional[int] = None  # Compases elegidos para la toma actual (1..8) o None (Libre)
         self.persistent_fixed_bars: Optional[int] = None  # Compases fijados permanentemente (1..8) o None (Libre)
         self.bar_selection_ready: bool = False  # True tras pulsar Pad 1 mientras se mantiene [L]
@@ -564,6 +564,16 @@ class LiveMidiLooper:
         self.base_bpm: int = 90
         self.base_loop_duration: float = 0.0
 
+    def toggle_revoice_mode(self):
+        """Conmuta el modo de re-instrumentación de las pistas grabadas:
+        - Modo Bloqueo (False, por defecto): Cada pista conserva el instrumento con el que se grabó.
+        - Modo Re-Voice Global (True): Todas las pistas de teclado cambian en tiempo real al instrumento activo del teclado.
+        """
+        self.revoice_mode = not self.revoice_mode
+        st = "RE-VOICE ALL (Todas las capas siguen instrumento activo de teclas)" if self.revoice_mode else "MULTI-INSTRUMENT LOCK (Cada capa bloqueada a su instrumento original)"
+        print(f"\n[LOOPER 🔀 RE-VOICE MODE] -> {st}", flush=True)
+        self._play_chime("play" if self.revoice_mode else "pause")
+
     def set_bpm(self, new_bpm: int):
         self.bpm = max(30, min(210, new_bpm))
         if self.base_bpm > 0:
@@ -585,17 +595,19 @@ class LiveMidiLooper:
         # Chime descendente sutil de vuelta a modo libre
         self._play_chime("free_reset")
 
-    def select_bar_count(self, bars: int, hold_persistent: bool = False):
+    def select_bar_count(self, bars: int, hold_persistent: bool = False, play_clicks: bool = True):
         """Asigna los compases elegidos (1..8) para el bucle actual o permanentemente si se mantiene pulsado."""
         self.bar_selection_ready = False
         self.selected_loop_bars = bars
         if hold_persistent:
             self.persistent_fixed_bars = bars
             print(f"\n[LOOPER ⏱ COMPASES] -> FIJADO PERMANENTE A {bars} COMPÁS(ES) PARA TODOS LOS BUCLES", flush=True)
-            self._play_bar_clicks(bars, persistent_tone=True)
+            if play_clicks:
+                self._play_bar_clicks(bars, persistent_tone=True)
         else:
             print(f"\n[LOOPER ⏱ COMPASES] -> SELECCIONADOS {bars} COMPÁS(ES) PARA ESTA TOMA", flush=True)
-            self._play_bar_clicks(bars, persistent_tone=False)
+            if play_clicks:
+                self._play_bar_clicks(bars, persistent_tone=False)
 
     def _play_bar_clicks(self, count: int, persistent_tone: bool = False):
         """Emite 'count' clics acústicos de madera y opcionalmente un tono grave si queda bloqueado."""
@@ -834,8 +846,15 @@ class LiveMidiLooper:
             self.overdub_pending = False
 
         n_notes = len(self.tracks[self.current_track])
-        print(f"\n[LOOPER ▶ PLAY] Pista {self.current_track + 1} completada: {bars} compás(es) ({trk_dur:.2f}s, {n_notes} notas).", flush=True)
-        self._play_chime("play")
+        if n_notes == 0:
+            # Si no se tocó nada durante el overdub, reactivar overdub en espera para el próximo compás 1
+            print(f"\n[LOOPER ⏱ OVERDUB VACÍO] No se detectaron notas en la toma. Reactivando cuenta atrás para el próximo ciclo...", flush=True)
+            self.overdub_pending = True
+            self.overdub_countdown_beats = 4
+            self._play_chime("armed")
+        else:
+            print(f"\n[LOOPER ▶ PLAY] Pista {self.current_track + 1} completada: {bars} compás(es) ({trk_dur:.2f}s, {n_notes} notas).", flush=True)
+            self._play_chime("play")
 
     def record_event(self, channel: int, note: int, velocity: int, is_note_on: bool):
         now = time.perf_counter()
@@ -1291,7 +1310,7 @@ class LiveMidiLooper:
                                 if is_full and ch == 0:
                                     play_v = 127
                                 else:
-                                    play_v = min(127, max(45, int(v * 1.30 + 15)))
+                                    play_v = v
                                 self.fluid.send(f"noteon {ch} {n} {play_v}")
                                 active_sounding_notes.add((ch, n))
                             else:
@@ -1692,6 +1711,11 @@ class AdvancedAkaiController:
         if self.looper.bar_selection_ready:
             bars_chosen = pad_num + 1
 
+            # Emitir inmediatamente los N clics acústicos de madera al pulsar el pad,
+            # antes de soltar [L], evitando solapamiento con la claqueta
+            self.looper._play_bar_clicks(bars_chosen, persistent_tone=False)
+            self.looper.selected_loop_bars = bars_chosen
+
             # Si se mantiene pulsado >= 2.0s:
             # Pad 1: reset a MODO LIBRE permanente
             # Pads 2..8: fijar ese número de compases permanentemente
@@ -1699,7 +1723,7 @@ class AdvancedAkaiController:
                 if pad_num == 0:
                     self.looper.clear_persistent_fixed_bars()
                 else:
-                    self.looper.select_bar_count(bars_chosen, hold_persistent=True)
+                    self.looper.select_bar_count(bars_chosen, hold_persistent=True, play_clicks=True)
                 self.looper_pad_press_times.pop(pad_num, None)
 
             timer = threading.Timer(2.0, _hold_bar_action)
@@ -1707,8 +1731,7 @@ class AdvancedAkaiController:
             self.looper_pad_hold_timers[pad_num] = timer
             timer.start()
 
-            # Asignar preliminarmente los compases para esta toma (se confirman al soltar [L])
-            self.looper.select_bar_count(bars_chosen, hold_persistent=False)
+            print(f"\n[LOOPER ⏱ COMPASES PREVIOS] Pad {pad_num + 1} pulsado -> {bars_chosen} compás(es) elegidos. (Suelta [L] para confirmar e iniciar claqueta)", flush=True)
             return
 
         # CASO 2: CONTROLES GENERALES DEL LOOPER (cuando NO se están eligiendo compases)
@@ -1777,17 +1800,8 @@ class AdvancedAkaiController:
             if self.looper.bar_selection_ready:
                 bars_chosen = pad_num + 1
                 if pad_num > 0:
-                    self.looper.select_bar_count(bars_chosen, hold_persistent=False)
+                    self.looper.selected_loop_bars = bars_chosen
                 return
-
-            if pad_num == 3:
-                # Pulsación corta (< 1.5s) en Pad 4: Conmutar Play / Pause
-                self.looper.toggle_play_pause()
-            elif pad_num in [4, 5, 6, 7]:
-                # Pulsación corta (< 1.0s): Conmutar Silenciar / Activar (Mute Toggle)
-                base_slot = 0 if self.pad_bank == "A" else 4
-                trk_idx = base_slot + (pad_num - 4)
-                self.looper.toggle_track_mute(trk_idx)
 
             if pad_num == 3:
                 # Pulsación corta (< 1.5s) en Pad 4: Conmutar Play / Pause
@@ -2275,6 +2289,17 @@ class AdvancedAkaiController:
                 pad_idx = (cc - 32) if (32 <= cc <= 39) else (cc - 28)
 
             now = time.time()
+
+            # Si la tecla [L] (50 o base_c + 2) está sostenida, los pads CC dirigen
+            # estrictamente el Live Looper (Play/Pause, Mute capas, compases, etc.)
+            base_c = self.lowest_base_c if self.lowest_base_c is not None else 48
+            is_d_held = (50 in self.held_keyboard_notes) or ((base_c + 2) in self.held_keyboard_notes)
+            if is_d_held:
+                if value > 0:
+                    self.trigger_looper_pad_press(pad_idx)
+                else:
+                    self.trigger_looper_pad_release(pad_idx)
+                return
 
             # Rastreo dual de Pads 6 (idx 5) y 7 (idx 6) sostenidos juntos >= 2.0s:
             # Mientras estén ambos pulsados >= 2s, las 25 teclas del piano seleccionan:
