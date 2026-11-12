@@ -346,7 +346,7 @@ class LiveMidiLooper:
         self.controller = controller
         self.state: str = "IDLE"  # "IDLE", "RECORDING", "PLAYING", "OVERDUBBING", "PAUSED", "PRESET"
         self.bpm: int = 90
-        self.metronome_active: bool = True
+        self.metronome_active: bool = False  # Silencio en reproducción por defecto (solo suena al grabar en ARMED/REC)
         # 8 Pistas independientes (Layers 1..8): cada pista es una lista de (phase_sec, channel, note, velocity, is_note_on, orig_prog)
         self.tracks: list = [[] for _ in range(8)]
         self.track_muted: list = [False for _ in range(8)]
@@ -917,14 +917,14 @@ class LiveMidiLooper:
                 break
 
             # Sonido de claqueta durante ARMED y RECORDING en Canal 15 (Independiente del bus de batería)
-            if self.metronome_active:
-                click_note = 76 if (beat_idx % 4 == 0) else 77
-                click_vel = 90 if (beat_idx % 4 == 0) else 65
-                self.fluid.send(f"prog 15 115\ncc 15 7 95\nnoteon 15 {click_note} {click_vel}\n")
-                def _click_off(c_note: int):
-                    time.sleep(0.04)
-                    self.fluid.send(f"noteoff 15 {c_note}\n")
-                threading.Thread(target=_click_off, args=[click_note], daemon=True).start()
+            # Durante ARMED y RECORDING siempre suena para dar el pulso
+            click_note = 76 if (beat_idx % 4 == 0) else 77
+            click_vel = 90 if (beat_idx % 4 == 0) else 65
+            self.fluid.send(f"prog 15 115\ncc 15 7 95\nnoteon 15 {click_note} {click_vel}\n")
+            def _click_off(c_note: int):
+                time.sleep(0.04)
+                self.fluid.send(f"noteoff 15 {c_note}\n")
+            threading.Thread(target=_click_off, args=[click_note], daemon=True).start()
 
             beat_idx += 1
 
@@ -1687,6 +1687,35 @@ class AdvancedAkaiController:
     def trigger_looper_pad_press(self, pad_num: int):
         self.looper_pad_press_times[pad_num] = time.time()
 
+        # PAD 4: Play/Pause inmediato (Tap) / Hold > 1.5s: Clear All Tracks
+        # Se procesa prioritariamente sin ser bloqueado por la selección de compases
+        if pad_num == 3:
+            now = time.time()
+            self.last_undo_tap_time = now
+            self.looper.bar_selection_ready = False
+            print("\n[PAD 4 ⏯/🗑] Pulsado (Tap: Play/Pause | Mantén >1.5s: Borrar Todo)", flush=True)
+
+            def _clear_all_action():
+                self.looper.clear()
+                self.looper_pad_press_times.pop(pad_num, None)
+
+            timer = threading.Timer(1.5, _clear_all_action)
+            timer.daemon = True
+            self.looper_pad_hold_timers[pad_num] = timer
+            timer.start()
+            return
+
+        # PAD 3: Metronome Toggle (Tap inmediato limpio)
+        elif pad_num == 2:
+            self.looper.bar_selection_ready = False
+            self.looper.toggle_metronome()
+            return
+
+        # PAD 2: Re-Voice Mode Toggle (Multi-Instrument Lock vs Re-Voice All)
+        elif pad_num == 1 and not self.looper.bar_selection_ready:
+            self.looper.toggle_revoice_mode()
+            return
+
         # Si bar_selection_ready está activo y se pulsa un Pad 1..8 con [L] sostenido:
         # Pad 1 -> 1 bar, Pad 2 -> 2 bars, ..., Pad 8 -> 8 bars
         if self.looper.bar_selection_ready:
@@ -1725,28 +1754,9 @@ class AdvancedAkaiController:
 
             self.looper.tap_rec_button()
 
-        # PAD 2: Re-Voice Mode Toggle (Multi-Instrument Lock vs Re-Voice All)
+        # PAD 2: Re-Voice Mode Toggle
         elif pad_num == 1:
             self.looper.toggle_revoice_mode()
-
-        # PAD 3: Metronome Toggle (Tap inmediato limpio)
-        elif pad_num == 2:
-            self.looper.toggle_metronome()
-
-        # PAD 4: Play/Pause (Tap) / Hold > 1.5s: Clear All Tracks
-        elif pad_num == 3:
-            now = time.time()
-            self.last_undo_tap_time = now
-            print("\n[PAD 4 ⏯/🗑] Pulsado (Tap: Play/Pause | Mantén >1.5s: Borrar Todo)", flush=True)
-
-            def _clear_all_action():
-                self.looper.clear()
-                self.looper_pad_press_times.pop(pad_num, None)
-
-            timer = threading.Timer(1.5, _clear_all_action)
-            timer.daemon = True
-            self.looper_pad_hold_timers[pad_num] = timer
-            timer.start()
 
         elif pad_num in [4, 5, 6, 7]:  # Pads 5..8: Capas (Bank A: 1..4 | Bank B: 5..8)
             base_slot = 0 if self.pad_bank == "A" else 4
