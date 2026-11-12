@@ -567,10 +567,10 @@ class LiveMidiLooper:
     def toggle_revoice_mode(self):
         """Conmuta el modo de re-instrumentación de las pistas grabadas:
         - Modo Bloqueo (False, por defecto): Cada pista conserva el instrumento con el que se grabó.
-        - Modo Re-Voice Global (True): Todas las pistas de teclado cambian en tiempo real al instrumento activo del teclado.
+        - Modo Re-Voice Última Pista (True): La ÚLTIMA pista de teclas grabada adopta en vivo el instrumento activo del teclado.
         """
         self.revoice_mode = not self.revoice_mode
-        st = "RE-VOICE ALL (Todas las capas siguen instrumento activo de teclas)" if self.revoice_mode else "MULTI-INSTRUMENT LOCK (Cada capa bloqueada a su instrumento original)"
+        st = "RE-VOICE ÚLTIMA PISTA (La última pista de teclas sigue el sonido activo)" if self.revoice_mode else "MULTI-INSTRUMENT LOCK (Todas las pistas bloqueadas a su instrumento original)"
         print(f"\n[LOOPER 🔀 RE-VOICE MODE] -> {st}", flush=True)
         self._play_chime("play" if self.revoice_mode else "pause")
 
@@ -1270,6 +1270,14 @@ class LiveMidiLooper:
             scale = (self.base_bpm / float(self.bpm)) if (self.base_bpm > 0 and self.bpm > 0) else 1.0
             is_full = bool(self.controller and getattr(self.controller, "keys_full_level", False))
 
+            # Identificar la última pista de teclado (Canal 0) grabada
+            last_melodic_trk_idx = None
+            if self.revoice_mode:
+                for idx_check in reversed(range(8)):
+                    if self.tracks[idx_check] and any(e[1] == 0 for e in self.tracks[idx_check]):
+                        last_melodic_trk_idx = idx_check
+                        break
+
             with self.lock:
                 for trk_idx in range(8):
                     # No reproducir pistas silenciadas ni la pista que actualmente se está grabando en OVERDUB
@@ -1300,8 +1308,11 @@ class LiveMidiLooper:
                             t, ch, n, v, is_on = ev[:5]
                             ev_prog = ev[5] if len(ev) > 5 else None
 
-                            # Voice Lock per track: enviar prog 0 solo si difiere del actual
-                            if ch == 0 and not self.revoice_mode and ev_prog is not None:
+                            # Re-Voice exclusivo de la ÚLTIMA pista melódica grabada:
+                            # Las pistas anteriores siempre conservan su ev_prog original.
+                            # Solo si trk_idx es last_melodic_trk_idx y self.revoice_mode es True, se omite forzar ev_prog.
+                            is_target_revoice = (self.revoice_mode and trk_idx == last_melodic_trk_idx)
+                            if ch == 0 and not is_target_revoice and ev_prog is not None:
                                 if ev_prog != last_played_prog:
                                     self.fluid.send(f"prog 0 {ev_prog}")
                                     last_played_prog = ev_prog
