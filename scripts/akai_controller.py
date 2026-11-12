@@ -357,8 +357,7 @@ class LiveMidiLooper:
         self.revoice_mode: bool = True  # True: Re-voice all melodic tracks to current active instrument by default
         self.selected_loop_bars: Optional[int] = None  # Compases elegidos para la toma actual (1..8) o None (Libre)
         self.persistent_fixed_bars: Optional[int] = None  # Compases fijados permanentemente (1..8) o None (Libre)
-        self.bar_selection_active: bool = False  # Ventana de 1.5s para seleccionar compases tras pulsar [L] + Pad 1
-        self.bar_selection_timer: Optional[threading.Timer] = None
+        self.bar_selection_ready: bool = False  # True tras pulsar Pad 1 mientras se mantiene [L]
         self.overdub_pending: bool = False
         self.overdub_countdown_beats: int = 0
         self.overdub_start_bar: int = 0
@@ -581,21 +580,14 @@ class LiveMidiLooper:
         """Cancela cualquier fijación de compases y devuelve el looper al modo LIBRE."""
         self.persistent_fixed_bars = None
         self.selected_loop_bars = None
-        self.bar_selection_active = False
-        if self.bar_selection_timer:
-            self.bar_selection_timer.cancel()
-            self.bar_selection_timer = None
+        self.bar_selection_ready = False
         print("\n[LOOPER ⏱ COMPASES] -> RESET A MODO LIBRE (Sin límite fijo de compases)", flush=True)
         # Chime descendente sutil de vuelta a modo libre
         self._play_chime("free_reset")
 
     def select_bar_count(self, bars: int, hold_persistent: bool = False):
         """Asigna los compases elegidos (1..8) para el bucle actual o permanentemente si se mantiene pulsado."""
-        if self.bar_selection_timer:
-            self.bar_selection_timer.cancel()
-            self.bar_selection_timer = None
-        self.bar_selection_active = False
-
+        self.bar_selection_ready = False
         self.selected_loop_bars = bars
         if hold_persistent:
             self.persistent_fixed_bars = bars
@@ -623,18 +615,6 @@ class LiveMidiLooper:
             except Exception:
                 pass
         threading.Thread(target=_worker, daemon=True).start()
-
-    def _on_bar_selection_timeout(self):
-        """Se agotó la ventana de 1.5s sin elegir compases: continuar en modo libre."""
-        self.bar_selection_active = False
-        self.bar_selection_timer = None
-        if self.persistent_fixed_bars is not None:
-            self.selected_loop_bars = self.persistent_fixed_bars
-            print(f"\n[LOOPER ⏱ COMPASES] Timeout sin selección: usando compás fijo previo ({self.persistent_fixed_bars} compases).", flush=True)
-        else:
-            self.selected_loop_bars = None
-            print("\n[LOOPER ⏱ COMPASES] Timeout sin selección: continuando en MODO LIBRE.", flush=True)
-            self._play_chime("free_timeout")
 
     def remove_recent_note(self, channel: int, note: int, window: float = 1.0):
         with self.lock:
@@ -671,32 +651,21 @@ class LiveMidiLooper:
                 self.base_loop_duration = 0.0
                 self.stop_event.clear()
 
-            # Abrir ventana de 1.5s para elegir compases si no hay fijación previa permanente
+            # Al pulsar [L] + Pad 1, activar preparación de selección de compás mientras se mantenga [L]
             self.selected_loop_bars = self.persistent_fixed_bars
-            self.bar_selection_active = True
-            if self.bar_selection_timer:
-                self.bar_selection_timer.cancel()
-            self.bar_selection_timer = threading.Timer(1.5, self._on_bar_selection_timeout)
-            self.bar_selection_timer.daemon = True
-            self.bar_selection_timer.start()
+            self.bar_selection_ready = True
 
-            print(f"\n[LOOPER ⏱ ARMED] Metrónomo activo a {self.bpm} BPM. Ventana de 1.5s para elegir compases (Pads 1..8) o toca para empezar...", flush=True)
+            print(f"\n[LOOPER ⏱ ARMED] Metrónomo activo a {self.bpm} BPM. Sin soltar [L], puedes elegir compases (Pads 1..8) o suelta [L] para modo libre...", flush=True)
             self._play_chime("armed")
             self.metro_thread = threading.Thread(target=self._run_armed_metronome, daemon=True)
             self.metro_thread.start()
 
         elif self.state == "ARMED":
-            if self.bar_selection_timer:
-                self.bar_selection_timer.cancel()
-                self.bar_selection_timer = None
-            self.bar_selection_active = False
+            self.bar_selection_ready = False
             self.stop_all()
 
         elif self.state == "RECORDING":
-            if self.bar_selection_timer:
-                self.bar_selection_timer.cancel()
-                self.bar_selection_timer = None
-            self.bar_selection_active = False
+            self.bar_selection_ready = False
 
             # CIERRE MANUAL O FORZADO
             now = time.perf_counter()
@@ -759,10 +728,7 @@ class LiveMidiLooper:
             if self.overdub_pending:
                 self.overdub_pending = False
                 self.overdub_countdown_beats = 0
-                if self.bar_selection_timer:
-                    self.bar_selection_timer.cancel()
-                    self.bar_selection_timer = None
-                self.bar_selection_active = False
+                self.bar_selection_ready = False
                 print(f"\n[LOOPER] Overdub pendiente cancelado.", flush=True)
                 self._play_chime("pause")
                 return
@@ -771,23 +737,15 @@ class LiveMidiLooper:
             self.overdub_pending = True
             self.overdub_countdown_beats = 4  # 4 pulsos enteros de pre-roll
 
-            # Abrir ventana de 1.5s para elegir compases para este overdub
+            # Sin soltar [L], se pueden elegir compases para este overdub
             self.selected_loop_bars = self.persistent_fixed_bars
-            self.bar_selection_active = True
-            if self.bar_selection_timer:
-                self.bar_selection_timer.cancel()
-            self.bar_selection_timer = threading.Timer(1.5, self._on_bar_selection_timeout)
-            self.bar_selection_timer.daemon = True
-            self.bar_selection_timer.start()
+            self.bar_selection_ready = True
 
-            print(f"\n[LOOPER ⏱ OVERDUB EN ESPERA] Preparando claqueta de 4 clics. Puedes elegir compases (Pads 1..8 en 1.5s)...", flush=True)
+            print(f"\n[LOOPER ⏱ OVERDUB EN ESPERA] Preparando claqueta de 4 clics. Sin soltar [L], puedes elegir compases (Pads 1..8)...", flush=True)
             self._play_chime("armed")
 
         elif self.state == "OVERDUBBING":
-            if self.bar_selection_timer:
-                self.bar_selection_timer.cancel()
-                self.bar_selection_timer = None
-            self.bar_selection_active = False
+            self.bar_selection_ready = False
             self._finish_overdub()
 
     def _start_actual_overdub(self):
@@ -1713,14 +1671,14 @@ class AdvancedAkaiController:
     def trigger_looper_pad_press(self, pad_num: int):
         self.looper_pad_press_times[pad_num] = time.time()
 
-        # Si la ventana de selección de compases (1.5s) está activa y se pulsa un Pad 1..8:
-        if self.looper.bar_selection_active:
-            bars_chosen = pad_num + 1  # Pad 1 -> 1 bar, Pad 2 -> 2 bars, ..., Pad 8 -> 8 bars
-            now = time.time()
+        # Si bar_selection_ready está activo y se pulsa un Pad 1..8 con [L] sostenido:
+        # Pad 1 -> 1 bar, Pad 2 -> 2 bars, ..., Pad 8 -> 8 bars
+        if self.looper.bar_selection_ready:
+            bars_chosen = pad_num + 1
 
-            # Timer de pulsación larga (>= 2.0s):
-            # Si es Pad 1 (pad_num == 0): reset a MODO LIBRE permanente
-            # Si es Pad 1..8 (pad_num >= 0): fijar ese número de compases permanentemente
+            # Si se mantiene pulsado >= 2.0s:
+            # Pad 1: reset a MODO LIBRE permanente
+            # Pads 2..8: fijar ese número de compases permanentemente
             def _hold_bar_action():
                 if pad_num == 0:
                     self.looper.clear_persistent_fixed_bars()
@@ -1732,6 +1690,10 @@ class AdvancedAkaiController:
             timer.daemon = True
             self.looper_pad_hold_timers[pad_num] = timer
             timer.start()
+
+            # Si es Pad 1 la primera vez que se entra en ARMED/OVERDUB:
+            if pad_num == 0 and self.looper.state in ["IDLE", "PAUSED", "PLAYING"]:
+                self.looper.tap_rec_button()
             return
 
         # PAD 1: Rec / Play / Overdub (RPO) / Hold >= 2.0s: Reset permanente a Modo Libre
@@ -1792,11 +1754,21 @@ class AdvancedAkaiController:
 
         press_t = self.looper_pad_press_times.pop(pad_num, None)
         if press_t is not None:
-            # Si estábamos en ventana de selección de compases y fue una pulsación corta (<2.0s):
-            if self.looper.bar_selection_active:
+            # Si estaba listo para elegir compases y fue un tap corto (< 2.0s):
+            if self.looper.bar_selection_ready:
                 bars_chosen = pad_num + 1
-                self.looper.select_bar_count(bars_chosen, hold_persistent=False)
+                if pad_num > 0:
+                    self.looper.select_bar_count(bars_chosen, hold_persistent=False)
                 return
+
+            if pad_num == 3:
+                # Pulsación corta (< 1.5s) en Pad 4: Conmutar Play / Pause
+                self.looper.toggle_play_pause()
+            elif pad_num in [4, 5, 6, 7]:
+                # Pulsación corta (< 1.0s): Conmutar Silenciar / Activar (Mute Toggle)
+                base_slot = 0 if self.pad_bank == "A" else 4
+                trk_idx = base_slot + (pad_num - 4)
+                self.looper.toggle_track_mute(trk_idx)
 
             if pad_num == 3:
                 # Pulsación corta (< 1.5s) en Pad 4: Conmutar Play / Pause
@@ -2026,15 +1998,6 @@ class AdvancedAkaiController:
                     threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {vol}")).start()
                     return
 
-            # Si se tocan los pads durante la ventana de selección de compases del Looper:
-            if self.looper.bar_selection_active and not (is_c_held or is_cs_held or is_ds_held):
-                # Silenciar pads de percusión y procesar selección de compás directamente
-                fluid.send("cc 9 7 0\n" + f"noteoff 9 {note}")
-                self.trigger_looper_pad_press(pad_num)
-                vol = max(10, self.current_drum_volume)
-                threading.Timer(0.04, lambda: fluid.send(f"cc 9 7 {vol}")).start()
-                return
-
             # Si no hay modificador (tocar batería libremente con los pads):
             # Mapeos dedicados de percusión simétrica (Bank A <-> Bank B):
             # Pad 4 (idx 11): Cinematic Taiko & Asian Gongs
@@ -2127,6 +2090,14 @@ class AdvancedAkaiController:
             self.recent_released_notes[note] = time.time()
             self.cancel_reset_default_timer()
             self.cancel_full_level_timer()
+
+            # Si se libera la tecla [L] (D1: 50 o base_c + 2), cerrar la selección de compases:
+            if note in [50, base_c + 2]:
+                if self.looper.bar_selection_ready:
+                    self.looper.bar_selection_ready = False
+                    if self.looper.selected_loop_bars is None and self.looper.persistent_fixed_bars is None:
+                        print("[LOOPER ⏱ COMPASES] [L] liberado sin selección -> Continuando en MODO LIBRE.", flush=True)
+
             if not self.sustain_active:
                 timer = self.active_note_timers.pop(note, None)
                 if timer:
