@@ -355,9 +355,10 @@ class LiveMidiLooper:
         self.base_track_duration: list = [0.0 for _ in range(8)]
         self.track_rec_start: float = 0.0
         self.revoice_mode: bool = True  # True: Re-voice all melodic tracks to current active instrument by default
-        self.fixed_4_bars: bool = True  # True: Auto-close strictly at 4 bars | False: Free manual close
+        self.fixed_4_bars: bool = False  # False: Libre / Polirrítmico por defecto | True: Auto-cierre estricto a 4 compases
         self.auto_close_bars: int = 4   # 4 compases
         self.overdub_pending: bool = False
+        self.overdub_countdown_beats: int = 0
         self.overdub_start_bar: int = 0
         self.current_playback_beat: int = 0
         self.current_track: int = 0
@@ -674,23 +675,25 @@ class LiveMidiLooper:
                 self.tracks[0] = clean_events
                 self.state = "PLAYING"
                 self.overdub_pending = False
+                self.overdub_countdown_beats = 0
 
             total_evs = len(self.tracks[0])
             total_beats = bars * 4
             print(f"\n[LOOPER ▶ PLAY] Bucle cerrado limpiamente: {bars} compás(es) ({total_beats} pulsos, {self.loop_duration:.2f}s) con {total_evs} notas grabadas.", flush=True)
-            self._play_chime("end_rec")
             self._start_playback_thread()
 
         elif self.state == "PLAYING":
             if self.overdub_pending:
                 self.overdub_pending = False
+                self.overdub_countdown_beats = 0
                 print(f"\n[LOOPER] Overdub pendiente cancelado.", flush=True)
                 self._play_chime("pause")
                 return
 
-            # ENTER OVERDUB PENDING (Esperando al Compás 1 con mínimo 1 compás entero de pre-roll)
+            # ENTER OVERDUB PENDING (Esperando al Compás 1 con cuenta atrás de 4 clics previos)
             self.overdub_pending = True
-            print(f"\n[LOOPER ⏱ OVERDUB EN ESPERA] Preparando claqueta previa (mínimo 1 compás entero). La grabación arrancará exactamente en el Compás 1...", flush=True)
+            self.overdub_countdown_beats = 4  # 4 pulsos enteros de pre-roll
+            print(f"\n[LOOPER ⏱ OVERDUB EN ESPERA] Preparando claqueta de 4 clics. La grabación arrancará exactamente en el Compás 1...", flush=True)
             self._play_chime("armed")
 
         elif self.state == "OVERDUBBING":
@@ -804,29 +807,30 @@ class LiveMidiLooper:
             print(f"\n[LOOPER 🔴 REC] ¡Primera nota detectada! Grabación iniciada a {self.bpm} BPM...", flush=True)
             self._play_chime("start_rec")
 
-            # Iniciar vigilante en segundo plano para auto-cierre exacto a los compases límite (ej: 4 compases)
-            # incluso si el usuario no toca ninguna nota al final del compás:
-            def _watchdog_autoclose(gen_id: float):
-                beat_dur = 60.0 / self.bpm
-                max_rec_dur = self.auto_close_bars * 4.0 * beat_dur
-                time.sleep(max_rec_dur)
-                if self.state == "RECORDING" and self.rec_start_time == gen_id:
-                    print(f"\n[LOOPER ⏱ AUTO-CIERRE TEMPORIZADO] Alcanzado límite exacto de {self.auto_close_bars} compases. Cerrando loop...", flush=True)
-                    self.tap_rec_button()
+            # Iniciar vigilante en segundo plano para auto-cierre exacto solo si fixed_4_bars está activo
+            if self.fixed_4_bars:
+                def _watchdog_autoclose(gen_id: float):
+                    beat_dur = 60.0 / self.bpm
+                    max_rec_dur = self.auto_close_bars * 4.0 * beat_dur
+                    time.sleep(max_rec_dur)
+                    if self.state == "RECORDING" and self.rec_start_time == gen_id and self.fixed_4_bars:
+                        print(f"\n[LOOPER ⏱ AUTO-CIERRE TEMPORIZADO] Alcanzado límite exacto de {self.auto_close_bars} compases. Cerrando loop...", flush=True)
+                        self.tap_rec_button()
 
-            threading.Thread(target=_watchdog_autoclose, args=[now], daemon=True).start()
+                threading.Thread(target=_watchdog_autoclose, args=[now], daemon=True).start()
             return
 
         elif self.state == "RECORDING":
             raw_offset = max(0.0, now - self.rec_start_time)
 
-            # Auto-cierre automático de grabación si se alcanzan los compases predeterminados (ej: 4 compases = 16 beats)
-            beat_dur = 60.0 / self.bpm
-            max_rec_dur = self.auto_close_bars * 4.0 * beat_dur
-            if raw_offset >= max_rec_dur and is_note_on:
-                print(f"\n[LOOPER ⏱ AUTO-CIERRE] Alcanzado límite de {self.auto_close_bars} compases. Cerrando loop automáticamente...", flush=True)
-                self.tap_rec_button()
-                return
+            # Auto-cierre de grabación si está activo fixed_4_bars
+            if self.fixed_4_bars:
+                beat_dur = 60.0 / self.bpm
+                max_rec_dur = self.auto_close_bars * 4.0 * beat_dur
+                if raw_offset >= max_rec_dur and is_note_on:
+                    print(f"\n[LOOPER ⏱ AUTO-CIERRE] Alcanzado límite de {self.auto_close_bars} compases. Cerrando loop automáticamente...", flush=True)
+                    self.tap_rec_button()
+                    return
 
             with self.lock:
                 self.tracks[0].append((raw_offset, channel, note, velocity, is_note_on, trk_prog))
@@ -835,6 +839,12 @@ class LiveMidiLooper:
             raw_trk_offset = max(0.0, now - self.track_rec_start)
             scale = float(self.bpm) / self.base_bpm if self.base_bpm > 0 else 1.0
             base_offset = raw_trk_offset * scale
+
+            # Input snap window (±75ms): si entra unas décimas tarde en la primera nota, ajustar a t=0.0
+            snap_tolerance = 0.075
+            if len(self.tracks[self.current_track]) == 0 and is_note_on and base_offset <= snap_tolerance:
+                base_offset = 0.0
+
             with self.lock:
                 trk = self.current_track
                 self.tracks[trk].append((base_offset, channel, note, velocity, is_note_on, trk_prog))
@@ -1118,6 +1128,7 @@ class LiveMidiLooper:
         active_sounding_notes = set()
         track_next_idx = [0 for _ in range(8)]
         track_cycle_start = [time.perf_counter() for _ in range(8)]
+        last_played_prog = None
 
         # Inicializar tiempos de ciclo y claqueta de metrónomo sincronizada
         now_init = time.perf_counter()
@@ -1139,29 +1150,32 @@ class LiveMidiLooper:
                 total_beats_loop = max(4, int(round(base_len / beat_dur)))
                 current_loop_beat = metro_beat_idx % total_beats_loop
 
-                # Disparar click si metrónomo está activo
-                if self.metronome_active:
-                    is_downbeat = (current_loop_beat == 0)
-                    click_note = 76 if is_downbeat else 77
-                    click_vel = 85 if is_downbeat else 55
-                    self.fluid.send(f"prog 15 115\ncc 15 7 80\nnoteon 15 {click_note} {click_vel}\n")
-                    def _play_click_off(cn: int):
+                # GESTIÓN DE PRE-ROLL DE OVERDUB: Cuenta atrás de 4 clics agudos (1 compás)
+                if self.overdub_pending and self.state == "PLAYING":
+                    # Disparar clic de cuenta atrás diferenciado (clic de madera agudo y brillante)
+                    countdown_note = 84  # Nota alta y clara de aviso
+                    countdown_vel = 95
+                    self.fluid.send(f"prog 15 115\ncc 15 7 90\nnoteon 15 {countdown_note} {countdown_vel}\n")
+                    def _play_cd_off(cn: int):
                         time.sleep(0.04)
                         self.fluid.send(f"noteoff 15 {cn}\n")
-                    threading.Thread(target=_play_click_off, args=[click_note], daemon=True).start()
+                    threading.Thread(target=_play_cd_off, args=[countdown_note], daemon=True).start()
 
-                # GESTIÓN DE PRE-ROLL DE OVERDUB (Al menos 1 compás entero de claqueta antes de Compás 1):
-                # Si overdub_pending está activo y llegamos al tiempo 4 previo al compás 1 (current_loop_beat == total_beats_loop - 1):
-                if self.overdub_pending and self.state == "PLAYING":
-                    # Si acabamos de entrar y estamos a menos de 4 tiempos de terminar el loop, dejamos pasar esta vuelta
-                    # Comprobamos si el siguiente beat es el tiempo 0 (Compás 1):
-                    if (current_loop_beat == total_beats_loop - 1):
-                        # Chime suave avisando que en el próximo tiempo arranca la grabación
-                        self.fluid.send("prog 15 8\ncc 15 7 60\nnoteon 15 84 60\n")
-                        threading.Timer(0.08, lambda: self.fluid.send("noteoff 15 84\n")).start()
-                    elif (current_loop_beat == 0):
-                        # ¡Llegamos al tiempo 1 del Compás 1! Arrancar overdub
+                    self.overdub_countdown_beats -= 1
+                    if self.overdub_countdown_beats <= 0:
+                        # Al consumir los 4 clics del pre-roll, arrancar overdub sincronizado al pulso 1
                         self._start_actual_overdub()
+                else:
+                    # Metrónomo estándar durante reproducción normal
+                    if self.metronome_active:
+                        is_downbeat = (current_loop_beat == 0)
+                        click_note = 76 if is_downbeat else 77
+                        click_vel = 85 if is_downbeat else 55
+                        self.fluid.send(f"prog 15 115\ncc 15 7 80\nnoteon 15 {click_note} {click_vel}\n")
+                        def _play_click_off(cn: int):
+                            time.sleep(0.04)
+                            self.fluid.send(f"noteoff 15 {cn}\n")
+                        threading.Thread(target=_play_click_off, args=[click_note], daemon=True).start()
 
                 metro_beat_idx += 1
                 metro_next_time += beat_dur
@@ -1181,11 +1195,14 @@ class LiveMidiLooper:
 
                     elapsed_trk = now - track_cycle_start[trk_idx]
 
-                    # Fin de ciclo de esta pista particular: reiniciar puntero y ciclo de esta pista
+                    # Fin de ciclo de esta pista particular: reiniciar puntero y ciclo de esta pista sin deriva
                     if elapsed_trk >= trk_dur:
-                        track_cycle_start[trk_idx] = now
+                        # Anclaje drift-free: sumar duración exacta en lugar de now
+                        track_cycle_start[trk_idx] += trk_dur
+                        if (now - track_cycle_start[trk_idx]) >= trk_dur:
+                            track_cycle_start[trk_idx] = now
                         track_next_idx[trk_idx] = 0
-                        elapsed_trk = 0.0
+                        elapsed_trk = max(0.0, now - track_cycle_start[trk_idx])
 
                     idx = track_next_idx[trk_idx]
                     n_evs = len(self.tracks[trk_idx])
@@ -1196,7 +1213,7 @@ class LiveMidiLooper:
                             t, ch, n, v, is_on = ev[:5]
                             ev_prog = ev[5] if len(ev) > 5 else None
 
-                            # Voice Lock per track
+                            # Voice Lock per track: enviar prog 0 solo si difiere del actual
                             if ch == 0 and not self.revoice_mode and ev_prog is not None:
                                 if ev_prog != last_played_prog:
                                     self.fluid.send(f"prog 0 {ev_prog}")
