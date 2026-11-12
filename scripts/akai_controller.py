@@ -652,13 +652,11 @@ class LiveMidiLooper:
                 self.stop_event.clear()
 
             # Al pulsar [L] + Pad 1, activar preparación de selección de compás mientras se mantenga [L]
+            # SILENCIO TOTAL mientras [L] esté pulsado: no arrancar metrónomo todavía.
             self.selected_loop_bars = self.persistent_fixed_bars
             self.bar_selection_ready = True
 
-            print(f"\n[LOOPER ⏱ ARMED] Metrónomo activo a {self.bpm} BPM. Sin soltar [L], puedes elegir compases (Pads 1..8) o suelta [L] para modo libre...", flush=True)
-            self._play_chime("armed")
-            self.metro_thread = threading.Thread(target=self._run_armed_metronome, daemon=True)
-            self.metro_thread.start()
+            print(f"\n[LOOPER ⏱ ARMED PENDING] Preparando toma a {self.bpm} BPM. Sin soltar [L], puedes elegir o rectificar compases (Pads 1..8). Al soltar [L] comenzará la claqueta...", flush=True)
 
         elif self.state == "ARMED":
             self.bar_selection_ready = False
@@ -721,6 +719,7 @@ class LiveMidiLooper:
 
             total_evs = len(self.tracks[0])
             total_beats = bars * 4
+            self.metronome_active = False  # Silenciar al 100% el metrónomo en reproducción
             print(f"\n[LOOPER ▶ PLAY] Bucle cerrado limpiamente: {bars} compás(es) ({total_beats} pulsos, {self.loop_duration:.2f}s) con {total_evs} notas grabadas.", flush=True)
             self._start_playback_thread()
 
@@ -2117,12 +2116,22 @@ class AdvancedAkaiController:
             self.cancel_reset_default_timer()
             self.cancel_full_level_timer()
 
-            # Si se libera la tecla [L] (D1: 50 o base_c + 2), cerrar la selección de compases:
+            # Si se libera la tecla [L] (D1: 50 o base_c + 2), confirmar selección y arrancar claqueta:
             if note in [50, base_c + 2]:
                 if self.looper.bar_selection_ready:
                     self.looper.bar_selection_ready = False
-                    if self.looper.selected_loop_bars is None and self.looper.persistent_fixed_bars is None:
-                        print("[LOOPER ⏱ COMPASES] [L] liberado sin selección -> Continuando en MODO LIBRE.", flush=True)
+                    # Confirmación definitiva al soltar [L]:
+                    chosen = self.looper.selected_loop_bars or self.looper.persistent_fixed_bars
+                    if chosen is not None:
+                        print(f"\n[LOOPER ⏱ COMPASES CONFIRMADOS] -> {chosen} compás(es). Arrancando claqueta a {self.looper.bpm} BPM...", flush=True)
+                    else:
+                        print(f"\n[LOOPER ⏱ COMPASES CONFIRMADOS] -> MODO LIBRE puro. Arrancando claqueta a {self.looper.bpm} BPM...", flush=True)
+
+                    # Arrancar metrónomo únicamente AHORA tras soltar [L] si está en ARMED
+                    if self.looper.state == "ARMED":
+                        if not self.looper.metro_thread or not self.looper.metro_thread.is_alive():
+                            self.looper.metro_thread = threading.Thread(target=self.looper._run_armed_metronome, daemon=True)
+                            self.looper.metro_thread.start()
 
             if not self.sustain_active:
                 timer = self.active_note_timers.pop(note, None)
